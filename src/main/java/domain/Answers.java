@@ -7,10 +7,10 @@ public class Answers {
   private Questions question;
   private int previousAnswerId;
   private String answer;
-  private User owner;
+  private Users owner;
 
   public Answers(int id, Questions question, int previousAnswerId, String answer,
-                 User owner) {
+                 Users owner) {
     this.id = id;
     this.question = question;
     this.previousAnswerId = previousAnswerId;
@@ -50,11 +50,11 @@ public class Answers {
     this.answer = answer;
   }
 
-  public User getOwner() {
+  public Users getOwner() {
     return owner;
   }
 
-  public void setOwner(User owner) {
+  public void setOwner(Users owner) {
     this.owner = owner;
   }
 }

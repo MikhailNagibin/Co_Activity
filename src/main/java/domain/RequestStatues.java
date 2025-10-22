@@ -2,11 +2,11 @@ package domain;
 
 // todo Не уверен насчет связей таблиц. Проверить это и привязку к бд(не должно ли быть каких-либо аннотаций)
 
-public class Statues {
+public class RequestStatues {
   private int id;
   private String status;
 
-  public Statues(int id, String status) {
+  public RequestStatues(int id, String status) {
     this.id = id;
     this.status = status;
   }

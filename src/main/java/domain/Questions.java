@@ -4,10 +4,10 @@ package domain;
 
 public class Questions {
   private int id;
-  private User owner;
+  private Users owner;
   private String question;
 
-  public Questions(int id, User owner, String question) {
+  public Questions(int id, Users owner, String question) {
     this.id = id;
     this.owner = owner;
     this.question = question;
@@ -21,11 +21,11 @@ public class Questions {
     this.id = id;
   }
 
-  public User getOwner() {
+  public Users getOwner() {
     return owner;
   }
 
-  public void setOwner(User owner) {
+  public void setOwner(Users owner) {
     this.owner = owner;
   }
 

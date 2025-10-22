@@ -2,30 +2,30 @@ package domain;
 
 // todo Не уверен насчет связей таблиц. Проверить это и привязку к бд(не должно ли быть каких-либо аннотаций)
 
-public class PeopleInRoom {
-  private Room room;
-  private User user;
+public class RoomMembers {
+  private Rooms room;
+  private Users user;
   private Roles role;
 
-  public PeopleInRoom(Room room, User user, Roles role) {
+  public RoomMembers(Rooms room, Users user, Roles role) {
     this.room = room;
     this.user = user;
     this.role = role;
   }
 
-  public Room getRoom() {
+  public Rooms getRoom() {
     return room;
   }
 
-  public void setRoom(Room room) {
+  public void setRoom(Rooms room) {
     this.room = room;
   }
 
-  public User getUser() {
+  public Users getUser() {
     return user;
   }
 
-  public void setUser(User user) {
+  public void setUser(Users user) {
     this.user = user;
   }
 

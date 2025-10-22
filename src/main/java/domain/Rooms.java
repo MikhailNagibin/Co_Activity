@@ -4,28 +4,28 @@ import java.util.Date;
 
 // todo Не уверен насчет связей таблиц. Проверить это и привязку к бд(не должно ли быть каких-либо аннотаций)
 
-public class Room {
+public class Rooms {
   private int id;
-  private Visibilities visibility;
-  private String chat;
+  private boolean isVisible;
+  private String chatLink;
   private Categories category;
   private String name;
-  private String about;
+  private String descriprion;
   private Date dateOfStartEvent;
   private Date dateOfEndEvent;
   private int ageRating;
-  private User owner;
+  private Users owner;
   private int frequency;
 
-  public Room(int id, Visibilities visibility, String chat, Categories category,
-              String name, String about, Date dateOfStartEvent,
-              Date dateOfEndEvent, int ageRating, User owner, int frequency) {
+  public Rooms(int id, boolean visibility, String chat, Categories category,
+               String name, String about, Date dateOfStartEvent,
+               Date dateOfEndEvent, int ageRating, Users owner, int frequency) {
     this.id = id;
-    this.visibility = visibility;
-    this.chat = chat;
+    this.isVisible = visibility;
+    this.chatLink = chat;
     this.category = category;
     this.name = name;
-    this.about = about;
+    this.descriprion = about;
     this.dateOfStartEvent = dateOfStartEvent;
     this.dateOfEndEvent = dateOfEndEvent;
     this.ageRating = ageRating;
@@ -41,20 +41,20 @@ public class Room {
     this.id = id;
   }
 
-  public Visibilities getVisibility() {
-    return visibility;
+  public boolean getVisible() {
+    return isVisible;
   }
 
-  public void setVisibility(Visibilities visibility) {
-    this.visibility = visibility;
+  public void setVisible(boolean visible) {
+    this.isVisible = visible;
   }
 
-  public String getChat() {
-    return chat;
+  public String getChatLink() {
+    return chatLink;
   }
 
-  public void setChat(String chat) {
-    this.chat = chat;
+  public void setChatLink(String chatLink) {
+    this.chatLink = chatLink;
   }
 
   public Categories getCategory() {
@@ -73,12 +73,12 @@ public class Room {
     this.name = name;
   }
 
-  public String getAbout() {
-    return about;
+  public String getDescriprion() {
+    return descriprion;
   }
 
-  public void setAbout(String about) {
-    this.about = about;
+  public void setDescriprion(String descriprion) {
+    this.descriprion = descriprion;
   }
 
   public Date getDateOfStartEvent() {
@@ -105,11 +105,11 @@ public class Room {
     this.ageRating = ageRating;
   }
 
-  public User getOwner() {
+  public Users getOwner() {
     return owner;
   }
 
-  public void setOwner(User owner) {
+  public void setOwner(Users owner) {
     this.owner = owner;
   }
 

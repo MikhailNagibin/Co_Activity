@@ -4,11 +4,11 @@ package domain;
 
 public class Categories {
   private int id;
-  private String category;
+  private String name;
 
   public Categories(int id, String category) {
     this.id = id;
-    this.category = category;
+    this.name = category;
   }
 
   public int getId() {
@@ -19,11 +19,11 @@ public class Categories {
     this.id = id;
   }
 
-  public String getCategory() {
-    return category;
+  public String getName() {
+    return name;
   }
 
-  public void setCategory(String category) {
-    this.category = category;
+  public void setName(String name) {
+    this.name = name;
   }
 }
