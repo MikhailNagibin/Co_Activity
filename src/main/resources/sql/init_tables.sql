@@ -3,6 +3,7 @@ CREATE TABLE Users (
   id INT PRIMARY KEY,
   login VARCHAR(100) NOT NULL,
   username VARCHAR(20) UNIQUE NOT NULL,
+  password VARCHAR(100) NOT NULL,
   birthday DATE,
   country VARCHAR(100),
   city VARCHAR(100),
