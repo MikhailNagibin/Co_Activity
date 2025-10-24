@@ -8,17 +8,19 @@ public class Users {
   private int id;
   private String login;
   private String username;
+  private String password;
   private Date dataOfBirth;
   private String city;
   private String country;
   private String description;
   private int avatar_id;
 
-  public Users(int id, String login, String username, Date dataOfBirth, String city,
+  public Users(int id, String login, String username, String password, Date dataOfBirth, String city,
                String country, String about, int avatar_id) {
     this.id = id;
     this.login = login;
     this.username = username;
+    this.password = password;
     this.dataOfBirth = dataOfBirth;
     this.city = city;
     this.country = country;
@@ -40,6 +42,14 @@ public class Users {
 
   public void setLogin(String login) {
     this.login = login;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
   }
 
   public String getDescription() {

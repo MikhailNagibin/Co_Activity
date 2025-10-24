@@ -1,7 +1,6 @@
 package domain;
 
-import java.util.Date;
-
+import java.sql.Timestamp;
 // todo Не уверен насчет связей таблиц. Проверить это и привязку к бд(не должно ли быть каких-либо аннотаций)
 
 public class Rooms {
@@ -11,15 +10,18 @@ public class Rooms {
   private Categories category;
   private String name;
   private String descriprion;
-  private Date dateOfStartEvent;
-  private Date dateOfEndEvent;
+  private Timestamp dateOfStartEvent;
+  private Timestamp dateOfEndEvent;
   private int ageRating;
   private Users owner;
   private int frequency;
+  private int maximumNumberOfPeople;
+  private int currentNumberOfPeople;
 
   public Rooms(int id, boolean visibility, String chat, Categories category,
-               String name, String about, Date dateOfStartEvent,
-               Date dateOfEndEvent, int ageRating, Users owner, int frequency) {
+               String name, String about, Timestamp dateOfStartEvent,
+               Timestamp dateOfEndEvent, int ageRating, Users owner, int frequency,
+               int maximumNumberOfPeople, int currentNumberOfPeople) {
     this.id = id;
     this.isVisible = visibility;
     this.chatLink = chat;
@@ -31,6 +33,28 @@ public class Rooms {
     this.ageRating = ageRating;
     this.owner = owner;
     this.frequency = frequency;
+    this.maximumNumberOfPeople = maximumNumberOfPeople;
+    this.currentNumberOfPeople = currentNumberOfPeople;
+  }
+
+  public boolean isVisible() {
+    return isVisible;
+  }
+
+  public int getMaximumNumberOfPeople() {
+    return maximumNumberOfPeople;
+  }
+
+  public void setMaximumNumberOfPeople(int maximumNumberOfPeople) {
+    this.maximumNumberOfPeople = maximumNumberOfPeople;
+  }
+
+  public int getCurrentNumberOfPeople() {
+    return currentNumberOfPeople;
+  }
+
+  public void setCurrentNumberOfPeople(int currentNumberOfPeople) {
+    this.currentNumberOfPeople = currentNumberOfPeople;
   }
 
   public int getId() {
@@ -81,19 +105,19 @@ public class Rooms {
     this.descriprion = descriprion;
   }
 
-  public Date getDateOfStartEvent() {
+  public Timestamp getDateOfStartEvent() {
     return dateOfStartEvent;
   }
 
-  public void setDateOfStartEvent(Date dateOfStartEvent) {
+  public void setDateOfStartEvent(Timestamp dateOfStartEvent) {
     this.dateOfStartEvent = dateOfStartEvent;
   }
 
-  public Date getDateOfEndEvent() {
+  public Timestamp getDateOfEndEvent() {
     return dateOfEndEvent;
   }
 
-  public void setDateOfEndEvent(Date dateOfEndEvent) {
+  public void setDateOfEndEvent(Timestamp dateOfEndEvent) {
     this.dateOfEndEvent = dateOfEndEvent;
   }
 
