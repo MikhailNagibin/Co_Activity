@@ -1,14 +1,12 @@
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 
 public class TestConnection {
-
   public static void main(String[] args) {
     try {
       DataRepository repository = new DataRepository();
       testConnection(repository);
     } catch (Exception e) {
-      System.err.println("test failed: " + e.getMessage());
+      System.err.println(e.getMessage());
       e.printStackTrace();
     }
   }
@@ -18,8 +16,8 @@ public class TestConnection {
       var statement = connection.createStatement();
       statement.execute("drop table if exists Users");
     } catch (Exception e) {
-      System.err.println("Connection failed: " + e.getMessage());
-      throw new RuntimeException("Database connection test failed", e);
+      System.err.println(e.getMessage());
+      throw new RuntimeException("test failed", e);
     }
   }
 }

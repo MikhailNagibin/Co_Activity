@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 
 public class Rooms {
   private int id;
+  private boolean isActive;
   private boolean isVisible;
   private String chatLink;
   private Categories category;
@@ -18,11 +19,12 @@ public class Rooms {
   private int maximumNumberOfPeople;
   private int currentNumberOfPeople;
 
-  public Rooms(int id, boolean visibility, String chat, Categories category,
+  public Rooms(int id, boolean isActive, boolean visibility, String chat, Categories category,
                String name, String about, Timestamp dateOfStartEvent,
                Timestamp dateOfEndEvent, int ageRating, Users owner, int frequency,
                int maximumNumberOfPeople, int currentNumberOfPeople) {
     this.id = id;
+    this.isActive = isActive;
     this.isVisible = visibility;
     this.chatLink = chat;
     this.category = category;
@@ -55,6 +57,14 @@ public class Rooms {
 
   public void setCurrentNumberOfPeople(int currentNumberOfPeople) {
     this.currentNumberOfPeople = currentNumberOfPeople;
+  }
+
+  public boolean isActive() {
+    return isActive;
+  }
+
+  public void setActive(boolean active) {
+    isActive = active;
   }
 
   public int getId() {

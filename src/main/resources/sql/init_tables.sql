@@ -18,6 +18,7 @@ CREATE TABLE Categories (
 
 CREATE TABLE Rooms (
   id SERIAl PRIMARY KEY,
+  is_active BOOLEAN NOT NULL
   is_visible BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT,
