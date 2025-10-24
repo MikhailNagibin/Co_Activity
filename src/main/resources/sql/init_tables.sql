@@ -11,6 +11,11 @@ CREATE TABLE Users (
   avatar_id INT
 );
 
+CREATE TABLE Categories (
+    id SERIAl PRIMARY KEY,
+    name VARCHAR(20) NOT NULL
+);
+
 CREATE TABLE Rooms (
   id SERIAl PRIMARY KEY,
   is_visible BOOLEAN NOT NULL,
@@ -23,13 +28,12 @@ CREATE TABLE Rooms (
   age_rating INT,
   owner_id INT,
   frequency INT,
+  maximum_number_of_people int,
+  current_number_of_people int,
   FOREIGN KEY (owner_id) REFERENCES Users(id)
+  FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
 
-CREATE TABLE Categories (
-    id SERIAl PRIMARY KEY,
-    name VARCHAR(20) NOT NULL
-);
 
 CREATE TABLE Pictures (
     picture_id INT PRIMARY KEY,
@@ -80,6 +84,8 @@ CREATE TABLE Questions(
     id SERIAl PRIMARY KEY,
     owner INT NOT NULL UNIQUE,
     question TEXT NOT NULL,
+    category_id int
+    FOREIGN KEY (category_id) REFERENCES Categories(id)
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
@@ -93,11 +99,9 @@ CREATE TABLE Answers(
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
-
-
-
-
-
-
-
-
+create table Subscriptions (
+    user_id int,
+    owner_id int
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+    FOREIGN KEY (owner_id) REFERENCES Users(id)
+)
