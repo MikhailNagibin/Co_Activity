@@ -26,7 +26,7 @@ public class DataRepository {
       ds.setPassword(jsonNode.get("password").asText());
 
     } catch (Exception e) {
-      throw new RuntimeException("Failed to load database configuration", e);
+      throw new RuntimeException(e);
     }
 
     this.dataSource = ds;

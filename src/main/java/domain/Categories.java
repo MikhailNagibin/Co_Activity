@@ -1,29 +1,12 @@
 package domain;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
-// todo Не уверен насчет связей таблиц. Проверить это и привязку к бд(не должно ли быть каких-либо аннотаций)
-
+@Getter
+@Setter
+@AllArgsConstructor
 public class Categories {
   private int id;
   private String name;
-
-  public Categories(int id, String category) {
-    this.id = id;
-    this.name = category;
-  }
-
-  public int getId() {
-    return id;
-  }
-
-  public void setId(int id) {
-    this.id = id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
 }

@@ -14,10 +14,12 @@ public class TestConnection {
   private static void testConnection(DataRepository repository) {
     try (Connection connection = repository.getDataSource().getConnection()) {
       var statement = connection.createStatement();
-      statement.execute("drop table if exists Users");
+//      statement.execute("create table Users (id int, username varchar(50));");
+//      statement.execute("Insert into users values(1, 'asdf');");
+      statement.execute("drop table Users");
     } catch (Exception e) {
       System.err.println(e.getMessage());
-      throw new RuntimeException("test failed", e);
+      throw new RuntimeException("failed", e);
     }
   }
 }
