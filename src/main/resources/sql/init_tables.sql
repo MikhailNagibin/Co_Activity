@@ -27,11 +27,11 @@ CREATE TABLE Rooms (
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   age_rating INT,
-  owner_id INT,
+--  owner_id INT,
   frequency INT,
   maximum_number_of_people int,
   current_number_of_people int,
-  FOREIGN KEY (owner_id) REFERENCES Users(id)
+--  FOREIGN KEY (owner_id) REFERENCES Users(id)
   FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
 
@@ -45,7 +45,7 @@ CREATE TABLE Pictures (
 CREATE TABLE Roles (
     id SERIAl NOT NULL,
     role VARCHAR(50),
-    FOREIGN KEY (user_id) REFERENCES Users(id)
+--    FOREIGN KEY (user_id) REFERENCES Users(id)
 );
 
 CREATE TABLE Rooms_members (
@@ -106,3 +106,28 @@ create table Subscriptions (
     FOREIGN KEY (user_id) REFERENCES Users(id)
     FOREIGN KEY (owner_id) REFERENCES Users(id)
 )
+
+
+Insert into Roles(role) values
+(Admin),
+(Participant),
+(Owner);
+
+Insert into Categories(name) values
+(Sport),
+(Music),
+(Art),
+(Entertainments),
+(Business),
+(Education),
+(ActiveRecreation),
+(PassiveRecreation),
+(isAMassEvent),
+(Other),
+(NotSpecified);
+
+
+Insert into Statuses(status_info) values
+(Consideration),
+(Accepted),
+(Refused);
