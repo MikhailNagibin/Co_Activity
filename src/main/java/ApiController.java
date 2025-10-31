@@ -1,12 +1,14 @@
 import domain.Rooms;
 import domain.Users;
 
+import javax.lang.model.element.NestingKind;
 import java.util.AbstractMap;
 import java.util.List;
 
 interface ApiController {
   /*
   идентификация пользователя
+
   @param email - почта пользователя
   @return есть ли пользователь с такой почтой
    */
@@ -14,6 +16,7 @@ interface ApiController {
 
   /*
   аунтефикация пользователя
+
   @param password - пароль пользователя
   @return совпадает ли хеш пароля с хешом пароля индетифицированного пользователя
    */
@@ -31,6 +34,12 @@ interface ApiController {
   @param data мапа с ключами - колонки в бд, значения - данные о пользователе
    */
   void createUser(AbstractMap.SimpleEntry<String, String> data);
+  /*
+  Возвращает все комнаты
+
+  @return rooms
+   */
+  List<Rooms> getAllRooms();
 
   /*
   возвращает комнату по id пользователя-участника
@@ -81,4 +90,30 @@ interface ApiController {
    */
   List<Rooms> getRoomsByUsersRequests(int userId);
 
+  /*
+    Возвращает список забаненых комнат для конкретного пользователя
+
+    @param userID индентификатор пользователя
+    @return rooms список комнат
+   */
+  List<Rooms> getBanRoomByUserId(int userId);
+
+  /*
+  возвращает все картинки для конкретной комнаты
+
+  @param roomId идентификатор комнаты
+  @return pictures список названий картинок
+   */
+  List<String> getPicturesForRoom(int roomId);
+
+  /*
+  Возвращает все вопросы
+
+  @return questions
+   */
+  List<String> getAllQuestion();
+
+  /*
+
+   */
 }
