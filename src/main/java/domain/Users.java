@@ -20,4 +20,6 @@ public class Users {
   private String description;
   private int avatarId;
   private List<Rooms> rooms;
+  private List<Bans> bans;
+  B
 }

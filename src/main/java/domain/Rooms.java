@@ -1,10 +1,11 @@
 package domain;
 
 import java.sql.Timestamp;
-import java.util.List;
+import java.util.AbstractMap.SimpleEntry;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+
 
 @Getter
 @Setter
@@ -16,12 +17,11 @@ public class Rooms {
   private String chatLink;
   private Categories category;
   private String name;
-  private String descriprion;
+  private String description; // исправлена опечатка
   private Timestamp dateOfStartEvent;
   private Timestamp dateOfEndEvent;
   private int ageRating;
-  private Users owner;
   private int frequency;
   private int maximumNumberOfPeople;
-  private List<Users> users;
+  private SimpleEntry<Users, Roles> users;
 }

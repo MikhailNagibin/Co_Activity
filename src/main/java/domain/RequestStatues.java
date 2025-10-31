@@ -6,7 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class RequestStatues {
-  private int id;
-  private String status;
+public enum RequestStatues {
+  Consideration,
+  Accepted,
+  Refused
 }

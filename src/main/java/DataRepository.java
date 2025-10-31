@@ -18,7 +18,6 @@ public class DataRepository {
     try {
       InputStream inputStream = new ClassPathResource("config.json").getInputStream();
       JsonNode jsonNode = new ObjectMapper().readTree(inputStream);
-
       ds.setServerName(jsonNode.get("host").asText());
       ds.setPortNumber(jsonNode.get("port").asInt());
       ds.setDatabaseName(jsonNode.get("database").asText());
