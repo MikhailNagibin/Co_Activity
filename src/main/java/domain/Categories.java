@@ -1,12 +1,16 @@
 package domain;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
 
-@Getter
-@Setter
-@AllArgsConstructor
-public class Categories {
-  private int id;
-  private String name;
+
+public enum Categories {
+  Sport,
+  Music,
+  Art,
+  Entertainments,
+  Business,
+  Education,
+  ActiveRecreation,
+  PassiveRecreation,
+  isAMassEvent,
+  Other,
+  NotSpecified
 }
