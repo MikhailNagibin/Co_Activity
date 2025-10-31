@@ -1,4 +1,8 @@
+import domain.Rooms;
 import domain.Users;
+
+import java.util.AbstractMap;
+import java.util.List;
 
 interface ApiController {
   /*
@@ -21,6 +25,60 @@ interface ApiController {
   @return пользователь, который прошел авторизацию и аунтефикацию
    */
   Users authorization();
+  /*
+  создает пользователя по данным, собраным с формы регистрации (из UI)
 
+  @param data мапа с ключами - колонки в бд, значения - данные о пользователе
+   */
+  void createUser(AbstractMap.SimpleEntry<String, String> data);
+
+  /*
+  возвращает комнату по id пользователя-участника
+
+  @param userId идентификатор пользователя
+  @return allRooms возвращает список всех комнат,
+  где указанный пользователь является участником
+   */
+  List<Rooms> getAllRoomsByParticipant(int UserId);
+
+  /*
+  возвращает комнату по id владельца
+
+  @param userId идентификатор пользователя
+  @return allRooms список комнат
+   */
+  List<Rooms> getAllRoomsByOwner(int userId);
+
+  /*
+  создает комнату по данным из формы создания комнаты (из UI)
+
+  @param data мапа с данными из формы
+   */
+  void createRoom(AbstractMap.SimpleEntry<String, String> data);
+
+
+  /*
+  Возвращает все запросы в конкретную комнату
+
+  @param roomId id комнаты
+  @return users список пользователей, которые хотять вступить в комнату
+   */
+  List<Users> getUsersRequestByRoomId(int roomId);
+
+  /*
+  Возвращает всех пользователей, которые находяться в комнате
+
+  @param RoomId идентификатор комнаты
+  @return users список пользователей, находящихся в комнате
+   */
+  List<Users> getUsersInRoom(int RoomId);
+
+  /*
+  Возвращает список список комнат, в которые пользователь подал заявку
+
+  @param userId идентификатор пользователя
+  @return rooms список комнат
+   */
+  List<Rooms> getRoomsByUsersRequests(int userId);
 
 }
