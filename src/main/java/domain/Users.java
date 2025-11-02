@@ -21,4 +21,5 @@ public class Users {
   private int avatarId;
   private List<Rooms> rooms;
   private List<Bans> bans;
+  private List<Notifications> notifications;
 }

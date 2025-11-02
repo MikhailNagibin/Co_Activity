@@ -105,8 +105,22 @@ create table Subscriptions (
     owner_id int
     FOREIGN KEY (user_id) REFERENCES Users(id)
     FOREIGN KEY (owner_id) REFERENCES Users(id)
-)
+);
 
+create table Notifications (
+    id serial PRIMARY KEY,
+    notification varchar(50),
+);
+
+create table BulletinBoard (
+    id SERIAL PRIMARY KEY,
+    room_id int
+    content TEXT,
+    author_id int,
+    Date updatedAt,
+    FOREIGN KEY (room_id) REFERENCES Rooms(id),
+    FOREIGN KEY (author_id) REFERENCES Users(id)
+);
 
 Insert into Roles(role) values
 (Admin),
@@ -131,3 +145,9 @@ Insert into Statuses(status_info) values
 (Consideration),
 (Accepted),
 (Refused);
+
+Insert into Notifications(notification) values
+(membershipAccepted),
+(membershipRejected),
+(activityClosed),
+(newJoinRequest);
