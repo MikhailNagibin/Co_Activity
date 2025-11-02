@@ -2,7 +2,6 @@ package domain;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
