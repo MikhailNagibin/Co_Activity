@@ -1,7 +1,6 @@
-import domain.Rooms;
-import domain.Users;
+import domain.Room;
+import domain.User;
 
-import javax.lang.model.element.NestingKind;
 import java.util.AbstractMap;
 import java.util.List;
 
@@ -27,7 +26,7 @@ interface ApiController {
 
   @return пользователь, который прошел авторизацию и аунтефикацию
    */
-  Users authorization();
+  User authorization();
   /*
   создает пользователя по данным, собраным с формы регистрации (из UI)
 
@@ -39,7 +38,7 @@ interface ApiController {
 
   @return rooms
    */
-  List<Rooms> getAllRooms();
+  List<Room> getAllRooms();
 
   /*
   возвращает комнату по id пользователя-участника
@@ -48,7 +47,7 @@ interface ApiController {
   @return allRooms возвращает список всех комнат,
   где указанный пользователь является участником
    */
-  List<Rooms> getAllRoomsByParticipant(int UserId);
+  List<Room> getAllRoomsByParticipant(int UserId);
 
   /*
   возвращает комнату по id владельца
@@ -56,7 +55,7 @@ interface ApiController {
   @param userId идентификатор пользователя
   @return allRooms список комнат
    */
-  List<Rooms> getAllRoomsByOwner(int userId);
+  List<Room> getAllRoomsByOwner(int userId);
 
   /*
   создает комнату по данным из формы создания комнаты (из UI)
@@ -72,7 +71,7 @@ interface ApiController {
   @param roomId id комнаты
   @return users список пользователей, которые хотять вступить в комнату
    */
-  List<Users> getUsersRequestByRoomId(int roomId);
+  List<User> getUsersRequestByRoomId(int roomId);
 
   /*
   Возвращает всех пользователей, которые находяться в комнате
@@ -80,7 +79,7 @@ interface ApiController {
   @param RoomId идентификатор комнаты
   @return users список пользователей, находящихся в комнате
    */
-  List<Users> getUsersInRoom(int RoomId);
+  List<User> getUsersInRoom(int RoomId);
 
   /*
   Возвращает список список комнат, в которые пользователь подал заявку
@@ -88,7 +87,7 @@ interface ApiController {
   @param userId идентификатор пользователя
   @return rooms список комнат
    */
-  List<Rooms> getRoomsByUsersRequests(int userId);
+  List<Room> getRoomsByUsersRequests(int userId);
 
   /*
     Возвращает список забаненых комнат для конкретного пользователя
@@ -96,7 +95,7 @@ interface ApiController {
     @param userID индентификатор пользователя
     @return rooms список комнат
    */
-  List<Rooms> getBanRoomByUserId(int userId);
+  List<Room> getBanRoomByUserId(int userId);
 
   /*
   возвращает все картинки для конкретной комнаты

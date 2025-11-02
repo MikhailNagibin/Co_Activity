@@ -10,12 +10,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Rooms {
+public class Room {
   private int id;
   private boolean isActive;
   private boolean isVisible;
   private String chatLink;
-  private Categories category;
+  private Category category;
   private String name;
   private String description; // исправлена опечатка
   private Timestamp dateOfStartEvent;
@@ -23,5 +23,5 @@ public class Rooms {
   private int ageRating;
   private int frequency;
   private int maximumNumberOfPeople;
-  private SimpleEntry<Users, Roles> users;
+  private SimpleEntry<User, Role> users;
 }

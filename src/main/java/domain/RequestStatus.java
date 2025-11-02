@@ -1,6 +1,6 @@
 package domain;
 
-public enum RequestStatues {
+public enum RequestStatus {
   Consideration,
   Accepted,
   Refused

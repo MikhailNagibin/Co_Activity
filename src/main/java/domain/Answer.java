@@ -6,10 +6,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Answers {
+public class Answer {
   private int id;
-  private Questions question;
-  private Answers previousAnswer;
+  private Question question;
+  private Answer previousAnswer;
   private String answer;
-  private Users owner;
+  private User owner;
 }

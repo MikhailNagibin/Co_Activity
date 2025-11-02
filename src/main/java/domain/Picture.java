@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Pictures {
-  private Rooms roomId;
+public class Picture {
+  private Room roomId;
   private int photoId;
 }

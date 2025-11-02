@@ -1,7 +1,7 @@
 package domain;
 
 
-public enum Roles {
+public enum Role {
   Admin,
   Participant,
   Owner

@@ -1,6 +1,6 @@
 package domain;
 
-public enum Notifications {
+public enum Notification {
   membershipAccepted,
   membershipRejected,
   activityClosed,

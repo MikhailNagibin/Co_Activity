@@ -6,8 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class RoomsRequests {
-  private Users user;
-  private Rooms room;
-  private RequestStatues status;
+public class RoomsRequest {
+  private User user;
+  private Room room;
+  private RequestStatus status;
 }

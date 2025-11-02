@@ -1,7 +1,7 @@
 package domain;
 
 
-public enum Categories {
+public enum Category {
   Sport,
   Music,
   Art,

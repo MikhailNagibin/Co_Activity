@@ -6,8 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Questions {
+public class Question {
   private int id;
-  private Users owner;
+  private User owner;
   private String question;
 }

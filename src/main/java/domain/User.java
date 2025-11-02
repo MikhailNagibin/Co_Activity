@@ -9,7 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Users {
+public class User {
   private int id;
   private String login;
   private String username;
@@ -19,7 +19,7 @@ public class Users {
   private String country;
   private String description;
   private int avatarId;
-  private List<Rooms> rooms;
-  private List<Bans> bans;
-  private List<Notifications> notifications;
+  private List<Room> rooms;
+  private List<Ban> bans;
+  private List<Notification> notifications;
 }

@@ -10,9 +10,9 @@ import lombok.Setter;
 @AllArgsConstructor
 public class BulletinBoard {
   private int id;
-  private Rooms room;
+  private Room room;
   private String content;
-  private Users author;
+  private User author;
   private Instant updatedAt;
 }
 
