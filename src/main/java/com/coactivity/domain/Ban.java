@@ -1,4 +1,4 @@
-package domain;
+package com.coactivity.domain;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -10,6 +10,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class Ban {
+
   private User user;
   private Room room;
   private Duration durationOfBan; //в секундах

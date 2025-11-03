@@ -1,4 +1,4 @@
-package domain;
+package com.coactivity.domain;
 
 import java.sql.Timestamp;
 import java.util.AbstractMap.SimpleEntry;
@@ -11,13 +11,14 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class Room {
+
   private int id;
   private boolean isActive;
   private boolean isVisible;
   private String chatLink;
   private Category category;
   private String name;
-  private String description; // исправлена опечатка
+  private String description;
   private Timestamp dateOfStartEvent;
   private Timestamp dateOfEndEvent;
   private int ageRating;

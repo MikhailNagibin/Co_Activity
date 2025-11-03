@@ -1,4 +1,4 @@
-package domain;
+package com.coactivity.domain;
 
 import java.time.Instant;
 import java.util.List;
@@ -10,6 +10,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class User {
+
   private int id;
   private String login;
   private String username;

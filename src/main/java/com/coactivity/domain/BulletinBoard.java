@@ -1,4 +1,4 @@
-package domain;
+package com.coactivity.domain;
 
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -9,6 +9,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class BulletinBoard {
+
   private int id;
   private Room room;
   private String content;
