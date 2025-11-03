@@ -1,5 +1,7 @@
-package com.coactivity.domain;
+package com.coactivity.domain.entities;
 
+import com.coactivity.domain.enums.Category;
+import com.coactivity.domain.enums.Role;
 import java.sql.Timestamp;
 import java.util.AbstractMap.SimpleEntry;
 import lombok.AllArgsConstructor;

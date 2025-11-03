@@ -1,4 +1,4 @@
-package com.coactivity.domain;
+package com.coactivity.domain.entities;
 
 import java.time.Instant;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.coactivity.domain;
+package com.coactivity.domain.enums;
 
 
 public enum Category {
