@@ -1,11 +1,14 @@
-import javax.sql.DataSource;
-import org.postgresql.ds.PGSimpleDataSource;
+package com.coactivity;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.core.io.ClassPathResource;
 import java.io.InputStream;
+import javax.sql.DataSource;
+import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.core.io.ClassPathResource;
 
 public class DataRepository {
+
   private DataSource dataSource;
 
   public DataRepository() {

@@ -1,4 +1,5 @@
-package domain;
+package com.coactivity.domain;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -6,8 +7,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Question {
+public class Answer {
+
   private int id;
+  private Question question;
+  private Answer previousAnswer;
+  private String answer;
   private User owner;
-  private String question;
 }

@@ -1,4 +1,4 @@
-package domain;
+package com.coactivity.domain;
 
 
 public enum Role {

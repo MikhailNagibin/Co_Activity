@@ -3,7 +3,7 @@ import domain.User;
 
 import java.util.AbstractMap;
 import java.util.List;
-
+// todo дописать все необходимые методы
 interface ApiController {
   /*
   идентификация пользователя
