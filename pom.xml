@@ -16,7 +16,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.2</version>  <!-- Spring Boot 3.2.2 поддерживает Java 21 -->
+        <version>3.2.2</version>
         <relativePath/>
     </parent>
 
@@ -26,9 +26,17 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <postgresql.version>42.5.2</postgresql.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -39,11 +47,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- PostgreSQL dependency -->
+        <!-- PostgreSQL dependency с явной версией -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <version>${postgresql.version}</version>
         </dependency>
 
         <dependency>
@@ -52,11 +60,13 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Validation (optional but recommended) -->
+        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+
+        <!-- HikariCP (уже включен в spring-boot-starter-data-jpa) -->
     </dependencies>
 
     <build>
