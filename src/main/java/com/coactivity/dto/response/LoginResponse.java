@@ -1,5 +1,6 @@
 package com.coactivity.dto.response;
 
+import com.coactivity.domain.entities.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
