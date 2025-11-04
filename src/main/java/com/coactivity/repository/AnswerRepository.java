@@ -27,6 +27,9 @@ public interface AnswerRepository {
   List<Answer> getAnswers(Question question);
 
   /*
+   удалить ответ на вопрос
 
+   @param Answer answer
    */
+  void deleteAnswer(Answer answer);
 }
