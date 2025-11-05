@@ -10,8 +10,8 @@ import lombok.Setter;
 public class Answer {
 
   private int id;
-  private Question question;
-  private Answer previousAnswer;
+  private int questionId;
+  private int previousAnswerId;
   private String answer;
-  private User owner;
+  private int ownerId;
 }
