@@ -18,7 +18,7 @@ public interface UserRepository {
   @param features - мапа с ключами - полями в бд, значения - значение соответствующего поля
    */
 
-  void updateUser(int id, String login, String password, String birthday, String country, String city, String description, int avatar_id);
+  void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
 
   /*
   удаление пользователя
