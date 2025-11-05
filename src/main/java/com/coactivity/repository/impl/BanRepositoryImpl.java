@@ -3,7 +3,6 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Ban;
 import com.coactivity.repository.BanRepository;
-import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.time.Duration;
@@ -11,7 +10,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@Repository
 public class BanRepositoryImpl implements BanRepository {
 
   private final DataRepository dataRepository;

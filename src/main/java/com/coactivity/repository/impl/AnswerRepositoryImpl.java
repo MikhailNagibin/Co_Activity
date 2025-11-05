@@ -3,13 +3,12 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Answer;
 import com.coactivity.repository.AnswerRepository;
-import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-@Repository
+
 public class AnswerRepositoryImpl implements AnswerRepository {
 
   private final DataRepository dataRepository;

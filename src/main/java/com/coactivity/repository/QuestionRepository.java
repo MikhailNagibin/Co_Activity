@@ -9,11 +9,12 @@ public interface QuestionRepository {
   /*
   создание вопроса
 
-  @param User user - автор вопроса
+  @param int userId - автор вопроса
   @param String question - текст вопроса
+  @param int categoryId
   @return Question question
    */
-  Question createQuestion(User user, String question);
+  Question createQuestion(int userId, String question, int categoryId);
 
   /*
   получение всех вопросов
@@ -23,12 +24,22 @@ public interface QuestionRepository {
   List<Question> getAllQuestions();
 
   /*
+  получение вопроса по его id
+
+  @param int questionId
+  @return Question
+   */
+  Question getQuestionById(int questionId);
+
+  /*
   изменить текст вопроса
 
+  @param int questionId
   @param String question
-  @return Question question
+  @param int categoryId
+  @return Question
    */
-  Question updateQuestion(String question);
+  Question updateQuestion(int questionId, String question, int categoryId);
 
   /*
   удаление вопроса

@@ -3,12 +3,10 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.BulletinBoard;
 import com.coactivity.repository.BulletinBoardRepository;
-import org.springframework.stereotype.Repository;
 import java.sql.*;
 import java.time.Instant;
 
 
-@Repository
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   private final DataRepository dataRepository;

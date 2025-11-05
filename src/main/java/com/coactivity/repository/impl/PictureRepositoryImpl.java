@@ -3,13 +3,10 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Picture;
 import com.coactivity.repository.PictureRepository;
-import org.springframework.stereotype.Repository;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-@Repository
 public class PictureRepositoryImpl implements PictureRepository {
 
   private final DataRepository dataRepository;
