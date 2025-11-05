@@ -9,28 +9,18 @@ public interface PictureRepository {
   /*
   создание картинки
 
-  @param Room room
-  @param int photoId - номер картинки в системе
+  @param int roomId
   @return Picture
    */
-  Picture createPicture(Room room, int photoId);
+  Picture createPicture(int roomId);
 
   /*
   получение всех картинок по комнате
 
-  @param Room room
+  @param int roomId
   @return List<Picture>
    */
-  List<Picture> getRoomPictures(Room room);
-
-  /*
-  изменить фотографию
-
-  @param int oldPhotoId
-  @param int newPhotoId
-  @return Picture
-   */
-  Picture updatePicture(int oldPhotoId, int newPhotoId);
+  List<Picture> getRoomPictures(int roomId);
 
   /*
   удалить фотографию

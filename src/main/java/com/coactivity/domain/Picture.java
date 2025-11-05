@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class Picture {
-
   private Room roomId;
   private int photoId;
 }

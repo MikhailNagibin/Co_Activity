@@ -37,7 +37,7 @@ CREATE TABLE Rooms (
 
 
 CREATE TABLE Pictures (
-    picture_id INT PRIMARY KEY,
+    picture_id SERIAl PRIMARY KEY,
     room_id INT NOT NULL,
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
