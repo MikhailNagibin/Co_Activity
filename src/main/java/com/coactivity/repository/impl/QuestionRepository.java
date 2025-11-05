@@ -104,6 +104,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
   @Override
   public void deleteQuestion(int questionId) {
+    deleteAllWithQuestion(questionId);
     String sql = "DELETE FROM questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -120,7 +121,21 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       throw new RuntimeException();
     }
   }
+  private void deleteAllWithQuestion(int questionId) {
+    String sql = "DELETE FROM Answers WHERE question_id = ?";
 
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, questionId);
+      int affectedRows = statement.executeUpdate();
+
+      if (affectedRows == 0) {
+        throw new RuntimeException();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException():
+    }
+  }
   private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {
     int id = resultSet.getInt("id");
     int ownerId = resultSet.getInt("owner");
