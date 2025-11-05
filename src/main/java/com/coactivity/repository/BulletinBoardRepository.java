@@ -10,36 +10,37 @@ public interface BulletinBoardRepository {
   /*
   создание доски объявлений
 
-  @param room к какой комнате прикрепили доску
-  @param content текст доски
-  @param author кто внес последние изменения
-  @param updatedAt когда внесли посление изменения
-  @return BulletinBoard
+  @param roomId идентификатор комнаты, к которой прикрепляется доска
+  @param content текст объявления
+  @param authorId идентификатор пользователя, создавшего доску
+  @param updatedAt время создания доски
+  @return BulletinBoard созданная доска объявлений
    */
-  BulletinBoard createBulletinBoard(Room room, String content, User Author, Instant updatedAt);
+  BulletinBoard createBulletinBoard(int roomId, String content, int authorId, Instant updatedAt);
 
   /*
   изменение данных на доске объявлений
-  @param room к какой комнате прикрепили доску
-  @param content текст доски
-  @param author кто внес последние изменения
-  @param updatedAt когда внесли посление изменения
-  @return BulletinBoard
+
+  @param roomId идентификатор комнаты, к которой прикреплена доска
+  @param content новый текст объявления
+  @param authorId идентификатор пользователя, внесшего изменения
+  @param updatedAt время последнего обновления
+  @return BulletinBoard обновленная доска объявлений
    */
-  BulletinBoard updateBulletinBoard(Room room, String content, User Author, Instant updatedAt);
+  BulletinBoard updateBulletinBoard(int roomId, String content, int authorId, Instant updatedAt);
 
   /*
   получение доски объявлений для конкретной комнаты
 
-  @param room
-  @return BulletinBoard
+  @param roomId идентификатор комнаты
+  @return BulletinBoard доска объявлений комнаты или null, если не найдена
    */
-  BulletinBoard getBulletinBoard(Room room);
+  BulletinBoard getBulletinBoard(int roomId);
 
   /*
   удаление доски объявлений у комнаты
 
-  @param room
+  @param roomId идентификатор комнаты
    */
-  void deleteBulletinBoard(Room room);
+  void deleteBulletinBoard(int roomId);
 }

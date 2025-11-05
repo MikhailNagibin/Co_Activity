@@ -11,9 +11,9 @@ import lombok.Setter;
 public class BulletinBoard {
 
   private int id;
-  private Room room;
+  private int roomId;
   private String content;
-  private User author;
+  private int authorId;
   private Instant updatedAt;
 }
 
