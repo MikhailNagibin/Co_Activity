@@ -1,9 +1,6 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.Ban;
-import com.coactivity.domain.Room;
-import com.coactivity.domain.User;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
