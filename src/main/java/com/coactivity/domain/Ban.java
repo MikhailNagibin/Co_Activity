@@ -10,9 +10,8 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class Ban {
-
-  private User user;
-  private Room room;
+  private int userId;
+  private int roomId;
   private Duration durationOfBan; //в секундах
   private Instant dateOfBan;
 }

@@ -14,7 +14,6 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
   private final DataRepository dataRepository;
 
-  // Внедряем зависимость через конструктор
   public AnswerRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
   }

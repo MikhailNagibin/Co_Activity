@@ -2,7 +2,6 @@ package com.coactivity.repository;
 
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Room;
-import jakarta.persistence.criteria.CriteriaBuilder;
 
 import java.time.Instant;
 

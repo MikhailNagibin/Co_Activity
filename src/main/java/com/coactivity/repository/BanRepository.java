@@ -12,27 +12,27 @@ public interface BanRepository {
   /*
   создание банна для пользователя в комнату
 
-  @param User user
-  @param Room room
+  @param int userId
+  @param int roomId
   @param Duration durationOfBan
   @param Instant dateOfBan
   @return Ban
    */
-  Ban createBan(User user, Room room, Duration durationOfBan, Instant dateOfBan);
+  Ban createBan(int userId, int roomId, Duration durationOfBan, Instant dateOfBan);
 
   /*
   просмотр всех баннов для комнаты
 
-  @param Room room
+  @param int roomId
   @return List<Ban>
    */
-  List<Ban> getBansByRoom(Room room);
+  List<Ban> getBansByRoom(int roomId);
 
   /*
   просмотр всех банов для пользователя
 
-  @param User user
+  @param int userId
   @return List<Ban>
    */
-  List<Ban> getBansByUser(User user);
+  List<Ban> getBansByUser(int userId);
 }
