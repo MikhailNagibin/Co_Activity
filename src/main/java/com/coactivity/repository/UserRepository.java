@@ -11,14 +11,14 @@ public interface UserRepository {
   @return User
    */
 
-  User createUser(AbstractMap.SimpleEntry<String, String> features);
+  User createUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
 
   /*
   обновление данных о пользователе (кроме пароля)
   @param features - мапа с ключами - полями в бд, значения - значение соответствующего поля
    */
 
-  void updateUser(AbstractMap.SimpleEntry<String, String> features);
+  void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
 
   /*
   удаление пользователя
