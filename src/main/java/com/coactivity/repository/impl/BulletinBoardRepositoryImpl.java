@@ -17,7 +17,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard createBulletinBoard(int roomId, String content, int authorId, Instant updatedAt) {
-    String sql = "INSERT INTO bulletinboard (room_id, content, author_id, updatedat) VALUES (?, ?, ?, ?) RETURNING id";
+    String sql = "INSERT INTO bulletinboard (room_id, content, author_id, updated_at) VALUES (?, ?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
