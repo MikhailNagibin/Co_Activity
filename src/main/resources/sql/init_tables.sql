@@ -45,7 +45,6 @@ CREATE TABLE Pictures (
 CREATE TABLE Roles (
     id SERIAl NOT NULL,
     role VARCHAR(50),
---    FOREIGN KEY (user_id) REFERENCES Users(id)
 );
 
 CREATE TABLE Rooms_members (
@@ -66,6 +65,7 @@ CREATE TABLE Rooms_requests(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
     status_id INT NOT NULL,
+    created_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (status_id) REFERENCES Statuses(status)
@@ -83,7 +83,7 @@ CREATE TABLE Bans(
 
 CREATE TABLE Questions(
     id SERIAl PRIMARY KEY,
-    owner INT NOT NULL UNIQUE,
+    owner INT NOT NULL,
     question TEXT NOT NULL,
     category_id int
     FOREIGN KEY (category_id) REFERENCES Categories(id)
@@ -93,9 +93,9 @@ CREATE TABLE Questions(
 CREATE TABLE Answers(
     id SERIAl PRIMARY KEY,
     question_id INT NOT NULL,
-    prev_ans_id INT UNIQUE,
+    prev_ans_id INT,
     answer TEXT,
-    owner INT NOT NULL UNIQUE,
+    owner INT NOT NULL,
     FOREIGN KEY (question_id) REFERENCES Questions(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
