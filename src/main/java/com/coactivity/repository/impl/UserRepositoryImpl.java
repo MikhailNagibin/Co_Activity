@@ -16,7 +16,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User createUser(String login, String username, String password, Date birthday, String country, String city, String description, int avatar_id){
-        String sql = "INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+        String sql = "INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
