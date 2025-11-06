@@ -1,5 +1,7 @@
-package com.coactivity.domain.entities;
+package com.coactivity.dto.request;
 
+import com.coactivity.domain.entities.Room;
+import com.coactivity.domain.entities.User;
 import com.coactivity.domain.enums.RequestStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

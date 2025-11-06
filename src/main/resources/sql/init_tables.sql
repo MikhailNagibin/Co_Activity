@@ -83,9 +83,10 @@ CREATE TABLE Bans(
 
 CREATE TABLE Questions(
     id SERIAl PRIMARY KEY,
-    owner INT NOT NULL UNIQUE,
+    owner INT NOT NULL,
     question TEXT NOT NULL,
-    category_id int
+    category_id int,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES Categories(id)
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
@@ -93,11 +94,13 @@ CREATE TABLE Questions(
 CREATE TABLE Answers(
     id SERIAl PRIMARY KEY,
     question_id INT NOT NULL,
-    prev_ans_id INT UNIQUE,
+    prev_ans_id INT,
     answer TEXT,
-    owner INT NOT NULL UNIQUE,
+    owner INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (question_id) REFERENCES Questions(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
+    -- FOREIGN KEY (prev_ans_id) REFERENCES Answers(id) ???
 );
 
 create table Subscriptions (

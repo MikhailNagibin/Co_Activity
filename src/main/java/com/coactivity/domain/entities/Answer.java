@@ -1,5 +1,6 @@
 package com.coactivity.domain.entities;
 
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,8 +11,9 @@ import lombok.Setter;
 public class Answer {
 
   private int id;
-  private Question question;
-  private Answer previousAnswer;
+  private int questionId;
+  private int previousAnswerId;
   private String answer;
-  private User owner;
+  private int ownerId;
+  private Instant createdAt;
 }
