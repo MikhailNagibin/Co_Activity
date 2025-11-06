@@ -5,7 +5,6 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.UserRepository;
 
 import java.sql.*;
-import java.time.Instant;
 
 public class UserRepositoryImpl implements UserRepository {
 
@@ -16,24 +15,25 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User createUser(String login, String password, String birthday, String country, String city, String description, int avatar_id){
-        String sql = "INSERT INTO Users (login, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+    public User createUser(String login, String username, String password, Date birthday, String country, String city, String description, int avatar_id){
+        String sql = "INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, login);
-            statement.setString(2, password);
-            statement.setString(3, birthday);
-            statement.setString(4, country);
-            statement.setString(5, city);
-            statement.setString(6, description);
-            statement.setInt(7, avatar_id);
+            statement.setString(2, username);
+            statement.setString(3, password);
+            statement.setDate(4, birthday);
+            statement.setString(5, country);
+            statement.setString(6, city);
+            statement.setString(7, description);
+            statement.setInt(8, avatar_id);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     int userID = resultSet.getInt("id");
-                    return new User(userID, login, password, birthday, country, city, description, avatar_id);
+                    return new User(userID, login, username, password, birthday, country, city, description, avatar_id);
                 }
             }
         } catch (SQLException e) {
@@ -44,24 +44,25 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id){
+    public User updateUser(String login, String username, String password, Date birthday, String country, String city, String description, int avatar_id){
         String sql = "UPDATE Users SET login = ?, username = ?, password = ?, birthday = ?, country = ?, city = ?, description = ?, avatar_id = ? WHERE id = ? RETURNING id";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, login);
-            statement.setString(2, password);
-            statement.setString(3, birthday);
-            statement.setString(4, country);
-            statement.setString(5, city);
-            statement.setString(6, description);
-            statement.setInt(7, avatar_id);
+            statement.setString(2, username);
+            statement.setString(3, password);
+            statement.setDate(4, birthday);
+            statement.setString(5, country);
+            statement.setString(6, city);
+            statement.setString(7, description);
+            statement.setInt(8, avatar_id);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     int userID = resultSet.getInt("id");
-                    return new User(userID, login, password, birthday, country, city, description, avatar_id);
+                    return new User(userID, login, username, password, birthday, country, city, description, avatar_id);
                 }
             }
 
@@ -102,13 +103,13 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User getUser(int login, String password){
+    public User getUser(String login, String password){
         String sql = "SELECT * FROM Users WHERE login = ? AND password = ?";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setInt(1, login);
+            statement.setString(1, login);
             statement.setString(2, password);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
