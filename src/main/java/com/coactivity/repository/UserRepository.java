@@ -1,24 +1,39 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.User;
+
+import java.time.Instant;
 import java.util.AbstractMap;
 
 public interface UserRepository {
-  /*
-  создание нового пользователя
-
-  @param features - мапа с ключами - полями в бд, значения - значение соответствующего поля
-  @return User
+  /**
+   * создание нового пользователя
+   *
+   * @param login
+   * @param password
+   * @param birthday
+   * @param country
+   * @param city
+   * @param description
+   * @param avatarId
+   * @return
    */
 
-  User createUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
+  User createUser(String login, String password, Instant birthday, String country, String city, String description, int avatarId);
 
-  /*
-  обновление данных о пользователе (кроме пароля)
-  @param features - мапа с ключами - полями в бд, значения - значение соответствующего поля
+  /**
+   * обновления персональных данных
+   *
+   * @param user
+   * @param password
+   * @param birthday
+   * @param country
+   * @param city
+   * @param description
+   * @param avatarId
    */
 
-  void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
+  void updateUser(User user, String password, Instant birthday, String country, String city, String description, int avatarId);
 
 
   /**

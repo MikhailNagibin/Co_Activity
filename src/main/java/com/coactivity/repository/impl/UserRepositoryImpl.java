@@ -1,11 +1,16 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
+import com.coactivity.domain.Ban;
+import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
+import com.coactivity.domain.Room;
 import com.coactivity.repository.UserRepository;
 
 import java.sql.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserRepositoryImpl implements UserRepository {
 
@@ -16,54 +21,64 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User createUser(String login, String password, String birthday, String country, String city, String description, int avatar_id){
+    public User createUser(String login, String password, Instant birthday, String country, String city, String description, int avatarId){
         String sql = "INSERT INTO Users (login, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-
+            Timestamp newBirthday = java.sql.Timestamp.from(birthday);
             statement.setString(1, login);
             statement.setString(2, password);
-            statement.setString(3, birthday);
+            statement.setTimestamp(3, newBirthday);
             statement.setString(4, country);
             statement.setString(5, city);
             statement.setString(6, description);
-            statement.setInt(7, avatar_id);
+            statement.setInt(7, avatarId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    int userID = resultSet.getInt("id");
-                    return new User(userID, login, password, birthday, country, city, description, avatar_id);
+                    int userId = resultSet.getInt("id");
+                    return new User(userId, login, password, birthday, country, city, description, avatarId,
+                      List.of(), List.of(), List.of());
                 }
             }
         } catch (SQLException e) {
             System.err.println(e.getMessage());
-            throw new RuntimeException("Failed to create user", e);
+            throw new RuntimeException();
         }
-        throw new RuntimeException("User creation failed - no ID returned");
+        throw new RuntimeException();
     }
 
     @Override
-    public void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id){
-        String sql = "UPDATE Users SET login = ?, username = ?, password = ?, birthday = ?, country = ?, city = ?, description = ?, avatar_id = ? WHERE id = ? RETURNING id";
+    public void updateUser(User user, String password, Instant birthday, String country,
+                           String city, String description, int avatarId){
+        String sql = "UPDATE Users SET login = ?, username = ?, password = ?, birthday = ?, country = ?, " +
+          "city = ?, description = ?, avatar_id = ? WHERE id = ?;";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
+            String newPassword = password != null ? password : user.getPassword();
+            Timestamp newBirthday = birthday != null ? java.sql.Timestamp.from(birthday) :
+                                                       java.sql.Timestamp.from(user.getDataOfBirth());
+            String newCountry = country != null ? country : user.getCountry();
+            String newCity = city != null ? city : user.getCity();
+            String newDescription = description != null ? description : user.getDescription();
+            int newAvatarId = avatarId != 0 ? avatarId : user.getAvatarId();
 
-            statement.setString(1, login);
-            statement.setString(2, password);
-            statement.setString(3, birthday);
-            statement.setString(4, country);
-            statement.setString(5, city);
-            statement.setString(6, description);
-            statement.setInt(7, avatar_id);
+            statement.setString(1, newLogin);
+            statement.setString(2, newPassword);
+            statement.setTimestamp(3, newBirthday);
+            statement.setString(4, newCountry);
+            statement.setString(5, newCity);
+            statement.setString(6, newDescription);
+            statement.setInt(7, newAvatarId);
 
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    int userID = resultSet.getInt("id");
-                    return new User(userID, login, password, birthday, country, city, description, avatar_id);
-                }
-            }
+            user.setPassword(newPassword);
+            user.setDataOfBirth(newBirthday.toInstant());
+            user.setCountry(newCountry);
+            user.setCity(newCity);
+            user.setDescription(newDescription);
+            user.setAvatarId(newAvatarId);
 
         } catch (SQLException e) {
             System.err.println(e.getMessage());
