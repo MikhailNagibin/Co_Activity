@@ -5,22 +5,21 @@ import java.time.Instant;
 import java.util.AbstractMap;
 
 public interface RoomRepository {
-  /*
-  создание комнаты
-
-  @param boolean isActive
-  @param boolean isVisible
-  @param String chatLink
-  @param int categoryId
-  @param String name
-  @param String description
-  @param Instant dateOfStartEvent
-  @param Instant dateOfEndEvent
-  @param int ageRating
-  @param int frequency
-  @param int maximumNumberOfPeople
-  @param AbstractMap.SimpleEntry<Integer, Integer> users (userId, roleId)
-  @return Room
+  /**
+   *
+   * @param isActive
+   * @param isVisible
+   * @param chatLink
+   * @param categoryId
+   * @param name
+   * @param description
+   * @param dateOfStartEvent
+   * @param dateOfEndEvent
+   * @param ageRating
+   * @param frequency
+   * @param maximumNumberOfPeople
+   * @param users
+   * @return
    */
   Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
                   String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
@@ -28,46 +27,42 @@ public interface RoomRepository {
                   AbstractMap.SimpleEntry<Integer, Integer> users);
 
 
-  /*
-  получение комнату по её идентификатору
-
-  @param int roomId
-  @return Room
+  /**
+   *
+   * @param roomId
+   * @return
    */
   Room getRoomById(int roomId);
 
-  /*
-  обновление комнаты
-
-  @param int roomId
-  @param boolean isActive
-  @param boolean isVisible
-  @param String description
-  @param Instant dateOfStartEvent
-  @param Instant dateOfEndEvent
-  @param int ageRating
-  @param int frequency
-  @param int maximumNumberOfPeople
-  @return Room
+  /**
+   *
+   * @param roomId
+   * @param isActive
+   * @param isVisible
+   * @param description
+   * @param dateOfStartEvent
+   * @param dateOfEndEvent
+   * @param ageRating
+   * @param frequency
+   * @param maximumNumberOfPeople
+   * @return
    */
   Room updateRoom(int roomId, boolean isActive, boolean isVisible,
                   String description, Instant dateOfStartEvent,
                   Instant dateOfEndEvent, int ageRating,
                   int frequency, int maximumNumberOfPeople);
 
-  /*
-  добавление человека в комнату
-
-  @param int roomId
-  @param int userId
-  @param int roleId
+  /**
+   *
+   * @param roomId
+   * @param userId
+   * @param roleId
    */
   void addUserToRoom(int roomId, int userId, int roleId);
 
-  /*
-  удаление комнаты
-
-  @param int roomId
+  /**
+   *
+   * @param roomId
    */
   void deleteRoom(int roomId);
 }

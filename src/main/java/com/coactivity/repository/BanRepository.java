@@ -6,30 +6,27 @@ import java.time.Instant;
 import java.util.List;
 
 public interface BanRepository {
-  /*
-  создание банна для пользователя в комнату
-
-  @param int userId
-  @param int roomId
-  @param Duration durationOfBan
-  @param Instant dateOfBan
-  @return Ban
+  /**
+   *
+   * @param userId
+   * @param roomId
+   * @param durationOfBan
+   * @param dateOfBan
+   * @return
    */
   Ban createBan(int userId, int roomId, Duration durationOfBan, Instant dateOfBan);
 
-  /*
-  просмотр всех баннов для комнаты
-
-  @param int roomId
-  @return List<Ban>
+  /**
+   *
+   * @param roomId
+   * @return List< Bans>
    */
   List<Ban> getBansByRoom(int roomId);
 
-  /*
-  просмотр всех банов для пользователя
-
-  @param int userId
-  @return List<Ban>
+  /**
+   *
+   * @param userId
+   * @return List< Bans>
    */
   List<Ban> getBansByUser(int userId);
 }

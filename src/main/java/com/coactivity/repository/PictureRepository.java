@@ -6,26 +6,23 @@ import com.coactivity.domain.Room;
 import java.util.List;
 
 public interface PictureRepository {
-  /*
-  создание картинки
-
-  @param int roomId
-  @return Picture
+  /**
+   *
+   * @param roomId
+   * @return
    */
   Picture createPicture(int roomId);
 
-  /*
-  получение всех картинок по комнате
-
-  @param int roomId
-  @return List<Picture>
+  /**
+   *
+   * @param roomId
+   * @return
    */
   List<Picture> getRoomPictures(int roomId);
 
-  /*
-  удалить фотографию
-
-  @param int photoId
+  /**
+   *
+   * @param photoId
    */
   void deletePicture(int photoId);
 }

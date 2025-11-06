@@ -8,37 +8,45 @@ import com.coactivity.domain.User;
 import java.util.List;
 
 public interface RoomsRequestRepository {
-  /*
-  создание запроса на вступление в комнату
-
-  @param User user - кто хочет вступить в комнату
-  @param Room room - в какую комнату хотят вступить
-  @param RequestStatus status - статус заявки
-  @return RoomsRequest request
+  /**
+   * Создание запроса на вступление в комнату
+   *
+   * @param userId
+   * @param roomId
+   * @param statusId
+   * @return
    */
-  RoomsRequest createRequest(User user, Room room, RequestStatus status);
+  RoomsRequest createRequest(int userId, int roomId, int statusId);
 
-  /*
-  обновление статуса заявки
-
-  @param int requestId
-  @param RequestStatus newStatus
-  @return RoomsRequest request
+  /**
+   * Обновление запроса
+   *
+   * @param requestId
+   * @param status
+   * @return
    */
   RoomsRequest updateRequest(int requestId, RequestStatus status);
 
-  /*
-  удалить статус
-
-  @param int requestId
+  /**
+   * Удаление запроса
+   *
+   * @param requestId
    */
   void deleteRequest(int requestId);
 
-  /*
-  получить все запросы в комнату
-
-  @param int roomId
-  @return List<RoomsRequest>
+  /**
+   * запросы в конкретную комнату
+   *
+   * @param roomId
+   * @return
    */
   List<RoomsRequest> getRoomRequest(int roomId);
+
+  /**
+   * Все запросы для конкретного пользователя
+   *
+   * @param userId
+   * @return
+   */
+  List<RoomsRequest> getRequestsByUser(int userId);
 }
