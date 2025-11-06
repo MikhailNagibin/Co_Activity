@@ -5,6 +5,7 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.UserRepository;
 
 import java.sql.*;
+import java.time.Instant;
 
 public class UserRepositoryImpl implements UserRepository {
 
@@ -73,11 +74,21 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void deleteUser(int id) {
-        String sql = "DELETE FROM Users WHERE id = ?";
+        String sql = """
+          DELETE FROM Rooms_members WHERE user_id = ?;
+          DELETE FROM Rooms_requests WHERE user_id = ?;
+          DELETE FROM Bans WHERE user_id = ?;
+          DELETE FROM Questions WHERE user_id = ?;
+          DELETE FROM Answers WHERE user_id = ?;
+          DELETE FROM Subscriptions WHERE user_id = ?;
+          DELETE FROM BulletinBoard WHERE user_id = ?;
+          DELETE FROM Users WHERE id = ?;
+          """;
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-
-            statement.setInt(1, id);
+          for (int i = 1; i <= 8; i++) {
+            statement.setInt(i, id);
+          }
             int affectedRows = statement.executeUpdate();
 
             if (affectedRows == 0) {
@@ -90,7 +101,6 @@ public class UserRepositoryImpl implements UserRepository {
         }
     }
 
-
     @Override
     public User getUser(int login, String password){
         String sql = "SELECT * FROM Users WHERE login = ? AND password = ?";
@@ -99,10 +109,10 @@ public class UserRepositoryImpl implements UserRepository {
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, login);
-
+            statement.setString(2, password);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    return mapResultSetToBulletinBoard(resultSet);
+                    return mapResultSetToUser(resultSet);
                 }
             }
 
@@ -110,5 +120,18 @@ public class UserRepositoryImpl implements UserRepository {
             throw new RuntimeException();
         }
         return null;
+    }
+
+    private User mapResultSetToUser(ResultSet resultSet) throws SQLException{
+      int userId = resultSet.getInt("id");
+      String login = resultSet.getString("login");
+      String password = resultSet.getString("password");
+      Instant birthday = resultSet.getTimestamp("birthday").toInstant();
+      String country = resultSet.getString("country");
+      String city = resultSet.getString("city");
+      String description = resultSet.getString("description");
+      int avatarId = resultSet.getInt("avatar_id");
+      return new User(userId, login, password, birthday, country, city, description, avatarId);
+
     }
 }
