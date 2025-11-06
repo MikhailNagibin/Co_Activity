@@ -18,7 +18,7 @@ public interface UserRepository {
   @param features - мапа с ключами - полями в бд, значения - значение соответствующего поля
    */
 
-  void updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
+  User updateUser(String login, String password, String birthday, String country, String city, String description, int avatar_id);
 
 
   /**
@@ -36,5 +36,5 @@ public interface UserRepository {
    * @return
    */
 
-  User getUser(int login, String password);
+  User getUser(String login, String password);
 }
