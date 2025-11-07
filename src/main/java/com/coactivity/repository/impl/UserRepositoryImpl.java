@@ -57,6 +57,7 @@ public class UserRepositoryImpl implements UserRepository {
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
+            String newLogin = login != null ? login : user.getLogin();
             String newPassword = password != null ? password : user.getPassword();
             Timestamp newBirthday = birthday != null ? java.sql.Timestamp.from(birthday) :
                                                        java.sql.Timestamp.from(user.getDataOfBirth());
