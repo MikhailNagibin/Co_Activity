@@ -144,13 +144,13 @@ public class UserRepositoryImpl implements UserRepository {
     private User mapResultSetToUser(ResultSet resultSet) throws SQLException{
       int userId = resultSet.getInt("id");
       String login = resultSet.getString("login");
+      String username = resultSet.getString("username");
       String password = resultSet.getString("password");
       Instant birthday = resultSet.getTimestamp("birthday").toInstant();
       String country = resultSet.getString("country");
       String city = resultSet.getString("city");
       String description = resultSet.getString("description");
       int avatarId = resultSet.getInt("avatar_id");
-      return new User(userId, login, password, birthday, country, city, description, avatarId);
-
+      return new User(userId, login, username, password, birthday, country, city, description, avatarId);
     }
 }
