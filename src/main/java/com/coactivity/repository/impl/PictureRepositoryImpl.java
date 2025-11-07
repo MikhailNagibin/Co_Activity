@@ -49,7 +49,7 @@ public class PictureRepositoryImpl implements PictureRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-          var picture = mapResultSetToPicture(resultSet);
+          Picture picture = mapResultSetToPicture(resultSet);
           pictures.add(picture);
         }
       }
@@ -73,6 +73,7 @@ public class PictureRepositoryImpl implements PictureRepository {
         throw new RuntimeException();
       }
     } catch (SQLException e) {
+
       throw new RuntimeException();
     }
   }

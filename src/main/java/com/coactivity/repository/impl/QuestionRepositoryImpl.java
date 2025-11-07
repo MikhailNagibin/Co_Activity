@@ -133,7 +133,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         throw new RuntimeException();
       }
     } catch (SQLException e) {
-      throw new RuntimeException():
+      throw new RuntimeException();
     }
   }
   private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {

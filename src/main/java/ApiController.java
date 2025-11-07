@@ -1,5 +1,5 @@
-import domain.Room;
-import domain.User;
+import com.coactivity.domain.Room;
+import com.coactivity.domain.User;
 
 import java.util.AbstractMap;
 import java.util.List;

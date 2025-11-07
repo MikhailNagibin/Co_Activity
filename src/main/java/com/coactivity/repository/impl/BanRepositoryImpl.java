@@ -20,7 +20,7 @@ public class BanRepositoryImpl implements BanRepository {
 
   @Override
   public Ban createBan(int userId, int roomId, Duration durationOfBan, Instant dateOfBan) {
-    String sql = "INSERT INTO bans (user_id, room_id, durationofban, ban_date) VALUES (?, ?, ?, ?)";
+    String sql = "INSERT INTO bans (user_id, room_id, durationOfBan, ban_date) VALUES (?, ?, ?, ?)";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -37,9 +37,10 @@ public class BanRepositoryImpl implements BanRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
-    throw new RuntimeException("Ban creation failed");
+    throw new RuntimeException();
   }
 
   @Override
@@ -59,6 +60,7 @@ public class BanRepositoryImpl implements BanRepository {
         }
       }
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
     return bans;
@@ -81,7 +83,8 @@ public class BanRepositoryImpl implements BanRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException("Failed to get bans for user: " + userId, e);
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
     }
     return bans;
   }
@@ -89,7 +92,7 @@ public class BanRepositoryImpl implements BanRepository {
   private Ban mapResultSetToBan(ResultSet resultSet) throws SQLException {
     int userId = resultSet.getInt("user_id");
     int roomId = resultSet.getInt("room_id");
-    Duration duration = convertTimeToDuration(resultSet.getTime("durationofban"));
+    Duration duration = convertTimeToDuration(resultSet.getTime("durationOfBan"));
     Instant banDate = resultSet.getTimestamp("ban_date").toInstant();
 
     return new Ban(userId, roomId, duration, banDate);

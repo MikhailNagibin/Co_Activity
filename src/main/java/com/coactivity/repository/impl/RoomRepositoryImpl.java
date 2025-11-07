@@ -76,13 +76,14 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
     return null;
   }
 
   @Override
-  public Room updateRoom(int roomId, boolean isActive, boolean isVisible, String description,
+  public Room updateRoom(Room room, int roomId, boolean isActive, boolean isVisible, String description,
                          Instant dateOfStartEvent, Instant dateOfEndEvent, int ageRating,
                          int frequency, int maximumNumberOfPeople) {
 
@@ -96,15 +97,37 @@ public class RoomRepositoryImpl implements RoomRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
-      statement.setBoolean(1, isActive);
-      statement.setBoolean(2, isVisible);
-      statement.setString(3, description);
-      statement.setTimestamp(4, dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) : null);
-      statement.setTimestamp(5, dateOfEndEvent != null ? Timestamp.from(dateOfEndEvent) : null);
-      statement.setInt(6, ageRating);
-      statement.setInt(7, frequency);
-      statement.setInt(8, maximumNumberOfPeople);
-      statement.setInt(9, roomId);
+      boolean newIsActive = isActive; // если isActive не может быть null, то просто присваиваем
+      boolean newIsVisible = isVisible; // аналогично для boolean
+      String newDescription = description != null ? description : room.getDescription();
+      Timestamp newDateOfStart = dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) :
+        (room.getDateOfStartEvent() != null ? Timestamp.from(room.getDateOfStartEvent()) : null);
+      Timestamp newDateOfEnd = dateOfEndEvent != null ? Timestamp.from(dateOfEndEvent) :
+        (room.getDateOfEndEvent() != null ? Timestamp.from(room.getDateOfEndEvent()) : null);
+      int newAgeRating = ageRating != 0 ? ageRating : room.getAgeRating(); // предполагая, что 0 - значение по умолчанию
+      int newFrequency = frequency != 0 ? frequency : room.getFrequency();
+      int newMaximumNumberOfPeople = maximumNumberOfPeople != 0 ? maximumNumberOfPeople : room.getMaximumNumberOfPeople();
+      int newRoomId = roomId != 0 ? roomId : room.getRoomId();
+
+      statement.setBoolean(1, newIsActive);
+      statement.setBoolean(2, newIsVisible);
+      statement.setString(3, newDescription);
+      statement.setTimestamp(4, newDateOfStart);
+      statement.setTimestamp(5, newDateOfEnd);
+      statement.setInt(6, newAgeRating);
+      statement.setInt(7, newFrequency);
+      statement.setInt(8, newMaximumNumberOfPeople);
+      statement.setInt(9, newRoomId);
+
+      room.setActive(newIsActive);
+      room.setVisible(newIsVisible);
+      room.setDescription(newDescription);
+      room.setDateOfStartEvent(newDateOfStart != null ? newDateOfStart.toInstant() : null);
+      room.setDateOfEndEvent(newDateOfEnd != null ? newDateOfEnd.toInstant() : null);
+      room.setAgeRating(newAgeRating);
+      room.setFrequency(newFrequency);
+      room.setMaximumNumberOfPeople(newMaximumNumberOfPeople);
+      room.setRoomId(newRoomId);
 
       int affectedRows = statement.executeUpdate();
 
@@ -115,6 +138,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }
@@ -130,6 +154,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(3, roleId);
       statement.executeUpdate();
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }
@@ -137,6 +162,22 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void deleteRoom(int roomId) {
     deleteAllWithRooms(roomId);
+    String sql = "DELETE FROM Rooms WHERE id = ?";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setInt(1, roomId);
+      int affectedRows = statement.executeUpdate();
+
+      if (affectedRows == 0) {
+        throw new RuntimeException();
+      }
+
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
   }
 
   private void deleteAllWithRooms(int roomId) {
@@ -155,6 +196,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.execute();
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }

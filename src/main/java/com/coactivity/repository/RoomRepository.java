@@ -36,6 +36,7 @@ public interface RoomRepository {
 
   /**
    *
+   * @param room
    * @param roomId
    * @param isActive
    * @param isVisible
@@ -47,7 +48,7 @@ public interface RoomRepository {
    * @param maximumNumberOfPeople
    * @return
    */
-  Room updateRoom(int roomId, boolean isActive, boolean isVisible,
+  Room updateRoom(Room room, int roomId, boolean isActive, boolean isVisible,
                   String description, Instant dateOfStartEvent,
                   Instant dateOfEndEvent, int ageRating,
                   int frequency, int maximumNumberOfPeople);

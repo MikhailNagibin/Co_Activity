@@ -40,10 +40,10 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error creating request: " + e.getMessage());
-      throw new RuntimeException("Failed to create request", e);
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
     }
-    throw new RuntimeException("Failed to create request");
+    throw new RuntimeException();
   }
 
   @Override
@@ -68,6 +68,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
     throw new RuntimeException();
@@ -88,6 +89,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }
@@ -113,6 +115,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
     return requests;
@@ -139,6 +142,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
     return requests;

@@ -39,12 +39,11 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
     } catch (SQLException e) {
       System.err.println(e.getMessage());
-      throw new RuntimeException("Failed to create answer", e);
+      throw new RuntimeException();
     }
-    throw new RuntimeException("Answer creation failed - no ID returned");
+    throw new RuntimeException();
   }
 
-  // Остальные методы остаются без изменений
   @Override
   public List<Answer> getAnswers(int questionId) {
     var answers = new ArrayList<Answer>();
@@ -63,7 +62,8 @@ public class AnswerRepositoryImpl implements AnswerRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException("Failed to get answers for question: " + questionId, e);
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
     }
     return answers;
   }
@@ -82,6 +82,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
         throw new RuntimeException();
       }
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }

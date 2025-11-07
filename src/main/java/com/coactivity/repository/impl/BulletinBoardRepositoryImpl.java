@@ -43,7 +43,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId, Instant updatedAt) {
-    String sql = "UPDATE bulletinboard SET content = ?, author_id = ?, updatedat = ? WHERE room_id = ? RETURNING id";
+    String sql = "UPDATE bulletinboard SET content = ?, author_id = ?, updated_at = ? WHERE room_id = ? RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -103,6 +103,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       }
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
       throw new RuntimeException();
     }
   }

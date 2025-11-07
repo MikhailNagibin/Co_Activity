@@ -117,7 +117,7 @@ create table BulletinBoard (
     room_id int
     content TEXT,
     author_id int,
-    Date updatedAt,
+    Date updated_at,
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (author_id) REFERENCES Users(id)
 );

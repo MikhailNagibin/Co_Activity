@@ -111,6 +111,7 @@ public class UserRepositoryImpl implements UserRepository {
             }
 
         } catch (SQLException e) {
+          System.err.println(e.getMessage());
             throw new RuntimeException();
 
         }
@@ -132,6 +133,7 @@ public class UserRepositoryImpl implements UserRepository {
             }
 
         } catch (SQLException e) {
+          System.err.println(e.getMessage());
             throw new RuntimeException();
         }
         return null;
