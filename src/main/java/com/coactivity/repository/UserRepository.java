@@ -33,7 +33,7 @@ public interface UserRepository {
    * @param avatarId
    */
 
-  void updateUser(User user, String login, String password, Instant birthday, String country, String city, String description, int avatarId);
+  void updateUser(User user, String password, Instant birthday, String country, String city, String description, int avatarId, String username);
 
 
   /**
