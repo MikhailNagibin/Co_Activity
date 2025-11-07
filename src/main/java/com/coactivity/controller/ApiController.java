@@ -369,39 +369,32 @@ public interface ApiController {
   /**
    * Retrieves all questions in the Q&A system with optional category filtering.
    * <p>
-   * Returns a list of questions sorted by most recent activity (most recently answered questions
-   * first).
+   * <b>Access Control:</b> Public endpoint - no authentication required.
+   * Implements read-only Q&A access for all users as specified in requirements. Questions are
+   * sorted by most recent activity (most recently answered questions first).
    * </p>
    *
-   * @param token      optional JWT token for personalized sorting
    * @param categoryId optional category filter to show only questions from a specific category, or
-   *                   {@code null} for all categories
-   * @return {@link ApiResponse} containing a list of {@link QuestionResponse} objects matching the
-   * criteria
+   *                   {@code null} to return questions from all categories
+   * @return {@link ApiResponse} containing list of {@link QuestionResponse} objects with basic
+   * question information and answer counts
    */
-  ApiResponse<List<QuestionResponse>> getQuestions(String token, Integer categoryId);
+  ApiResponse<List<QuestionResponse>> getQuestions(Integer categoryId);
 
   /**
    * Retrieves a specific question and its complete answer hierarchy.
    * <p>
+   * <b>Access Control:</b> Public endpoint - no authentication required.
    * Returns the full question details along with all answers organized in threaded conversation
    * format. Top-level answers are direct responses to the question, with nested replies forming
    * discussion trees under each parent answer.
    * </p>
    *
-   * @param token      optional JWT token for tracking user engagement
    * @param questionId unique identifier of the question to retrieve
    * @return {@link ApiResponse} containing {@link QuestionWithAnswersResponse} with the question
    * and hierarchical answer structure
-   * @example // Get question #123 with all its answers and replies
-   * ApiResponse<QuestionWithAnswersResponse> response = getQuestionWithAnswers(userToken, 123);
-   * <p>
-   * // Response structure: // { //   "question": { ... }, //   "answers": [ //     { //       "id":
-   * 456, //       "answer": "Main answer text", //       "replies": [ //         { // "id": 789, //
-   * "answer": "Reply to main answer", //           "replies": [] // } //       ] //     } //   ] //
-   * }
    */
-  ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(String token, Integer questionId);
+  ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(Integer questionId);
 
   // ===== QR CODE VERIFICATION SYSTEM =====
 
