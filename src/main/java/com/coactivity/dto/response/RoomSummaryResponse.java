@@ -1,20 +1,18 @@
 package com.coactivity.dto.response;
 
 import com.coactivity.domain.enums.Category;
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
  * Simplified room information for listing and search interfaces.
  * <p>
  * Contains essential room metadata optimized for display in lists, grids, and search results where
- * screen space is limited.
+ * screen space is limited. Safe for both authorized and unauthorized users.
  * </p>
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Builder
 public class RoomSummaryResponse {
 
   /**
@@ -34,6 +32,9 @@ public class RoomSummaryResponse {
 
   /**
    * Brief description of the room's purpose or activities.
+   * <p>
+   * Truncated or summarized for display in list views.
+   * </p>
    */
   private String description;
 
@@ -65,11 +66,19 @@ public class RoomSummaryResponse {
   private Integer maximumParticipants;
 
   /**
-   * Unique identifier of the user who created the room.
+   * Display name of the user who created the room.
    * <p>
-   * Can be used to fetch additional creator information if needed or to determine if the current
-   * user has administrative privileges.
+   * Provides attribution and helps users identify rooms created by people they know or trust.
    * </p>
    */
-  private Integer creatorId;
+  private String creatorName;
+
+  /**
+   * Indicates whether the current user is already a participant.
+   * <p>
+   * Only populated when an authenticated user accesses the API. Used to show "Joined" status
+   * instead of "Join" buttons.
+   * </p>
+   */
+  private Boolean isCurrentUserParticipant;
 }

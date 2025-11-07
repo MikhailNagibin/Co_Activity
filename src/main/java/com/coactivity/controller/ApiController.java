@@ -20,6 +20,7 @@ import com.coactivity.dto.response.QuestionResponse;
 import com.coactivity.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.dto.response.RegistrationResponse;
 import com.coactivity.dto.response.RoomCreationResponse;
+import com.coactivity.dto.response.RoomDetailedResponse;
 import com.coactivity.dto.response.RoomSummaryResponse;
 import com.coactivity.dto.response.UserProfileResponse;
 import com.coactivity.dto.response.VerificationResponse;
@@ -175,34 +176,39 @@ public interface ApiController {
 
   /**
    * Retrieves rooms based on specified filtering and sorting criteria.
+   * <p>
+   * <b>Access Control:</b> Public endpoint - no authentication required.
+   * Unauthorized users can call this method by passing {@code null} as the token parameter. All
+   * users receive basic room information. Authenticated users receive additional context about
+   * their participation status in each room.
+   * </p>
    *
    * @param filter structured filter criteria for searching rooms, or {@code null} for all rooms
    * @param sortBy sorting preference, or {@code null} for default sorting
-   * @param token  optional JWT token for personalized results (user's city, country, age-based
-   *               filtering)
-   * @return filtered and sorted list of room summaries
-   * @example // Get sport rooms in Moscow, sorted by popularity RoomFilter filter = new
-   * RoomFilter(); filter.setCategory(Category.Sport); filter.setCity("Moscow");
-   * <p>
-   * ApiResponse<List<RoomSummaryResponse>> response = getRooms(filter, RoomSort.POPULAR,
-   * userToken);
+   * @param token  optional JWT token for personalized participation status. Pass {@code null} for
+   *               unauthorized access.
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with basic room
+   * information for all users, plus participation context for authenticated users
    */
   ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy, String token);
 
   /**
-   * Retrieves detailed information for a specific room.
+   * Retrieves detailed information for a specific room with conditional data exposure.
    * <p>
-   * Returns complete room details including settings, participant count, and creator information.
-   * For private rooms, additional details may be restricted based on the user's participation
-   * status and the provided authentication token.
+   * <b>Access Control:</b> Public endpoint - no authentication required for basic information.
+   * Unauthorized users can access room details by passing {@code null} as the token parameter, but
+   * will not receive protected data like chat links and bulletin board content. Room participants
+   * receive full room details including protected content.
    * </p>
    *
    * @param roomId unique identifier of the room to retrieve
-   * @param token  optional JWT token for permission-based access to private room details
-   * @return {@link ApiResponse} containing {@link RoomSummaryResponse} with room details, or error
-   * details for invalid room IDs or access restrictions
+   * @param token  optional JWT token for access to protected room data (chat links, bulletin
+   *               board). Pass {@code null} for unauthorized access to public room information
+   *               only.
+   * @return {@link ApiResponse} containing {@link RoomDetailedResponse} with access-appropriate
+   * data exposure based on whether a valid token was provided
    */
-  ApiResponse<RoomSummaryResponse> getRoomById(Integer roomId, String token);
+  ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token);
 
   // ===== ROOM PARTICIPATION =====
 
