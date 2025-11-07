@@ -21,24 +21,25 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User createUser(String login, String password, Instant birthday, String country, String city, String description, int avatarId){
+    public User createUser(String login, String username, String password, Instant birthday, String country, String city, String description, int avatarId){
         String sql = "INSERT INTO Users (login, password, birthday, country, city, description, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
 
         try (Connection connection = dataRepository.getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             Timestamp newBirthday = java.sql.Timestamp.from(birthday);
             statement.setString(1, login);
-            statement.setString(2, password);
-            statement.setTimestamp(3, newBirthday);
-            statement.setString(4, country);
-            statement.setString(5, city);
-            statement.setString(6, description);
-            statement.setInt(7, avatarId);
+            statement.setString(2, username);
+            statement.setString(3, password);
+            statement.setTimestamp(4, newBirthday);
+            statement.setString(5, country);
+            statement.setString(6, city);
+            statement.setString(7, description);
+            statement.setInt(8, avatarId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     int userId = resultSet.getInt("id");
-                    return new User(userId, login, password, birthday, country, city, description, avatarId,
+                    return new User(userId, login, username, password, birthday, country, city, description, avatarId,
                       List.of(), List.of(), List.of());
                 }
             }
@@ -50,7 +51,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public void updateUser(User user, String password, Instant birthday, String country,
+    public void updateUser(User user, String login, String password, Instant birthday, String country,
                            String city, String description, int avatarId){
         String sql = "UPDATE Users SET login = ?, username = ?, password = ?, birthday = ?, country = ?, " +
           "city = ?, description = ?, avatar_id = ? WHERE id = ?;";
