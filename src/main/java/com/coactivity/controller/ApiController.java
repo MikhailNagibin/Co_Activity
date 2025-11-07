@@ -4,21 +4,25 @@ import com.coactivity.domain.entities.RoomFilter;
 import com.coactivity.domain.enums.RequestStatus;
 import com.coactivity.domain.enums.RoomSort;
 import com.coactivity.dto.request.AnswerRequest;
+import com.coactivity.dto.request.GenerateQrCodeRequest;
 import com.coactivity.dto.request.LoginRequest;
 import com.coactivity.dto.request.QuestionRequest;
 import com.coactivity.dto.request.RoomCreationRequest;
 import com.coactivity.dto.request.UserProfileUpdateRequest;
 import com.coactivity.dto.request.UserRegistrationRequest;
+import com.coactivity.dto.request.VerifyQrCodeRequest;
 import com.coactivity.dto.response.AnswerResponse;
 import com.coactivity.dto.response.ApiResponse;
 import com.coactivity.dto.response.JoinRequestResponse;
 import com.coactivity.dto.response.LoginResponse;
+import com.coactivity.dto.response.QrCodeResponse;
 import com.coactivity.dto.response.QuestionResponse;
 import com.coactivity.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.dto.response.RegistrationResponse;
 import com.coactivity.dto.response.RoomCreationResponse;
 import com.coactivity.dto.response.RoomSummaryResponse;
 import com.coactivity.dto.response.UserProfileResponse;
+import com.coactivity.dto.response.VerificationResponse;
 import java.util.List;
 
 /**
@@ -129,7 +133,7 @@ public interface ApiController {
    *
    * @param token valid JWT token obtained during authentication
    * @return {@link ApiResponse} containing {@link UserProfileResponse} with complete user profile
-   * data, or error details for invalid tokens or missing users
+   * data, or e11rror details for invalid tokens or missing users
    */
   ApiResponse<UserProfileResponse> getUserProfile(String token);
 
@@ -398,4 +402,100 @@ public interface ApiController {
    * }
    */
   ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(String token, Integer questionId);
+
+  // ===== QR CODE VERIFICATION SYSTEM =====
+
+  /**
+   * Generates a time-sensitive QR code for physical participant verification at offline meetings.
+   * <p>
+   * Creates a cryptographically secure, one-time-use QR code that expires 60 seconds after
+   * generation. This enables secure access control for in-person events by verifying that
+   * individuals presenting at physical locations are legitimate participants of the specified
+   * activity.
+   * </p>
+   *
+   * <b>Usage Flow:</b>
+   * <ol>
+   *   <li>Room participant requests QR code generation for their current activity</li>
+   *   <li>System validates user is active participant of specified room</li>
+   *   <li>Generates unique, time-limited verification code</li>
+   *   <li>Returns code data for display as QR image at meeting location</li>
+   *   <li>Other participants scan QR code with mobile devices to verify attendance</li>
+   * </ol>
+   *
+   * <b>Security Considerations:</b>
+   * <ul>
+   *   <li>QR codes are valid for exactly 60 seconds to minimize attack window</li>
+   *   <li>Each code can only be used once, preventing replay attacks</li>
+   *   <li>Codes are cryptographically random (32-byte secure random)</li>
+   *   <li>Requires valid JWT token proving room participation</li>
+   * </ul>
+   *
+   * @param token   Valid JWT authentication token identifying the requesting user. Must have active
+   *                participant status in the specified room.
+   * @param request Contains the room identifier for which to generate verification QR code. Room
+   *                must exist and user must be participant.
+   * @return {@link ApiResponse} containing {@link QrCodeResponse} with generated code data, or
+   * error details if generation fails due to invalid permissions or room status.
+   * @throws SecurityException        if user lacks participant status in specified room
+   * @throws IllegalArgumentException if room ID is invalid or room doesn't exist
+   * @see QrCodeResponse
+   * @see GenerateQrCodeRequest
+   * @see #verifyQrCode(String, VerifyQrCodeRequest)
+   */
+  ApiResponse<QrCodeResponse> generateQrCode(String token, GenerateQrCodeRequest request);
+
+  /**
+   * Verifies a scanned QR code to confirm participant eligibility for physical meeting access.
+   * <p>
+   * Validates that a QR code scanned at a physical meeting location is active, unexpired, and
+   * belongs to the correct room context, while also confirming the scanning user's participant
+   * status. This method implements the core access control logic for in-person events and generates
+   * audit trails for attendance tracking.
+   * </p>
+   *
+   * <b>Verification Checks:</b>
+   * <ol>
+   *   <li>QR code exists in system and matches provided room context</li>
+   *   <li>Code has not expired (within 1-minute validity window)</li>
+   *   <li>Code has not been previously used (one-time use enforcement)</li>
+   *   <li>Scanning user is verified participant of the specified room</li>
+   *   <li>All verifications pass → access granted and code marked as used</li>
+   * </ol>
+   *
+   * <b>Typical Integration:</b>
+   * <ul>
+   *   <li>Mobile app scans QR code displayed at meeting entrance</li>
+   *   <li>App extracts code and room ID, calls this verification endpoint</li>
+   *   <li>System returns verification result with user/room details</li>
+   *   <li>Meeting organizers see green checkmark for verified participants</li>
+   * </ul>
+   *
+   * @param token   Valid JWT authentication token of the user scanning the QR code. Identifies the
+   *                individual seeking physical access verification.
+   * @param request Contains the scanned QR code data and room context for verification. Both code
+   *                and room ID are required for context-aware validation.
+   * @return {@link ApiResponse} containing {@link VerificationResponse} with detailed validation
+   * lidation results, participant identity, and room information.
+   * @throws SecurityException if verification process detects tampering or security violations
+   * @example // Verify scanned QR code for room 12345 VerifyQrCodeRequest request = new
+   * VerifyQrCodeRequest(); request.setQrCode("AbCdEfG123XYZ-7890_kJhGfDdSaQ");
+   * request.setRoomId(12345L); ApiResponse<VerificationResponse> response =
+   * apiController.verifyQrCode(userToken, request);
+   * <p>
+   * // Successful verification: // { //   "success": true, //   "message": "QR code verified
+   * successfully", //   "data": { //     "valid": true, //     "message": "Verification successful
+   * - John Doe confirmed for Basketball Club", //     "userName": "John Doe", //     "roomName":
+   * "Weekly Basketball Practice", //     "userId": 67890, //     "roomId": 12345 //   } // }
+   * <p>
+   * // Failed verification (expired code): // { //   "success": true, // Note: API call succeeded,
+   * verification failed //   "message": "QR code verification completed", //   "data": { //
+   * "valid": false, //     "message": "QR code has expired - please generate a new code", //
+   * "userName": null, //     "roomName": null, //     "userId": null, //     "roomId": null //   }
+   * // }
+   * @see VerificationResponse
+   * @see VerifyQrCodeRequest
+   * @see #generateQrCode(String, GenerateQrCodeRequest)
+   */
+  ApiResponse<VerificationResponse> verifyQrCode(String token, VerifyQrCodeRequest request);
 }
