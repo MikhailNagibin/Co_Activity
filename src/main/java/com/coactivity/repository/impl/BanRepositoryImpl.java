@@ -3,6 +3,8 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Ban;
 import com.coactivity.repository.BanRepository;
+import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.repository.impl.RoomRepositoryImpl;
 
 import java.sql.*;
 import java.time.Duration;
@@ -13,27 +15,30 @@ import java.util.List;
 public class BanRepositoryImpl implements BanRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
+  private final RoomRepositoryImpl roomRepository;
 
   public BanRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
-  public Ban createBan(int userId, int roomId, Duration durationOfBan, Instant dateOfBan) {
-    String sql = "INSERT INTO bans (user_id, room_id, durationOfBan, ban_date) VALUES (?, ?, ?, ?)";
+  public Ban createBan(int userId, int roomId, Instant dateOfBan) {
+    String sql = "INSERT INTO bans (user_id, room_id, ban_date) VALUES (?, ?, ?)";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, userId);
       statement.setInt(2, roomId);
-      statement.setTime(3, Time.valueOf(convertDurationToTime(durationOfBan)));
-      statement.setTimestamp(4, Timestamp.from(dateOfBan)); // Используем Timestamp для Instant
+      statement.setTimestamp(4, Timestamp.from(dateOfBan));
 
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows > 0) {
-        return new Ban(userId, roomId, durationOfBan, dateOfBan);
+        return new Ban(userRepository.getUserById(userId), roomRepository.getRoomById(roomId), dateOfBan);
       }
 
     } catch (SQLException e) {
@@ -92,10 +97,9 @@ public class BanRepositoryImpl implements BanRepository {
   private Ban mapResultSetToBan(ResultSet resultSet) throws SQLException {
     int userId = resultSet.getInt("user_id");
     int roomId = resultSet.getInt("room_id");
-    Duration duration = convertTimeToDuration(resultSet.getTime("durationOfBan"));
     Instant banDate = resultSet.getTimestamp("ban_date").toInstant();
 
-    return new Ban(userId, roomId, duration, banDate);
+    return new Ban(userRepository.getUserById(userId), roomRepository.getRoomById(roomId), banDate);
   }
 
   private String convertDurationToTime(Duration duration) {

@@ -10,11 +10,10 @@ public interface BanRepository {
    *
    * @param userId
    * @param roomId
-   * @param durationOfBan
    * @param dateOfBan
    * @return
    */
-  Ban createBan(int userId, int roomId, Duration durationOfBan, Instant dateOfBan);
+  Ban createBan(int userId, int roomId, Instant dateOfBan);
 
   /**
    *
