@@ -6,13 +6,16 @@ import com.coactivity.repository.PictureRepository;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import com.coactivity.repository.impl.RoomRepositoryImpl;
 
 public class PictureRepositoryImpl implements PictureRepository {
 
   private final DataRepository dataRepository;
+  private final RoomRepositoryImpl roomRepository;
 
   public PictureRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.roomRepository = new RoomRepositoryImpl(dataRepository);
   }
 
   @Override
@@ -26,8 +29,8 @@ public class PictureRepositoryImpl implements PictureRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int generatedPictureId = resultSet.getInt("picture_id");
-          return new Picture(generatedPictureId, roomId);
+          int generatedPictureId = resultSet.getInt("pictureId");
+          return new Picture(roomRepository.getRoomById(roomId), generatedPictureId);
         }
       }
 
@@ -82,6 +85,6 @@ public class PictureRepositoryImpl implements PictureRepository {
     int pictureId = resultSet.getInt("picture_id");
     int roomId = resultSet.getInt("room_id");
 
-    return new Picture(pictureId, roomId);
+    return new Picture(roomRepository.getRoomById(roomId), pictureId);
   }
 }
