@@ -9,9 +9,7 @@ import com.coactivity.repository.impl.UserRepositoryImpl;
 
 import java.sql.*;
 import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class RoomRepositoryImpl implements RoomRepository {
 
@@ -223,7 +221,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     Category category = Category.getByIndex(categoryId);
 
     return new Room(id, isActive, isVisible, chatLink, category, name, description,
-      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id));
+      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id), getUsersBans(id));
   }
 
   private Map<User, Role> getUsersInRoom(int roomId) {
@@ -247,6 +245,23 @@ public class RoomRepositoryImpl implements RoomRepository {
       throw new RuntimeException();
     }
     return usersInRoom;
+  }
 
+  private List<User> getUsersBans(int roomId) {
+    String sql = "select userId from Bans where roomId = ?";
+    var bans = new ArrayList<User>();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          bans.add(userRepository.getUserById(resultSet.getInt(1)));
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    return bans;
   }
 }

@@ -3,6 +3,7 @@ package com.coactivity.domain;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.List;
 import java.util.Map;
 
 import lombok.AllArgsConstructor;
@@ -28,4 +29,5 @@ public class Room {
   private int frequency;
   private int maximumNumberOfPeople;
   private Map<User, Role> users;
+  private List<User> bans;
 }

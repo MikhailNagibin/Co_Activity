@@ -52,4 +52,11 @@ public interface UserRepository {
    */
 
   User getUser(int login, String password);
+
+  /**
+   *
+   * @param id
+   * @return
+   */
+  User getUserById(int id);
 }

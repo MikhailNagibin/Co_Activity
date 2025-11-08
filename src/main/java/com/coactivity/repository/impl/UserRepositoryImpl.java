@@ -1,12 +1,10 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
-import com.coactivity.domain.Ban;
-import com.coactivity.domain.Notification;
-import com.coactivity.domain.User;
-import com.coactivity.domain.Room;
+import com.coactivity.domain.*;
 import com.coactivity.repository.UserRepository;
-
+import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.domain.Notification;
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,9 +13,11 @@ import java.util.List;
 public class UserRepositoryImpl implements UserRepository {
 
     private final DataRepository dataRepository;
+    private final RoomRepositoryImpl roomRepository;
 
     public UserRepositoryImpl(DataRepository dataRepository) {
         this.dataRepository = dataRepository;
+        this.roomRepository = new RoomRepositoryImpl(dataRepository);
     }
 
     @Override
@@ -41,7 +41,7 @@ public class UserRepositoryImpl implements UserRepository {
                 if (resultSet.next()) {
                     int userId = resultSet.getInt("id");
                     return new User(userId, login, username, password, birthday, country, city, description, avatarId,
-                      List.of(), List.of(), List.of());
+                      List.of(), List.of());
                 }
             }
         } catch (SQLException e) {
@@ -142,6 +142,25 @@ public class UserRepositoryImpl implements UserRepository {
         return null;
     }
 
+    public User getUserById(int id) {
+      String sql = "SELECT * FROM user WHERE id = ?";
+      try (Connection connection = dataRepository.getDataSource().getConnection();
+           PreparedStatement statement = connection.prepareStatement(sql)) {
+
+        statement.setInt(1, id);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          if (resultSet.next()) {
+            return mapResultSetToUser(resultSet);
+          }
+        }
+
+      } catch (SQLException e) {
+        System.err.println(e.getMessage());
+        throw new RuntimeException();
+      }
+      return null;
+    }
+
     private User mapResultSetToUser(ResultSet resultSet) throws SQLException{
       int userId = resultSet.getInt("id");
       String login = resultSet.getString("login");
@@ -150,8 +169,48 @@ public class UserRepositoryImpl implements UserRepository {
       String country = resultSet.getString("country");
       String city = resultSet.getString("city");
       String description = resultSet.getString("description");
+      String username = resultSet.getString("username");
       int avatarId = resultSet.getInt("avatar_id");
-      return new User(userId, login, password, birthday, country, city, description, avatarId);
 
+      return new User(userId, login, username, password, birthday, country, city, description, avatarId,
+        getRooms(userId), getNotification(userId));
+    }
+
+    private List<Room> getRooms(int userId) {
+      String sql = "select roomId from Rooms_members where userId = ?";
+      var rooms = new ArrayList<Room>();
+      try (Connection connection = dataRepository.getDataSource().getConnection();
+           PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setInt(1, userId);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          while (resultSet.next()) {
+            Room room = roomRepository.getRoomById(resultSet.getInt(1));
+            rooms.add(room);
+          }
+        }
+      } catch (SQLException e) {
+        System.err.println(e.getMessage());
+        throw new RuntimeException();
+      }
+      return rooms;
+    }
+
+    private List<Notification> getNotification(int userId) {
+      String sql = "select notificationId from usersNotification where userId = ?";
+      var notifications = new ArrayList<Notification>();
+      try (Connection connection = dataRepository.getDataSource().getConnection();
+           PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setInt(1, userId);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          while (resultSet.next()) {
+            Notification notification = Notification.getByIndex(resultSet.getInt(1));
+            notifications.add(notification);
+          }
+        }
+      } catch (SQLException e) {
+        System.err.println(e.getMessage());
+        throw new RuntimeException();
+      }
+      return notifications;
     }
 }
