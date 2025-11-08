@@ -11,9 +11,11 @@ import java.util.List;
 public class QuestionRepositoryImpl implements QuestionRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
 
   public QuestionRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
@@ -30,7 +32,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int questionId = resultSet.getInt("id");
-          return new Question(questionId, userId, question, categoryId);
+          return new Question(questionId, userRepository.getUserById(userId), question, categoryId);
         }
       }
 
@@ -136,12 +138,13 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       throw new RuntimeException();
     }
   }
+
   private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {
     int id = resultSet.getInt("id");
     int ownerId = resultSet.getInt("owner");
     String questionText = resultSet.getString("question");
     int categoryId = resultSet.getInt("category_id");
 
-    return new Question(id, ownerId, questionText, categoryId);
+    return new Question(id, userRepository.getUserById(ownerId), questionText, categoryId);
   }
 }

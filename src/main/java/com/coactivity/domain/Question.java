@@ -10,7 +10,7 @@ import lombok.Setter;
 public class Question {
 
   private int id;
-  private int ownerId;
+  private User owner;
   private String question;
   private int categoryId;
 }
