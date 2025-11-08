@@ -13,5 +13,5 @@ public class Answer {
   private int questionId;
   private int previousAnswerId;
   private String answer;
-  private int ownerId;
+  private User owner;
 }

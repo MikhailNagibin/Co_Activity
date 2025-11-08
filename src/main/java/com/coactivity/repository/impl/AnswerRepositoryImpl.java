@@ -3,6 +3,7 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Answer;
 import com.coactivity.repository.AnswerRepository;
+import com.coactivity.repository.impl.UserRepositoryImpl;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -12,9 +13,11 @@ import java.util.List;
 public class AnswerRepositoryImpl implements AnswerRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
 
   public AnswerRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
@@ -33,7 +36,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int answerId = resultSet.getInt("id");
-          return new Answer(answerId, questionId, previousAnswerId, currentAnswer, ownerId);
+          return new Answer(answerId, questionId, previousAnswerId, currentAnswer, userRepository.getUserById(ownerId));
         }
       }
 
@@ -56,8 +59,8 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           var answer = new Answer(resultSet.getInt("id"), questionId,
-            resultSet.getString("prev_ans_id"), resultSet.getString("answer"),
-            resultSet.getInt("owner"));
+            resultSet.getInt("prevAnsId"), resultSet.getString("answer"),
+            userRepository.getUserById(resultSet.getInt("owner")));
           answers.add(answer);
         }
       }
