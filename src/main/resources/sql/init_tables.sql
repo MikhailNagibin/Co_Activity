@@ -56,7 +56,7 @@ CREATE TABLE Rooms_members (
     FOREIGN KEY (role_id) REFERENCES Roles(id)
 );
 
-CREATE TABLE Statuses(
+CREATE TABLE RequestStatuses(
     id SERIAl PRIMARY KEY,
     status_info VARCHAR(50) NOT NULL
 );
@@ -68,13 +68,12 @@ CREATE TABLE Rooms_requests(
     created_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
-    FOREIGN KEY (status_id) REFERENCES Statuses(status)
+    FOREIGN KEY (status_id) REFERENCES RequestStatuses(status)
 );
 
 CREATE TABLE Bans(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
-    durationOfBan TIME NOT NULL,
     ban_date DATE NOT NULL,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
@@ -100,7 +99,7 @@ CREATE TABLE Answers(
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
-create table Subscriptions (
+create table Notification (
     user_id int,
     owner_id int
     FOREIGN KEY (user_id) REFERENCES Users(id)
@@ -141,7 +140,7 @@ Insert into Categories(name) values
 (NotSpecified);
 
 
-Insert into Statuses(status_info) values
+Insert into RequestStatuses(status_info) values
 (Consideration),
 (Accepted),
 (Refused);
