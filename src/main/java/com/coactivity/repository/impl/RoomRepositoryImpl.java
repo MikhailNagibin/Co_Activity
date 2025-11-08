@@ -1,19 +1,26 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
-import com.coactivity.domain.Room;
+import com.coactivity.domain.*;
 import com.coactivity.repository.RoomRepository;
+import com.coactivity.repository.impl.UserRepositoryImpl;
+
+
 
 import java.sql.*;
 import java.time.Instant;
 import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.Map;
 
 public class RoomRepositoryImpl implements RoomRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
 
   public RoomRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
@@ -107,7 +114,6 @@ public class RoomRepositoryImpl implements RoomRepository {
       int newAgeRating = ageRating != 0 ? ageRating : room.getAgeRating(); // предполагая, что 0 - значение по умолчанию
       int newFrequency = frequency != 0 ? frequency : room.getFrequency();
       int newMaximumNumberOfPeople = maximumNumberOfPeople != 0 ? maximumNumberOfPeople : room.getMaximumNumberOfPeople();
-      int newRoomId = roomId != 0 ? roomId : room.getRoomId();
 
       statement.setBoolean(1, newIsActive);
       statement.setBoolean(2, newIsVisible);
@@ -117,7 +123,6 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(6, newAgeRating);
       statement.setInt(7, newFrequency);
       statement.setInt(8, newMaximumNumberOfPeople);
-      statement.setInt(9, newRoomId);
 
       room.setActive(newIsActive);
       room.setVisible(newIsVisible);
@@ -127,7 +132,6 @@ public class RoomRepositoryImpl implements RoomRepository {
       room.setAgeRating(newAgeRating);
       room.setFrequency(newFrequency);
       room.setMaximumNumberOfPeople(newMaximumNumberOfPeople);
-      room.setRoomId(newRoomId);
 
       int affectedRows = statement.executeUpdate();
 
@@ -203,23 +207,46 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
     int id = resultSet.getInt("id");
-    boolean isActive = resultSet.getBoolean("is_active");
-    boolean isVisible = resultSet.getBoolean("is_visible");
-    String chatLink = resultSet.getString("chat_link");
-    int categoryId = resultSet.getInt("category_id");
-    String categoryName = resultSet.getString("category_name");
+    boolean isActive = resultSet.getBoolean("isActive");
+    boolean isVisible = resultSet.getBoolean("isPrivate");
+    String chatLink = resultSet.getString("chatLink");
+    int categoryId = resultSet.getInt("categoryId");
     String name = resultSet.getString("name");
     String description = resultSet.getString("description");
-    Instant startDate = resultSet.getTimestamp("start_date") != null ?
-      resultSet.getTimestamp("start_date").toInstant() : null;
-    Instant endDate = resultSet.getTimestamp("end_date") != null ?
-      resultSet.getTimestamp("end_date").toInstant() : null;
-    int ageRating = resultSet.getInt("age_rating");
+    Instant startDate = resultSet.getTimestamp("startDate") != null ?
+      resultSet.getTimestamp("startDate").toInstant() : null;
+    Instant endDate = resultSet.getTimestamp("endDate") != null ?
+      resultSet.getTimestamp("endDate").toInstant() : null;
+    int ageRating = resultSet.getInt("ageRating");
     int frequency = resultSet.getInt("frequency");
-    int maxPeople = resultSet.getInt("maximum_number_of_people");
-    int currentPeople = resultSet.getInt("current_number_of_people");
+    int maxPeople = resultSet.getInt("maximumNumberOfPeople");
+    Category category = Category.getByIndex(categoryId);
 
-    return new Room(id, isActive, isVisible, chatLink, categoryId, name, description,
-      startDate, endDate, ageRating, frequency, maxPeople, currentPeople);
+    return new Room(id, isActive, isVisible, chatLink, category, name, description,
+      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id));
+  }
+
+  private Map<User, Role> getUsersInRoom(int roomId) {
+    String sql = """
+      SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.userId = u.id
+       INNER JOIN role AS r ON r.id = rm.RoleId;
+      """;
+    var usersInRoom = new HashMap<User, Role>();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          User user = userRepository.getUserById(resultSet.getInt(1));
+          Role role = Role.getByIndex(resultSet.getInt(2) - 1);
+          usersInRoom.put(user, role);
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    return usersInRoom;
+
   }
 }
