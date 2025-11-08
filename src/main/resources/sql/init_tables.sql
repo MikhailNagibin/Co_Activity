@@ -74,7 +74,6 @@ CREATE TABLE Rooms_requests(
 CREATE TABLE Bans(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
-    ban_date DATE NOT NULL,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
@@ -99,16 +98,18 @@ CREATE TABLE Answers(
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
-create table Notification (
-    user_id int,
-    owner_id int
-    FOREIGN KEY (user_id) REFERENCES Users(id)
-    FOREIGN KEY (owner_id) REFERENCES Users(id)
-);
 
-create table Notifications (
+
+create table Notification (
     id serial PRIMARY KEY,
     notification varchar(50),
+);
+
+create table usersNotification (
+    user_id int,
+    notificationId int,
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+    FOREIGN KEY (notificationId) REFERENCES Notification(id)
 );
 
 create table BulletinBoard (
