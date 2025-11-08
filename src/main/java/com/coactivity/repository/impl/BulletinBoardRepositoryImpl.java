@@ -5,19 +5,27 @@ import com.coactivity.domain.BulletinBoard;
 import com.coactivity.repository.BulletinBoardRepository;
 import java.sql.*;
 import java.time.Instant;
+import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.repository.impl.UserRepositoryImpl;
+import jakarta.persistence.criteria.CriteriaBuilder;
 
 
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
+  private final RoomRepositoryImpl roomRepository;
 
   public BulletinBoardRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
-  public BulletinBoard createBulletinBoard(int roomId, String content, int authorId, Instant updatedAt) {
-    String sql = "INSERT INTO bulletinboard (room_id, content, author_id, updated_at) VALUES (?, ?, ?, ?) RETURNING id";
+  public BulletinBoard createBulletinBoard(int roomId, String content, int authorId) {
+    String sql = "INSERT INTO bulletinboard (room_id, content, author_id, updated_at) " +
+      "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -25,12 +33,13 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       statement.setInt(1, roomId);
       statement.setString(2, content);
       statement.setInt(3, authorId);
-      statement.setTimestamp(4, Timestamp.from(updatedAt));
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int boardId = resultSet.getInt("id");
-          return new BulletinBoard(boardId, roomId, content, authorId, updatedAt);
+          Instant createdAt = resultSet.getTimestamp(2).toInstant();
+          return new BulletinBoard(boardId, roomRepository.getRoomById(roomId),
+            content, userRepository.getUserById(authorId), createdAt);
         }
       }
 
@@ -42,21 +51,23 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId, Instant updatedAt) {
-    String sql = "UPDATE bulletinboard SET content = ?, author_id = ?, updated_at = ? WHERE room_id = ? RETURNING id";
+  public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId) {
+    String sql = "UPDATE bulletinboard SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
+      " WHERE room_id = ? RETURNING id CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, content);
       statement.setInt(2, authorId);
-      statement.setTimestamp(3, Timestamp.from(updatedAt));
-      statement.setInt(4, roomId);
+      statement.setInt(3, roomId);
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int boardId = resultSet.getInt("id");
-          return new BulletinBoard(boardId, roomId, content, authorId, updatedAt);
+          Instant updatedAt = resultSet.getTimestamp(2).toInstant();
+          return new BulletinBoard(boardId, roomRepository.getRoomById(roomId), content,
+            userRepository.getUserById(authorId), updatedAt);
         }
       }
 
@@ -115,6 +126,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     int authorId = resultSet.getInt("author_id");
     Instant updatedAt = resultSet.getTimestamp("updatedat").toInstant();
 
-    return new BulletinBoard(id, roomId, content, authorId, updatedAt);
+    return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,
+      userRepository.getUserById(authorId), updatedAt);
   }
 }

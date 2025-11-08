@@ -3,8 +3,8 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Ban;
 import com.coactivity.repository.BanRepository;
-import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.repository.impl.UserRepositoryImpl;
 
 import java.sql.*;
 import java.time.Duration;

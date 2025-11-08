@@ -12,20 +12,18 @@ public interface BulletinBoardRepository {
    * @param roomId
    * @param content
    * @param authorId
-   * @param updatedAt
    * @return
    */
-  BulletinBoard createBulletinBoard(int roomId, String content, int authorId, Instant updatedAt);
+  BulletinBoard createBulletinBoard(int roomId, String content, int authorId);
 
   /**
    *
    * @param roomId
    * @param content
    * @param authorId
-   * @param updatedAt
    * @return BulletinBoard обновленная доска объявлений
    */
-  BulletinBoard updateBulletinBoard(int roomId, String content, int authorId, Instant updatedAt);
+  BulletinBoard updateBulletinBoard(int roomId, String content, int authorId);
 
   /**
    *
