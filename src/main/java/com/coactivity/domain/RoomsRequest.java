@@ -11,8 +11,8 @@ import java.time.Instant;
 @AllArgsConstructor
 public class RoomsRequest {
 
-  private int userId;
-  private int roomId;
+  private User user;
+  private Room room;
   private Instant createdAt;
   private RequestStatus status;
 }

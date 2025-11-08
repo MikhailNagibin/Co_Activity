@@ -4,7 +4,8 @@ import com.coactivity.DataRepository;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.repository.RoomsRequestRepository;
-
+import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.repository.impl.UserRepositoryImpl;
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,9 +14,13 @@ import java.util.List;
 public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
 
   private final DataRepository dataRepository;
+  private final UserRepositoryImpl userRepository;
+  private  final RoomRepositoryImpl roomRepository;
 
   public RoomsRequestRepositoryImpl(DataRepository dataRepository) {
     this.dataRepository = dataRepository;
+    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.userRepository = new UserRepositoryImpl(dataRepository);
   }
 
   @Override
@@ -154,6 +159,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
     RequestStatus status = RequestStatus.valueOf(resultSet.getString("status"));
     Instant createdAt = resultSet.getTimestamp("created_at").toInstant();
 
-    return new RoomsRequest(userId, roomId, createdAt, status);
+    return new RoomsRequest(userRepository.getUserById(userId), roomRepository.getRoomById(roomId), createdAt, status);
   }
 }

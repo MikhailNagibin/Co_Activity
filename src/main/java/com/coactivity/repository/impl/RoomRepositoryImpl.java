@@ -104,14 +104,14 @@ public class RoomRepositoryImpl implements RoomRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
-      boolean newIsActive = isActive; // если isActive не может быть null, то просто присваиваем
-      boolean newIsVisible = isVisible; // аналогично для boolean
+      boolean newIsActive = isActive;
+      boolean newIsVisible = isVisible;
       String newDescription = description != null ? description : room.getDescription();
       Timestamp newDateOfStart = dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) :
         (room.getDateOfStartEvent() != null ? Timestamp.from(room.getDateOfStartEvent()) : null);
       Timestamp newDateOfEnd = dateOfEndEvent != null ? Timestamp.from(dateOfEndEvent) :
         (room.getDateOfEndEvent() != null ? Timestamp.from(room.getDateOfEndEvent()) : null);
-      int newAgeRating = ageRating != 0 ? ageRating : room.getAgeRating(); // предполагая, что 0 - значение по умолчанию
+      int newAgeRating = ageRating != 0 ? ageRating : room.getAgeRating();
       int newFrequency = frequency != 0 ? frequency : room.getFrequency();
       int newMaximumNumberOfPeople = maximumNumberOfPeople != 0 ? maximumNumberOfPeople : room.getMaximumNumberOfPeople();
 
