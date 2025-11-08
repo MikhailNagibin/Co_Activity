@@ -6,6 +6,7 @@ import com.coactivity.repository.QuestionRepository;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import com.coactivity.domain.Category;
 
 
 public class QuestionRepositoryImpl implements QuestionRepository {
@@ -32,7 +33,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int questionId = resultSet.getInt("id");
-          return new Question(questionId, userRepository.getUserById(userId), question, categoryId);
+          return new Question(questionId, userRepository.getUserById(userId), question, Category.getByIndex(categoryId));
         }
       }
 
@@ -145,6 +146,6 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String questionText = resultSet.getString("question");
     int categoryId = resultSet.getInt("category_id");
 
-    return new Question(id, userRepository.getUserById(ownerId), questionText, categoryId);
+    return new Question(id, userRepository.getUserById(ownerId), questionText, Category.getByIndex(categoryId));
   }
 }

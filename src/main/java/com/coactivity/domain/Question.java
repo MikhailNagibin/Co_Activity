@@ -12,5 +12,5 @@ public class Question {
   private int id;
   private User owner;
   private String question;
-  private int categoryId;
+  private Category category;
 }
