@@ -2,17 +2,17 @@ package com.coactivity.domain;
 
 
 public enum Category {
-  Sport,
-  Music,
-  Art,
-  Entertainments,
-  Business,
-  Education,
-  ActiveRecreation,
-  PassiveRecreation,
-  isAMassEvent,
-  Other,
-  NotSpecified;
+  SPORT,
+  MUSIC,
+  ART,
+  ENTERTAINMENTS,
+  BUSINESS,
+  EDUCATION,
+  ACTIVE_RECREATION,
+  PASSIVE_RECREATION,
+  IS_A_MASS_EVENT,
+  OTHER,
+  NOT_SPECIFIED;
 
   public static Category getByIndex(int index) {
     Category[] category = values();

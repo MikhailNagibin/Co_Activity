@@ -1,10 +1,10 @@
 package com.coactivity.domain;
 
 public enum Notification {
-  membershipAccepted,
-  membershipRejected,
-  activityClosed,
-  newJoinRequest;
+  MEMBERSHIP_ACCEPTED,
+  MEMBERSHIP_REJECTED,
+  ACTIVITY_CLOSED,
+  NEW_JOIN_REQUEST;
 
   public static Notification getByIndex(int index) {
     Notification[] notification = values();

@@ -2,9 +2,9 @@ package com.coactivity.domain;
 
 
 public enum Role {
-  Owner,
-  Admin,
-  Participant;
+  OWNER,
+  ADMIN,
+  PARTICIPANT;
 
   public static Role getByIndex(int index) {
     Role[] roles = values();
