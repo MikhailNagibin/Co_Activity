@@ -1,7 +1,7 @@
 -- todo Написать скрипт для создания всех таблиц. Заполнить таблицы со статическими данными
 CREATE TABLE Users (
   id SERIAl PRIMARY KEY,
-  login VARCHAR(100) NOT NULL,
+  login VARCHAR(100) NOT NULL UNIQUE,
   username VARCHAR(20) UNIQUE NOT NULL,
   password VARCHAR(128) NOT NULL,
   birthday DATE,
@@ -13,12 +13,12 @@ CREATE TABLE Users (
 
 CREATE TABLE Categories (
     id SERIAl PRIMARY KEY,
-    name VARCHAR(20) NOT NULL
+    name VARCHAR(20) NOT NULL UNIQUE
 );
 
 CREATE TABLE Rooms (
   id SERIAl PRIMARY KEY,
-  is_active BOOLEAN NOT NULL
+  is_active BOOLEAN NOT NULL,
   is_visible BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT,
@@ -56,7 +56,7 @@ CREATE TABLE Rooms_members (
     FOREIGN KEY (role_id) REFERENCES Roles(id)
 );
 
-CREATE TABLE RequestStatuses(
+CREATE TABLE Request_statuses(
     id SERIAl PRIMARY KEY,
     status_info VARCHAR(50) NOT NULL
 );
@@ -68,7 +68,7 @@ CREATE TABLE Rooms_requests(
     created_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
-    FOREIGN KEY (status_id) REFERENCES RequestStatuses(status)
+    FOREIGN KEY (status_id) REFERENCES Request_statuses(id)
 );
 
 CREATE TABLE Bans(
@@ -83,8 +83,8 @@ CREATE TABLE Questions(
     id SERIAl PRIMARY KEY,
     owner INT NOT NULL,
     question TEXT NOT NULL,
-    category_id int
-    FOREIGN KEY (category_id) REFERENCES Categories(id)
+    category_id int,
+    FOREIGN KEY (category_id) REFERENCES Categories(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
@@ -93,28 +93,28 @@ CREATE TABLE Answers(
     question_id INT NOT NULL,
     prev_ans_id INT,
     answer TEXT,
-    owner INT NOT NULL,
+    owner_id INT NOT NULL,
     FOREIGN KEY (question_id) REFERENCES Questions(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
 
 
-create table Notification (
+create table Notification_types (
     id serial PRIMARY KEY,
-    notification varchar(50),
+    notification varchar(50)
 );
 
-create table usersNotification (
+create table Users_notification (
     user_id int,
-    notificationId int,
-    FOREIGN KEY (user_id) REFERENCES Users(id)
-    FOREIGN KEY (notificationId) REFERENCES Notification(id)
+    notification_id int,
+    FOREIGN KEY (user_id) REFERENCES Users(id),
+    FOREIGN KEY (notification_id) REFERENCES Notification_types(id)
 );
 
 create table BulletinBoard (
     id SERIAL PRIMARY KEY,
-    room_id int
+    room_id int,
     content TEXT,
     author_id int,
     Date updated_at,
@@ -123,31 +123,31 @@ create table BulletinBoard (
 );
 
 Insert into Roles(role) values
-(Admin),
-(Participant),
-(Owner);
+(admin),
+(participant),
+(owner);
 
 Insert into Categories(name) values
-(Sport),
-(Music),
-(Art),
-(Entertainments),
-(Business),
-(Education),
-(ActiveRecreation),
-(PassiveRecreation),
-(isAMassEvent),
-(Other),
-(NotSpecified);
+(sport),
+(music),
+(art),
+(entertainment),
+(business),
+(education),
+(active_recreation),
+(passive_recreation),
+(is_mass_event),
+(other),
+(notSpecified);
 
 
 Insert into RequestStatuses(status_info) values
-(Consideration),
-(Accepted),
-(Refused);
+(pending),
+(approved),
+(rejected);
 
 Insert into Notifications(notification) values
-(membershipAccepted),
-(membershipRejected),
-(activityClosed),
-(newJoinRequest);
+(membership_accepted),
+(membership_rejected),
+(activity_closed),
+(new_join_request);
