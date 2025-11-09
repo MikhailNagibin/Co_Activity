@@ -1,32 +1,31 @@
 package com.coactivity.controller;
 
 import com.coactivity.controller.dto.request.AnswerRequest;
-import com.coactivity.controller.dto.request.GenerateQrCodeRequest;
 import com.coactivity.controller.dto.request.LoginRequest;
+import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
-import com.coactivity.controller.dto.request.VerifyQrCodeRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
-import com.coactivity.controller.dto.response.QrCodeResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
+import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
+import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
-import com.coactivity.controller.dto.response.VerificationResponse;
 import com.coactivity.domain.RequestStatus;
-import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.validation.annotation.Validated;
 
@@ -48,14 +47,6 @@ import org.springframework.validation.annotation.Validated;
  * processing the data payload.</p>
  *
  * @author CoActivity 13 Development Team
- * @version 1.0
- * @see ApiResponse
- * @see RegistrationResponse
- * @see LoginResponse
- * @see UserProfileResponse
- * @see RoomCreationResponse
- * @see RoomSummaryResponse
- * @see JoinRequestResponse
  */
 @Validated
 public interface ApiController {
@@ -127,6 +118,27 @@ public interface ApiController {
    */
   ApiResponse<Void> validateToken(String token);
 
+  /**
+   * Invalidates the user's current authentication token and ends the session.
+   * <p>
+   * Securely logs the user out by invalidating the provided JWT token on the server side. After
+   * calling this method, the token can no longer be used for authenticated requests, providing an
+   * additional security layer for session management.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. The token provided will be
+   * invalidated immediately and cannot be reused.</p>
+   *
+   * @param token valid JWT token to invalidate (this will be the last successful use)
+   * @return {@link ApiResponse} with success status confirming the logout
+   * @throws SecurityException if the token is already invalid or expired
+   * @example // Log out the current user ApiResponse<Void> response = logout(userToken); //
+   * Response: { "success": true, "message": "Logged out successfully", "data": null }
+   * @see #loginUser(LoginRequest)
+   * @see #verifyLogin(String, String)
+   */
+  ApiResponse<Void> logoutUser(String token);
+
   // ===== USER PROFILE MANAGEMENT =====
 
   /**
@@ -181,6 +193,56 @@ public interface ApiController {
    */
   ApiResponse<UserProfileResponse> updateUserProfile(String token,
       UserProfileUpdateRequest request);
+
+  /**
+   * Updates the user's notification preferences and delivery settings.
+   * <p>
+   * Allows users to customize how and when they receive notifications from the platform. Users can
+   * enable or disable specific notification types and choose their preferred delivery channels
+   * (email, push notifications, etc.) based on their preferences.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. Users can only modify
+   * their own notification settings.</p>
+   *
+   * @param token   valid JWT token of the user updating their preferences
+   * @param request contains the notification settings to apply
+   * @return {@link ApiResponse} containing the updated {@link NotificationSettingsResponse} with
+   * applied preferences
+   * @throws SecurityException if the token is invalid or expired
+   * @example // Configure notification settings NotificationSettingsRequest request = new
+   * NotificationSettingsRequest(); request.setEmailNotifications(true);
+   * request.setPushNotifications(false); request.setMembershipAlerts(true);
+   * request.setActivityUpdates(false);
+   * <p>
+   * ApiResponse<NotificationSettingsResponse> response = configureNotificationSettings(userToken,
+   * request);
+   * @see NotificationSettingsRequest
+   * @see NotificationSettingsResponse
+   */
+  ApiResponse<NotificationSettingsResponse> configureNotificationSettings(String token,
+      NotificationSettingsRequest request);
+
+  /**
+   * Permanently deletes the user's account and all associated data.
+   * <p>
+   * Completely removes the user account from the system, including profile information, room
+   * participations, and generated content. This operation is irreversible and should be accompanied
+   * by appropriate confirmation steps in the client interface.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. Users can only delete
+   * their own accounts.</p>
+   *
+   * <p><b>Data Handling:</b> Depending on data retention policies, some information
+   * may be anonymized rather than completely deleted for legal or analytical purposes.</p>
+   *
+   * @param token valid JWT token of the user requesting account deletion
+   * @return {@link ApiResponse} with success status confirming account deletion
+   * @throws SecurityException if authentication fails or user doesn't exist
+   * @see #registerUser(UserRegistrationRequest)
+   */
+  ApiResponse<Void> deleteAccount(String token);
 
   // ===== ROOM MANAGEMENT =====
 
@@ -293,6 +355,85 @@ public interface ApiController {
    * room, or error details for invalid rooms or ownership restrictions
    */
   ApiResponse<Void> leaveRoom(String token, Integer roomId);
+
+  /**
+   * Permanently deletes a room and all associated data.
+   * <p>
+   * Completely removes a room from the system, including all participant relationships, bulletin
+   * board content, and room settings. This operation is irreversible and should only be available
+   * to the room owner with appropriate confirmation steps.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and owner privileges
+   * for the specified room. Only the room creator can delete the room.</p>
+   *
+   * <p><b>Impact:</b> All room participants will lose access and any ongoing
+   * activities will be terminated. Participants should be notified of the room deletion.</p>
+   *
+   * @param token  valid JWT token of the room owner
+   * @param roomId unique identifier of the room to delete
+   * @return {@link ApiResponse} with success status confirming room deletion
+   * @throws SecurityException        if user is not the room owner
+   * @throws IllegalArgumentException if room doesn't exist or is already deleted
+   * @example
+   * @see #createRoom(String, RoomCreationRequest)
+   */
+  ApiResponse<Void> deleteRoom(String token, Integer roomId);
+
+  /**
+   * Grants administrator privileges to a room participant.
+   * <p>
+   * Allows room owners to delegate administrative responsibilities by promoting regular
+   * participants to administrator roles. Administrators can manage room settings, process join
+   * requests, and moderate content within their assigned rooms.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and owner privileges
+   * in the specified room. Only room owners can assign administrator roles.</p>
+   *
+   * @param token  valid JWT token of the room owner
+   * @param roomId unique identifier of the room
+   * @param userId unique identifier of the participant to promote
+   * @return {@link ApiResponse} with success status and updated role information
+   * @throws SecurityException        if user is not the room owner
+   * @throws IllegalArgumentException if target user is not a room participant
+   * @see RoleAssignmentResponse
+   */
+  ApiResponse<RoleAssignmentResponse> assignAdminRole(String token, Integer roomId,
+      Integer userId);
+
+  /**
+   * Revokes administrator privileges from a room participant, returning them to regular participant
+   * status.
+   * <p>
+   * Allows room owners to remove administrative privileges from users who previously held
+   * administrator roles in the room. This operation demotes the user to a regular participant while
+   * maintaining their membership in the room. Room owners cannot demote themselves.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and owner privileges
+   * in the specified room. Only room owners can revoke administrator roles.</p>
+   *
+   * <p><b>Restrictions:</b>
+   * <ul>
+   *   <li>Room owners cannot demote themselves</li>
+   *   <li>Target user must currently have administrator role</li>
+   *   <li>Target user must remain a room participant after demotion</li>
+   *   <li>At least one administrator (the owner) must always remain in the room</li>
+   * </ul>
+   * </p>
+   *
+   * @param token  valid JWT token of the room owner
+   * @param roomId unique identifier of the room
+   * @param userId unique identifier of the administrator to demote
+   * @return {@link ApiResponse} with success status and updated role information
+   * @throws SecurityException        if user is not the room owner or attempts self-demotion
+   * @throws IllegalArgumentException if target user is not an administrator or doesn't exist
+   * @throws IllegalStateException    if demotion would leave the room with no administrators
+   * @see #assignAdminRole(String, Integer, Integer)
+   * @see RoleAssignmentResponse
+   */
+  ApiResponse<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId, Integer userId);
 
   // ===== REQUEST MANAGEMENT =====
 
@@ -453,102 +594,26 @@ public interface ApiController {
    */
   ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(Integer questionId);
 
-  // ===== QR CODE VERIFICATION SYSTEM =====
-
   /**
-   * Generates a time-sensitive QR code for physical participant verification at offline meetings.
+   * Verifies whether a specific user is a participant in a given room.
    * <p>
-   * Creates a cryptographically secure, one-time-use QR code that expires 60 seconds after
-   * generation. This enables secure access control for in-person events by verifying that
-   * individuals presenting at physical locations are legitimate participants of the specified
-   * activity.
+   * Provides a programmatic way to check room membership without requiring QR code scanning. This
+   * method serves as a backend alternative to the QR verification system and can be used for
+   * administrative purposes or integration with other systems.
    * </p>
    *
-   * <b>Usage Flow:</b>
-   * <ol>
-   *   <li>Room participant requests QR code generation for their current activity</li>
-   *   <li>System validates user is active participant of specified room</li>
-   *   <li>Generates unique, time-limited verification code</li>
-   *   <li>Returns code data for display as QR image at meeting location</li>
-   *   <li>Other participants scan QR code with mobile devices to verify attendance</li>
-   * </ol>
+   * <p><b>Access Control:</b> Requires valid authentication. Users can check their own
+   * membership or, if they have administrative privileges in the room, they can check other users'
+   * membership status.</p>
    *
-   * <b>Security Considerations:</b>
-   * <ul>
-   *   <li>QR codes are valid for exactly 60 seconds to minimize attack window</li>
-   *   <li>Each code can only be used once, preventing replay attacks</li>
-   *   <li>Codes are cryptographically random (32-byte secure random)</li>
-   *   <li>Requires valid JWT token proving room participation</li>
-   * </ul>
-   *
-   * @param token   Valid JWT authentication token identifying the requesting user. Must have active
-   *                participant status in the specified room.
-   * @param request Contains the room identifier for which to generate verification QR code. Room
-   *                must exist and user must be participant.
-   * @return {@link ApiResponse} containing {@link QrCodeResponse} with generated code data, or
-   * error details if generation fails due to invalid permissions or room status.
-   * @throws SecurityException        if user lacks participant status in specified room
-   * @throws IllegalArgumentException if room ID is invalid or room doesn't exist
-   * @see QrCodeResponse
-   * @see GenerateQrCodeRequest
-   * @see #verifyQrCode(String, VerifyQrCodeRequest)
+   * @param token  valid JWT token of the requesting user
+   * @param roomId unique identifier of the room to check
+   * @param userId unique identifier of the user to verify
+   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
+   * results and role information
+   * @throws SecurityException if user lacks permission to check membership
+   * @see MembershipVerificationResponse
    */
-  @Valid
-  ApiResponse<QrCodeResponse> generateQrCode(String token, GenerateQrCodeRequest request);
-
-  /**
-   * Verifies a scanned QR code to confirm participant eligibility for physical meeting access.
-   * <p>
-   * Validates that a QR code scanned at a physical meeting location is active, unexpired, and
-   * belongs to the correct room context, while also confirming the scanning user's participant
-   * status. This method implements the core access control logic for in-person events and generates
-   * audit trails for attendance tracking.
-   * </p>
-   *
-   * <b>Verification Checks:</b>
-   * <ol>
-   *   <li>QR code exists in system and matches provided room context</li>
-   *   <li>Code has not expired (within 1-minute validity window)</li>
-   *   <li>Code has not been previously used (one-time use enforcement)</li>
-   *   <li>Scanning user is verified participant of the specified room</li>
-   *   <li>All verifications pass → access granted and code marked as used</li>
-   * </ol>
-   *
-   * <b>Typical Integration:</b>
-   * <ul>
-   *   <li>Mobile app scans QR code displayed at meeting entrance</li>
-   *   <li>App extracts code and room ID, calls this verification endpoint</li>
-   *   <li>System returns verification result with user/room details</li>
-   *   <li>Meeting organizers see green checkmark for verified participants</li>
-   * </ul>
-   *
-   * @param token   Valid JWT authentication token of the user scanning the QR code. Identifies the
-   *                individual seeking physical access verification.
-   * @param request Contains the scanned QR code data and room context for verification. Both code
-   *                and room ID are required for context-aware validation.
-   * @return {@link ApiResponse} containing {@link VerificationResponse} with detailed validation
-   * lidation results, participant identity, and room information.
-   * @throws SecurityException if verification process detects tampering or security violations
-   * @example // Verify scanned QR code for room 12345 VerifyQrCodeRequest request = new
-   * VerifyQrCodeRequest(); request.setQrCode("AbCdEfG123XYZ-7890_kJhGfDdSaQ");
-   * request.setRoomId(12345L); ApiResponse<VerificationResponse> response =
-   * apiController.verifyQrCode(userToken, request);
-   * <p>
-   * // Successful verification: // { //   "success": true, //   "message": "QR code verified
-   * successfully", //   "data": { //     "valid": true, //     "message": "Verification successful
-   * - John Doe confirmed for Basketball Club", //     "userName": "John Doe", //     "roomName":
-   * "Weekly Basketball Practice", //     "userId": 67890, //     "roomId": 12345 //   } // }
-   * <p>
-   * // Failed verification (expired code): // { //   "success": true, // Note: API call succeeded,
-   * verification failed //   "message": "QR code verification completed", //   "data": { //
-   * "valid": false, //     "message": "QR code has expired - please generate a new code", //
-   * "userName": null, //     "roomName": null, //     "userId": null, //     "roomId": null //   }
-   * // }
-   * @see VerificationResponse
-   * @see VerifyQrCodeRequest
-   * @see #generateQrCode(String, GenerateQrCodeRequest)
-   */
-  ApiResponse<VerificationResponse> verifyQrCode(String token, VerifyQrCodeRequest request);
-
-
+  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
+      Integer userId);
 }
