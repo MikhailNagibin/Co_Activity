@@ -1,9 +1,11 @@
-package com.coactivity.domain.entities;
+package com.coactivity.domain;
 
-import com.coactivity.domain.enums.Category;
-import com.coactivity.domain.enums.Role;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.List;
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,5 +28,6 @@ public class Room {
   private int ageRating;
   private int frequency;
   private int maximumNumberOfPeople;
-  private SimpleEntry<User, Role> users;
+  private Map<User, Role> users;
+  private List<User> bans;
 }

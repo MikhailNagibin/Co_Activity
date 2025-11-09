@@ -37,7 +37,7 @@ CREATE TABLE Rooms (
 
 
 CREATE TABLE Pictures (
-    picture_id INT PRIMARY KEY,
+    picture_id SERIAl PRIMARY KEY,
     room_id INT NOT NULL,
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
@@ -45,7 +45,6 @@ CREATE TABLE Pictures (
 CREATE TABLE Roles (
     id SERIAl NOT NULL,
     role VARCHAR(50),
---    FOREIGN KEY (user_id) REFERENCES Users(id)
 );
 
 CREATE TABLE Rooms_members (
@@ -57,7 +56,7 @@ CREATE TABLE Rooms_members (
     FOREIGN KEY (role_id) REFERENCES Roles(id)
 );
 
-CREATE TABLE Statuses(
+CREATE TABLE RequestStatuses(
     id SERIAl PRIMARY KEY,
     status_info VARCHAR(50) NOT NULL
 );
@@ -66,16 +65,15 @@ CREATE TABLE Rooms_requests(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
     status_id INT NOT NULL,
+    created_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
-    FOREIGN KEY (status_id) REFERENCES Statuses(status)
+    FOREIGN KEY (status_id) REFERENCES RequestStatuses(status)
 );
 
 CREATE TABLE Bans(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
-    durationOfBan TIME NOT NULL,
-    ban_date DATE NOT NULL,
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
@@ -85,8 +83,7 @@ CREATE TABLE Questions(
     id SERIAl PRIMARY KEY,
     owner INT NOT NULL,
     question TEXT NOT NULL,
-    category_id int,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    category_id int
     FOREIGN KEY (category_id) REFERENCES Categories(id)
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
@@ -97,22 +94,22 @@ CREATE TABLE Answers(
     prev_ans_id INT,
     answer TEXT,
     owner INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (question_id) REFERENCES Questions(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
-    -- FOREIGN KEY (prev_ans_id) REFERENCES Answers(id) ???
 );
 
-create table Subscriptions (
-    user_id int,
-    owner_id int
-    FOREIGN KEY (user_id) REFERENCES Users(id)
-    FOREIGN KEY (owner_id) REFERENCES Users(id)
-);
 
-create table Notifications (
+
+create table Notification (
     id serial PRIMARY KEY,
     notification varchar(50),
+);
+
+create table usersNotification (
+    user_id int,
+    notificationId int,
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+    FOREIGN KEY (notificationId) REFERENCES Notification(id)
 );
 
 create table BulletinBoard (
@@ -120,7 +117,7 @@ create table BulletinBoard (
     room_id int
     content TEXT,
     author_id int,
-    Date updatedAt,
+    Date updated_at,
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (author_id) REFERENCES Users(id)
 );
@@ -144,7 +141,7 @@ Insert into Categories(name) values
 (NotSpecified);
 
 
-Insert into Statuses(status_info) values
+Insert into RequestStatuses(status_info) values
 (Consideration),
 (Accepted),
 (Refused);

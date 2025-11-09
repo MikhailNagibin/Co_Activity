@@ -12,5 +12,13 @@ public enum Category {
   PassiveRecreation,
   isAMassEvent,
   Other,
-  NotSpecified
+  NotSpecified;
+
+  public static Category getByIndex(int index) {
+    Category[] category = values();
+    if (index >= 0 && index < category.length) {
+      return category[index];
+    }
+    throw new IllegalArgumentException("Invalid category index: " + index);
+  }
 }

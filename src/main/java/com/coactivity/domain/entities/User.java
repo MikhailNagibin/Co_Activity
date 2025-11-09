@@ -22,6 +22,5 @@ public class User {
   private String description;
   private int avatarId;
   private List<Room> rooms;
-  private List<Ban> bans;
   private List<Notification> notifications;
 }
