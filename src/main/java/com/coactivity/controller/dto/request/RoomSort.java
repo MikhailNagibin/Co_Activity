@@ -1,4 +1,4 @@
-package com.coactivity.domain.enums;
+package com.coactivity.controller.dto.request;
 
 /**
  * Defines the available sorting strategies for room listings in the Co-Activity platform.

@@ -1,7 +1,7 @@
-package com.coactivity.dto.response;
+package com.coactivity.controller.dto.response;
 
 import com.coactivity.controller.ApiController;
-import com.coactivity.dto.request.GenerateQrCodeRequest;
+import com.coactivity.controller.dto.request.GenerateQrCodeRequest;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;

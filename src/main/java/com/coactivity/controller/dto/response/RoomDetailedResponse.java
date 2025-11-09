@@ -1,5 +1,5 @@
 // src/main/java/com/coactivity/dto/response/RoomDetailedResponse.java
-package com.coactivity.dto.response;
+package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.enums.Category;
 import java.time.Instant;

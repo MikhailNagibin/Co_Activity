@@ -1,4 +1,4 @@
-package com.coactivity.dto.response;
+package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.enums.Category;
 import lombok.AllArgsConstructor;

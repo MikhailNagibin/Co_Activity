@@ -2,7 +2,7 @@ package com.coactivity.domain.entities;
 
 import com.coactivity.domain.enums.Category;
 import com.coactivity.domain.enums.Role;
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.AbstractMap.SimpleEntry;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -21,8 +21,8 @@ public class Room {
   private Category category;
   private String name;
   private String description;
-  private Timestamp dateOfStartEvent;
-  private Timestamp dateOfEndEvent;
+  private Instant dateOfStartEvent;
+  private Instant dateOfEndEvent;
   private int ageRating;
   private int frequency;
   private int maximumNumberOfPeople;

@@ -1,4 +1,4 @@
-package com.coactivity.dto.request;
+package com.coactivity.controller.dto.request;
 
 import com.coactivity.domain.entities.Room;
 import com.coactivity.domain.entities.User;

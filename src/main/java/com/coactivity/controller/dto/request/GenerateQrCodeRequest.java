@@ -1,7 +1,7 @@
-package com.coactivity.dto.request;
+package com.coactivity.controller.dto.request;
 
 import com.coactivity.controller.ApiController;
-import com.coactivity.dto.response.QrCodeResponse;
+import com.coactivity.controller.dto.response.QrCodeResponse;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 

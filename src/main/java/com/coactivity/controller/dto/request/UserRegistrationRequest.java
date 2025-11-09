@@ -1,4 +1,4 @@
-package com.coactivity.dto.request;
+package com.coactivity.controller.dto.request;
 
 import java.time.Instant;
 import lombok.AllArgsConstructor;

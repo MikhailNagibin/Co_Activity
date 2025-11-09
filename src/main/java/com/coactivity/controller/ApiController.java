@@ -1,30 +1,32 @@
 package com.coactivity.controller;
 
-import com.coactivity.domain.entities.RoomFilter;
+import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.domain.enums.RequestStatus;
-import com.coactivity.domain.enums.RoomSort;
-import com.coactivity.dto.request.AnswerRequest;
-import com.coactivity.dto.request.GenerateQrCodeRequest;
-import com.coactivity.dto.request.LoginRequest;
-import com.coactivity.dto.request.QuestionRequest;
-import com.coactivity.dto.request.RoomCreationRequest;
-import com.coactivity.dto.request.UserProfileUpdateRequest;
-import com.coactivity.dto.request.UserRegistrationRequest;
-import com.coactivity.dto.request.VerifyQrCodeRequest;
-import com.coactivity.dto.response.AnswerResponse;
-import com.coactivity.dto.response.ApiResponse;
-import com.coactivity.dto.response.JoinRequestResponse;
-import com.coactivity.dto.response.LoginResponse;
-import com.coactivity.dto.response.QrCodeResponse;
-import com.coactivity.dto.response.QuestionResponse;
-import com.coactivity.dto.response.QuestionWithAnswersResponse;
-import com.coactivity.dto.response.RegistrationResponse;
-import com.coactivity.dto.response.RoomCreationResponse;
-import com.coactivity.dto.response.RoomDetailedResponse;
-import com.coactivity.dto.response.RoomSummaryResponse;
-import com.coactivity.dto.response.UserProfileResponse;
-import com.coactivity.dto.response.VerificationResponse;
+import com.coactivity.controller.dto.request.RoomSort;
+import com.coactivity.controller.dto.request.AnswerRequest;
+import com.coactivity.controller.dto.request.GenerateQrCodeRequest;
+import com.coactivity.controller.dto.request.LoginRequest;
+import com.coactivity.controller.dto.request.QuestionRequest;
+import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
+import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import com.coactivity.controller.dto.request.VerifyQrCodeRequest;
+import com.coactivity.controller.dto.response.AnswerResponse;
+import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.JoinRequestResponse;
+import com.coactivity.controller.dto.response.LoginResponse;
+import com.coactivity.controller.dto.response.QrCodeResponse;
+import com.coactivity.controller.dto.response.QuestionResponse;
+import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
+import com.coactivity.controller.dto.response.RegistrationResponse;
+import com.coactivity.controller.dto.response.RoomCreationResponse;
+import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomSummaryResponse;
+import com.coactivity.controller.dto.response.UserProfileResponse;
+import com.coactivity.controller.dto.response.VerificationResponse;
+import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Core API controller interface for the CoActivity platform.
@@ -53,6 +55,7 @@ import java.util.List;
  * @see RoomSummaryResponse
  * @see JoinRequestResponse
  */
+@Validated
 public interface ApiController {
 
   // ===== USER AUTHENTICATION & REGISTRATION =====
@@ -442,6 +445,7 @@ public interface ApiController {
    * @see GenerateQrCodeRequest
    * @see #verifyQrCode(String, VerifyQrCodeRequest)
    */
+  @Valid
   ApiResponse<QrCodeResponse> generateQrCode(String token, GenerateQrCodeRequest request);
 
   /**
