@@ -1,6 +1,5 @@
-package com.coactivity.domain.entities;
+package com.coactivity.domain;
 
-import com.coactivity.domain.enums.Notification;
 import java.time.Instant;
 import java.util.List;
 import lombok.AllArgsConstructor;

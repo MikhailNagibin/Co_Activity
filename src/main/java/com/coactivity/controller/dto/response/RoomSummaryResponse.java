@@ -1,6 +1,6 @@
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.domain.enums.Category;
+import com.coactivity.domain.Category;
 import lombok.Builder;
 import lombok.Data;
 

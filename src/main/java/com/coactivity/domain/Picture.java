@@ -1,4 +1,4 @@
-package com.coactivity.domain.entities;
+package com.coactivity.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

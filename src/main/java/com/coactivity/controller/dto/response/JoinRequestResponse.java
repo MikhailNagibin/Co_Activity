@@ -1,6 +1,6 @@
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.domain.enums.RequestStatus;
+import com.coactivity.domain.RequestStatus;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;

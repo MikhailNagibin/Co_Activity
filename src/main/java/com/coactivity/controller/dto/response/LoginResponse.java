@@ -1,6 +1,6 @@
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.domain.entities.User;
+import com.coactivity.domain.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

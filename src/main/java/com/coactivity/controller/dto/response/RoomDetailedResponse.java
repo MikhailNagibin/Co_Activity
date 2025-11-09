@@ -1,7 +1,7 @@
 // src/main/java/com/coactivity/dto/response/RoomDetailedResponse.java
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.domain.enums.Category;
+import com.coactivity.domain.Category;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;

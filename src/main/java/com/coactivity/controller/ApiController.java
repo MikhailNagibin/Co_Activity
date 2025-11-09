@@ -1,7 +1,7 @@
 package com.coactivity.controller;
 
 import com.coactivity.controller.dto.request.RoomFilter;
-import com.coactivity.domain.enums.RequestStatus;
+import com.coactivity.domain.RequestStatus;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.GenerateQrCodeRequest;

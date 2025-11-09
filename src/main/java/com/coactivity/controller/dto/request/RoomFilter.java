@@ -1,6 +1,6 @@
 package com.coactivity.controller.dto.request;
 
-import com.coactivity.domain.enums.Category;
+import com.coactivity.domain.Category;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
