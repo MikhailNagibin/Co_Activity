@@ -264,4 +264,11 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
     return bans;
   }
+
+  public boolean isUserInMembers(int roomId, int userId) {
+    Room room = getRoomById(roomId);
+    Map<User, Role> users = room.getUsers();
+    return users.containsKey(userRepository.getUserById(userId));
+  }
+
 }

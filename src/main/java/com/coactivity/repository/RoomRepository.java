@@ -66,4 +66,12 @@ public interface RoomRepository {
    * @param roomId
    */
   void deleteRoom(int roomId);
+
+  /**
+   *
+   * @param roomId
+   * @param userId
+   * @return
+   */
+  boolean isUserInMembers(int roomId, int userId);
 }
