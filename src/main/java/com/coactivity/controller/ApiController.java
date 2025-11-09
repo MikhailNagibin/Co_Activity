@@ -1,18 +1,18 @@
 package com.coactivity.controller;
 
-import com.coactivity.controller.dto.request.RoomFilter;
-import com.coactivity.domain.RequestStatus;
-import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.GenerateQrCodeRequest;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.controller.dto.request.RoomFilter;
+import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.request.VerifyQrCodeRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
 import com.coactivity.controller.dto.response.QrCodeResponse;
@@ -24,6 +24,7 @@ import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.VerificationResponse;
+import com.coactivity.domain.RequestStatus;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.validation.annotation.Validated;
@@ -137,7 +138,7 @@ public interface ApiController {
    *
    * @param token valid JWT token obtained during authentication
    * @return {@link ApiResponse} containing {@link UserProfileResponse} with complete user profile
-   * data, or e11rror details for invalid tokens or missing users
+   * data, or error details for invalid tokens or missing users
    */
   ApiResponse<UserProfileResponse> getUserProfile(String token);
 
@@ -176,6 +177,30 @@ public interface ApiController {
    * @throws IllegalArgumentException if required parameters are missing or invalid
    */
   ApiResponse<RoomCreationResponse> createRoom(String token, RoomCreationRequest request);
+
+  /**
+   * Updates the bulletin board content for a specific room.
+   * <p>
+   * Allows room administrators to post announcements, updates, and important information that will
+   * be visible to all room participants. The bulletin board serves as the primary communication
+   * channel for room-related announcements and updates.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * in the specified room. Only users with owner or administrator roles can modify the bulletin
+   * board content.</p>
+   *
+   * @param token   valid JWT token of a user with room administration privileges
+   * @param roomId  unique identifier of the room to update
+   * @param newContent contains the new bulletin board content to display
+   * @return {@link ApiResponse} containing the updated {@link BulletinBoardResponse} with new
+   * content and updated timestamp
+   * @throws SecurityException        if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if room doesn't exist or content is invalid
+   * @see BulletinBoardResponse
+   */
+  ApiResponse<BulletinBoardResponse> updateBulletinBoard(String token, Integer roomId,
+      String newContent);
 
   /**
    * Retrieves rooms based on specified filtering and sorting criteria.
@@ -501,4 +526,6 @@ public interface ApiController {
    * @see #generateQrCode(String, GenerateQrCodeRequest)
    */
   ApiResponse<VerificationResponse> verifyQrCode(String token, VerifyQrCodeRequest request);
+
+
 }
