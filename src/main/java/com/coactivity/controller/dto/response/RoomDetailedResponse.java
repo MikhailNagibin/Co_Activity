@@ -1,26 +1,24 @@
-// src/main/java/com/coactivity/dto/response/RoomDetailedResponse.java
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.domain.Category;
-import java.time.Instant;
-import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 
 /**
  * Comprehensive room information with conditional data exposure.
+ * <p>
+ * Formally, it is an extension of class {@link RoomSummaryResponse}
+ * </p>
  */
 @Data
-@Builder
-public class RoomDetailedResponse {
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
+public class RoomDetailedResponse extends RoomSummaryResponse {
 
-  private Integer id;
-  private String name;
-  private Category category;
-  private String description;
-  private Boolean isPublic;
-  private Integer participantCount;
-  private Integer maximumParticipants;
-  private String creatorName;
+  /**
+   * Indicates whether the current user can see protected content.
+   */
+  private Boolean hasProtectedAccess;
 
   /**
    * Direct link to the room's chat/communication platform. Null for unauthorized users.
@@ -28,17 +26,7 @@ public class RoomDetailedResponse {
   private String chatLink;
 
   /**
-   * The current bulletin board text content. Null for unauthorized users.
+   * The current bulletin board content. Null for unauthorized users.
    */
-  private String bulletinBoard;
-
-  /**
-   * When it was last updated
-   */
-  private Instant bulletinBoardUpdatedAt;
-
-  /**
-   * Indicates whether the current user can see protected content.
-   */
-  private Boolean hasProtectedAccess;
+  private BulletinBoardResponse bulletinBoard;
 }

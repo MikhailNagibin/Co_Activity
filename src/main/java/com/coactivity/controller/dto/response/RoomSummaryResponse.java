@@ -1,6 +1,7 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Category;
+import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
 
@@ -10,6 +11,8 @@ import lombok.Data;
  * Contains essential room metadata optimized for display in lists, grids, and search results where
  * screen space is limited. Safe for both authorized and unauthorized users.
  * </p>
+ *
+ * @see RoomDetailedResponse
  */
 @Data
 @Builder
@@ -21,14 +24,28 @@ public class RoomSummaryResponse {
   private Integer id;
 
   /**
-   * Public name of the room or activity.
+   * Shows whether room is active
    */
-  private String name;
+  private boolean isActive;
+
+  /**
+   * Indicates whether the room is publicly accessible.
+   * <p>
+   * {@code true} means any user can view and join the room directly. {@code false} means users must
+   * request and be approved to join.
+   * </p>
+   */
+  private Boolean isPublic;
 
   /**
    * Classification category for the room's primary activity.
    */
   private Category category;
+
+  /**
+   * Public name of the room or activity.
+   */
+  private String name;
 
   /**
    * Brief description of the room's purpose or activities.
@@ -39,13 +56,24 @@ public class RoomSummaryResponse {
   private String description;
 
   /**
-   * Indicates whether the room is publicly accessible.
-   * <p>
-   * {@code true} means any user can view and join the room directly. {@code false} means users must
-   * request and be approved to join.
-   * </p>
+   * The date when event begins
    */
-  private Boolean isPublic;
+  private Instant dateOfStartEvent;
+
+  /**
+   * The date when event ends
+   */
+  private Instant dateOfEndEvent;
+
+  /**
+   * Age rating of event.
+   */
+  private int ageRating;
+
+  /**
+   * Frequency of the event.
+   */
+  private int frequency;
 
   /**
    * Current number of active participants in the room.
@@ -65,13 +93,14 @@ public class RoomSummaryResponse {
    */
   private Integer maximumParticipants;
 
+
   /**
-   * Display name of the user who created the room.
+   * User who created the room.
    * <p>
    * Provides attribution and helps users identify rooms created by people they know or trust.
    * </p>
    */
-  private String creatorName;
+  private UserProfileResponse creator;
 
   /**
    * Indicates whether the current user is already a participant.

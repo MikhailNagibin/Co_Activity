@@ -3,7 +3,6 @@ package com.coactivity.domain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +15,7 @@ public class Room {
 
   private int id;
   private boolean isActive;
-  private boolean isVisible;
+  private boolean isPublic;
   private String chatLink;
   private Category category;
   private String name;
