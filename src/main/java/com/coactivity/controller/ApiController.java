@@ -23,6 +23,7 @@ import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
+import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.controller.dto.response.VerificationResponse;
 import com.coactivity.domain.RequestStatus;
 import jakarta.validation.Valid;
@@ -143,6 +144,28 @@ public interface ApiController {
   ApiResponse<UserProfileResponse> getUserProfile(String token);
 
   /**
+   * Retrieves public profile information for any user in the system.
+   * <p>
+   * Provides a safe, public view of user profiles that can be accessed by any authenticated user.
+   * This method returns the same information that users make publicly available on their profiles,
+   * excluding sensitive personal data.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. Any authenticated user
+   * can view the public profile of any other user in the system.</p>
+   *
+   * @param token  valid JWT token of the requesting user
+   * @param userId unique identifier of the user whose profile is being requested
+   * @return {@link ApiResponse} containing {@link UserSummaryResponse} with public profile
+   * information of the requested user
+   * @throws SecurityException        if the requesting user is not authenticated
+   * @throws IllegalArgumentException if the target user doesn't exist
+   * @see UserSummaryResponse
+   * @see #getUserProfile(String)
+   */
+  ApiResponse<UserSummaryResponse> getUserProfileById(String token, Integer userId);
+
+  /**
    * Updates the authenticated user's profile information.
    * <p>
    * Modifies the specified profile fields for the user identified by the JWT token. All fields
@@ -190,8 +213,8 @@ public interface ApiController {
    * in the specified room. Only users with owner or administrator roles can modify the bulletin
    * board content.</p>
    *
-   * @param token   valid JWT token of a user with room administration privileges
-   * @param roomId  unique identifier of the room to update
+   * @param token      valid JWT token of a user with room administration privileges
+   * @param roomId     unique identifier of the room to update
    * @param newContent contains the new bulletin board content to display
    * @return {@link ApiResponse} containing the updated {@link BulletinBoardResponse} with new
    * content and updated timestamp
