@@ -110,7 +110,7 @@ public interface RoomController {
    * Requests to join a room as a participant.
    * <p>
    * For public rooms, the user is added immediately as a participant. For private rooms, a join
-   * request is created with status {@link RequestStatus#Consideration} awaiting administrator
+   * request is created with status {@link RequestStatus#CONSIDERATION} awaiting administrator
    * approval. If the room has reached maximum capacity, the request is automatically rejected.
    * </p>
    *

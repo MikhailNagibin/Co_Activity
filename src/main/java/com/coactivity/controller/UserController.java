@@ -324,8 +324,8 @@ public interface UserController {
    *
    * @param token     valid JWT token of a user with room administration privileges
    * @param requestId unique identifier of the join request to process
-   * @param action    the action to perform: {@link RequestStatus#Accepted} to approve,
-   *                  {@link RequestStatus#Refused} to reject
+   * @param action    the action to perform: {@link RequestStatus#ACCEPTED} to approve,
+   *                  {@link RequestStatus#REFUSED} to reject
    * @return {@link ApiResponse} with empty data but success status confirming the request was
    * processed, or error details for invalid requests or insufficient permissions
    */
@@ -348,7 +348,7 @@ public interface UserController {
   /**
    * Cancels a pending join request submitted by the authenticated user.
    * <p>
-   * Withdraws a join request that is still in {@link RequestStatus#Consideration} status. This
+   * Withdraws a join request that is still in {@link RequestStatus#CONSIDERATION} status. This
    * operation is only available for requests that haven't yet been processed by room
    * administrators. Cancelled requests are permanently removed and cannot be restored.
    * </p>
