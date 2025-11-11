@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SimpleTest {
     @Test
-    void contextLoads() {
+    void    contextLoads() {
         assertTrue(true, "Тестовая среда работает корректно");
     }
 }
