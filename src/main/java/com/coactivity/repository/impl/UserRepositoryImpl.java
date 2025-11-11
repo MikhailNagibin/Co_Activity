@@ -177,7 +177,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     private List<Room> getRooms(int userId) {
-      String sql = "select roomId from Rooms_members where userId = ?";
+      String sql = "select room_id from Rooms_members where user_id = ?";
       var rooms = new ArrayList<Room>();
       try (Connection connection = dataRepository.getDataSource().getConnection();
            PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -196,7 +196,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     private List<Notification> getNotification(int userId) {
-      String sql = "select notificationId from usersNotification where userId = ?";
+      String sql = "select notification_id from usersNotification where user_id = ?";
       var notifications = new ArrayList<Notification>();
       try (Connection connection = dataRepository.getDataSource().getConnection();
            PreparedStatement statement = connection.prepareStatement(sql)) {

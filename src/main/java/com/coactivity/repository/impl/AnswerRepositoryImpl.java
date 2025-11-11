@@ -59,7 +59,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           var answer = new Answer(resultSet.getInt("id"), questionId,
-            resultSet.getInt("prevAnsId"), resultSet.getString("answer"),
+            resultSet.getInt("prev_ans_id"), resultSet.getString("answer"),
             userRepository.getUserById(resultSet.getInt("owner")));
           answers.add(answer);
         }

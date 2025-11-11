@@ -24,7 +24,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard createBulletinBoard(int roomId, String content, int authorId) {
-    String sql = "INSERT INTO bulletinboard (room_id, content, author_id, updated_at) " +
+    String sql = "INSERT INTO bulletinBoard (room_id, content, author_id, updated_at) " +
       "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -52,8 +52,8 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId) {
-    String sql = "UPDATE bulletinboard SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
-      " WHERE room_id = ? RETURNING id CURRENT_TIMESTAMP";
+    String sql = "UPDATE bulletin_board SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
+      " WHERE roomId = ? RETURNING id, CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -80,7 +80,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard getBulletinBoard(int roomId) {
-    String sql = "SELECT * FROM bulletinboard WHERE room_id = ?";
+    String sql = "SELECT * FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -101,7 +101,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public void deleteBulletinBoard(int roomId) {
-    String sql = "DELETE FROM bulletinboard WHERE room_id = ?";
+    String sql = "DELETE FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -124,7 +124,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     int roomId = resultSet.getInt("room_id");
     String content = resultSet.getString("content");
     int authorId = resultSet.getInt("author_id");
-    Instant updatedAt = resultSet.getTimestamp("updatedat").toInstant();
+    Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
 
     return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,
       userRepository.getUserById(authorId), updatedAt);

@@ -18,13 +18,13 @@ public interface RoomRepository {
    * @param ageRating
    * @param frequency
    * @param maximumNumberOfPeople
-   * @param users
+   * @param user
    * @return
    */
   Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
                   String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
                   int ageRating, int frequency, int maximumNumberOfPeople,
-                  AbstractMap.SimpleEntry<Integer, Integer> users);
+                  int user);
 
 
   /**

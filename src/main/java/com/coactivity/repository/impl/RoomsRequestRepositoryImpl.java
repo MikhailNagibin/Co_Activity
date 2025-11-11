@@ -102,7 +102,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   @Override
   public List<RoomsRequest> getRoomRequest(int roomId) {
     String sql = """
-            SELECT * FROM Rooms_requests
+            SELECT * FROM rooms_requests
             WHERE room_id = ?;
             """;
 
@@ -129,7 +129,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   @Override
   public List<RoomsRequest> getRequestsByUser(int userId) {
     String sql = """
-            SELECT * FROM Rooms_requests
+            SELECT * FROM rooms_requests
             WHERE user_id = ?;
             """;
 

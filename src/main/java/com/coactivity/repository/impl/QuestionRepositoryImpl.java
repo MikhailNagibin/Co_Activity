@@ -124,6 +124,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       throw new RuntimeException();
     }
   }
+
   private void deleteAllWithQuestion(int questionId) {
     String sql = "DELETE FROM Answers WHERE question_id = ?";
 
