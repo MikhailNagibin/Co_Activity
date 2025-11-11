@@ -29,7 +29,7 @@ public class PictureRepositoryImpl implements PictureRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int generatedPictureId = resultSet.getInt("pictureId");
+          int generatedPictureId = resultSet.getInt("picture_id");
           return new Picture(roomRepository.getRoomById(roomId), generatedPictureId);
         }
       }
