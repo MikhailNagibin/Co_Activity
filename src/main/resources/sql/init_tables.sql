@@ -30,7 +30,6 @@ CREATE TABLE Rooms (
 --  owner_id INT,
   frequency INT,
   maximum_number_of_people int,
-  current_number_of_people int,
 --  FOREIGN KEY (owner_id) REFERENCES Users(id)
   FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
