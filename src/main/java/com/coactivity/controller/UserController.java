@@ -132,7 +132,7 @@ public interface UserController {
    * @return {@link ApiResponse} containing {@link UserProfileResponse} with complete user profile
    * data, or error details for invalid tokens or missing users
    */
-  ApiResponse<UserProfileResponse> getUserProfile(String token);
+  ApiResponse<UserProfileResponse> getUserProfile(int token);
 
   /**
    * Retrieves public profile information for any user in the system.
