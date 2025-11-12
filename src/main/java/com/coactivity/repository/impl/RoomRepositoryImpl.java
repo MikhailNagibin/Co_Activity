@@ -120,7 +120,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(8, newMaximumNumberOfPeople);
 
       room.setActive(newIsActive);
-      room.setVisible(newIsVisible);
+      room.setPublic(newIsVisible);
       room.setDescription(newDescription);
       room.setDateOfStartEvent(newDateOfStart != null ? newDateOfStart.toInstant() : null);
       room.setDateOfEndEvent(newDateOfEnd != null ? newDateOfEnd.toInstant() : null);
