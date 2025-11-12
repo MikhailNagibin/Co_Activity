@@ -224,8 +224,8 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private Map<User, Role> getUsersInRoom(int roomId) {
     String sql = """
-      SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.userId = u.id
-       INNER JOIN role AS r ON r.id = rm.RoleId;
+      SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
+       INNER JOIN role AS r ON r.id = rm.role_id;
       """;
     var usersInRoom = new HashMap<User, Role>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
