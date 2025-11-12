@@ -1,7 +1,8 @@
 package com.coactivity.domain;
 
-import java.sql.Timestamp;
-import java.util.AbstractMap.SimpleEntry;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,15 +15,16 @@ public class Room {
 
   private int id;
   private boolean isActive;
-  private boolean isVisible;
+  private boolean isPublic;
   private String chatLink;
   private Category category;
   private String name;
   private String description;
-  private Timestamp dateOfStartEvent;
-  private Timestamp dateOfEndEvent;
+  private Instant dateOfStartEvent;
+  private Instant dateOfEndEvent;
   private int ageRating;
   private int frequency;
   private int maximumNumberOfPeople;
-  private SimpleEntry<User, Role> users;
+  private Map<User, Role> users;
+  private List<User> bans;
 }

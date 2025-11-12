@@ -12,4 +12,5 @@ public class Question {
   private int id;
   private User owner;
   private String question;
+  private Category category;
 }
