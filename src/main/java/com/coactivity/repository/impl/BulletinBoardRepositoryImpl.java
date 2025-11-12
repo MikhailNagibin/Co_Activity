@@ -124,7 +124,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     int roomId = resultSet.getInt("room_id");
     String content = resultSet.getString("content");
     int authorId = resultSet.getInt("author_id");
-    Instant updatedAt = resultSet.getTimestamp("updatedat").toInstant();
+    Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
 
     return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,
       userRepository.getUserById(authorId), updatedAt);
