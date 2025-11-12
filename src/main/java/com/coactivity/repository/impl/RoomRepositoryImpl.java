@@ -205,19 +205,19 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
     int id = resultSet.getInt("id");
-    boolean isActive = resultSet.getBoolean("isActive");
-    boolean isVisible = resultSet.getBoolean("isPrivate");
-    String chatLink = resultSet.getString("chatLink");
-    int categoryId = resultSet.getInt("categoryId");
+    boolean isActive = resultSet.getBoolean("is_active");
+    boolean isVisible = resultSet.getBoolean("is_private");
+    String chatLink = resultSet.getString("chat_link");
+    int categoryId = resultSet.getInt("category_id");
     String name = resultSet.getString("name");
     String description = resultSet.getString("description");
-    Instant startDate = resultSet.getTimestamp("startDate") != null ?
-      resultSet.getTimestamp("startDate").toInstant() : null;
-    Instant endDate = resultSet.getTimestamp("endDate") != null ?
-      resultSet.getTimestamp("endDate").toInstant() : null;
-    int ageRating = resultSet.getInt("ageRating");
+    Instant startDate = resultSet.getTimestamp("start_date") != null ?
+      resultSet.getTimestamp("start_date").toInstant() : null;
+    Instant endDate = resultSet.getTimestamp("end_date") != null ?
+      resultSet.getTimestamp("end_date").toInstant() : null;
+    int ageRating = resultSet.getInt("age_rating");
     int frequency = resultSet.getInt("frequency");
-    int maxPeople = resultSet.getInt("maximumNumberOfPeople");
+    int maxPeople = resultSet.getInt("maximum_number_of_people");
     Category category = Category.getByIndex(categoryId);
 
     return new Room(id, isActive, isVisible, chatLink, category, name, description,
