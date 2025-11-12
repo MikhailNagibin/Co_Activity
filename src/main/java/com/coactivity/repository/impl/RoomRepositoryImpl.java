@@ -3,8 +3,6 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.*;
 import com.coactivity.repository.RoomRepository;
-import com.coactivity.repository.impl.UserRepositoryImpl;
-
 
 
 import java.sql.*;
@@ -22,15 +20,15 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
+  public Room createRoom(boolean isActive, boolean isPrivate, String chatLink, int categoryId,
                          String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
                          int ageRating, int frequency, int maximumNumberOfPeople,
                          AbstractMap.SimpleEntry<Integer, Integer> users) {
 
     String sql = """
-      INSERT INTO rooms (is_active, is_visible, chat_link, category_id, name, description, start_date, end_date,
-                          age_rating, frequency, maximum_number_of_people, current_number_of_people)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
+                          age_rating, frequency, maximum_number_of_people)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING id
       """;
 
@@ -38,7 +36,7 @@ public class RoomRepositoryImpl implements RoomRepository {
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setBoolean(1, isActive);
-      statement.setBoolean(2, isVisible);
+      statement.setBoolean(2, isPrivate);
       statement.setString(3, chatLink);
       statement.setInt(4, categoryId);
       statement.setString(5, name);
@@ -88,13 +86,13 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public Room updateRoom(Room room, int roomId, boolean isActive, boolean isVisible, String description,
+  public Room updateRoom(Room room, int roomId, boolean isActive, boolean isPrivate, String description,
                          Instant dateOfStartEvent, Instant dateOfEndEvent, int ageRating,
                          int frequency, int maximumNumberOfPeople) {
 
     String sql = """
       UPDATE rooms
-      SET is_active = ?, is_visible = ?, description = ?, start_date = ?,
+      SET is_active = ?, is_private = ?, description = ?, start_date = ?,
           end_date = ?, age_rating = ?, frequency = ?, maximum_number_of_people = ?
       WHERE id = ?
       """;
@@ -103,7 +101,7 @@ public class RoomRepositoryImpl implements RoomRepository {
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
       boolean newIsActive = isActive;
-      boolean newIsVisible = isVisible;
+      boolean newisPrivate = isPrivate;
       String newDescription = description != null ? description : room.getDescription();
       Timestamp newDateOfStart = dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) :
         (room.getDateOfStartEvent() != null ? Timestamp.from(room.getDateOfStartEvent()) : null);
@@ -114,7 +112,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       int newMaximumNumberOfPeople = maximumNumberOfPeople != 0 ? maximumNumberOfPeople : room.getMaximumNumberOfPeople();
 
       statement.setBoolean(1, newIsActive);
-      statement.setBoolean(2, newIsVisible);
+      statement.setBoolean(2, newisPrivate);
       statement.setString(3, newDescription);
       statement.setTimestamp(4, newDateOfStart);
       statement.setTimestamp(5, newDateOfEnd);
@@ -123,7 +121,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(8, newMaximumNumberOfPeople);
 
       room.setActive(newIsActive);
-      room.setVisible(newIsVisible);
+      room.setPrivate(newisPrivate);
       room.setDescription(newDescription);
       room.setDateOfStartEvent(newDateOfStart != null ? newDateOfStart.toInstant() : null);
       room.setDateOfEndEvent(newDateOfEnd != null ? newDateOfEnd.toInstant() : null);
@@ -206,7 +204,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
     int id = resultSet.getInt("id");
     boolean isActive = resultSet.getBoolean("is_active");
-    boolean isVisible = resultSet.getBoolean("is_private");
+    boolean isPrivate = resultSet.getBoolean("is_private");
     String chatLink = resultSet.getString("chat_link");
     int categoryId = resultSet.getInt("category_id");
     String name = resultSet.getString("name");
@@ -220,7 +218,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     int maxPeople = resultSet.getInt("maximum_number_of_people");
     Category category = Category.getByIndex(categoryId);
 
-    return new Room(id, isActive, isVisible, chatLink, category, name, description,
+    return new Room(id, isActive, isPrivate, chatLink, category, name, description,
       startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id), getUsersBans(id));
   }
 
@@ -248,7 +246,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   private List<User> getUsersBans(int roomId) {
-    String sql = "select userId from Bans where roomId = ?";
+    String sql = "select user_id from Bans where room_id = ?";
     var bans = new ArrayList<User>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
