@@ -5,6 +5,7 @@ import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
@@ -205,10 +206,36 @@ public interface RoomController {
    *
    * @param token      valid JWT token of a user with room administration privileges
    * @param roomId     unique identifier of the room to retrieve participants for
-   * @param roleFilter optional role to filter participants by (e.g., only ADMINs). If null, all participants are returned.
-   * @return {@link ApiResponse} containing list of participant information with enhanced user details
-   * @throws SecurityException if user lacks administrative privileges for the room
+   * @param roleFilter optional role to filter participants by (e.g., only ADMINs). If null, all
+   *                   participants are returned.
+   * @return {@link ApiResponse} containing list of participant information with enhanced user
+   * details
+   * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if the room doesn't exist
    */
-  ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId, Role roleFilter);
+  ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId,
+      Role roleFilter);
+
+  /**
+   * Verifies whether a specific user is a participant in a given room.
+   * <p>
+   * This method is exclusively for room administrators (OWNER or ADMIN) to verify the membership
+   * status of any user within their managed rooms. Regular participants cannot use this method to
+   * check other users' membership status.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * (OWNER or ADMIN) in the specified room. The requesting user must be an administrator of the
+   * room they are checking.</p>
+   *
+   * @param token  valid JWT token of a user with room administration privileges
+   * @param roomId unique identifier of the room to check
+   * @param userId unique identifier of the user to verify membership for
+   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
+   * results and role information, or indicates the user is not a participant
+   * @throws SecurityException        if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if the room or target user doesn't exist
+   */
+  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
+      Integer userId);
 }

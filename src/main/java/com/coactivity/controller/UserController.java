@@ -376,27 +376,4 @@ public interface UserController {
    * @throws SecurityException if authentication token is invalid or expired
    */
   ApiResponse<List<RoomSummaryResponse>> getBanRooms(String token);
-
-  /**
-   * Verifies whether a specific user is a participant in a given room.
-   * <p>
-   * Provides a programmatic way to check room membership without requiring QR code scanning. This
-   * method serves as a backend alternative to the QR verification system and can be used for
-   * administrative purposes or integration with other systems.
-   * </p>
-   *
-   * <p><b>Access Control:</b> Requires valid authentication. Users can check their own
-   * membership or, if they have administrative privileges in the room, they can check other users'
-   * membership status.</p>
-   *
-   * @param token  valid JWT token of the requesting user
-   * @param roomId unique identifier of the room to check
-   * @param userId unique identifier of the user to verify
-   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
-   * results and role information
-   * @throws SecurityException if user lacks permission to check membership
-   * @see MembershipVerificationResponse
-   */
-  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
-      Integer userId);
 }
