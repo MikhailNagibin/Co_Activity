@@ -18,7 +18,7 @@ public class Room {
 
   private int id;
   private boolean isActive;
-  private boolean isVisible;
+  private boolean isPrivate;
   private String chatLink;
   private Category category;
   private String name;
