@@ -1,6 +1,8 @@
 package com.coactivity.controller.dto.response;
 
+import com.coactivity.domain.Notification;
 import java.time.Instant;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -76,4 +78,9 @@ public class UserProfileResponse {
    * </p>
    */
   private Integer avatarId;
+
+  /**
+   * Types of notifications that user resieves
+   */
+  private List<Notification> notifications;
 }
