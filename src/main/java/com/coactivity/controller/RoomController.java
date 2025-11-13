@@ -106,6 +106,33 @@ public interface RoomController {
    */
   ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token);
 
+  /**
+   * Retrieves all rooms where the authenticated user is an active participant.
+   * <p>
+   * Provides users with a comprehensive view of their current activity engagements, including both
+   * rooms they've joined and rooms they administer. This method serves as the user's personal
+   * activity dashboard, showing all rooms where they have an active membership regardless of their
+   * role (participant, administrator, or owner).
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. Users can only view
+   * their own room participations. The response includes both public and private rooms where the
+   * user has membership.</p>
+   *
+   * <p><b>Response Details:</b> Returns room summaries with full details including
+   * protected content like chat links and bulletin boards, since the user is a verified participant
+   * in these rooms.</p>
+   *
+   * @param token valid JWT token of the authenticated user
+   * @return {@link ApiResponse} containing list of {@link RoomDetailedResponse} with complete room
+   * information including protected content for all rooms where the user has active participation
+   * @throws SecurityException if authentication token is invalid or expired
+   * @see RoomDetailedResponse
+   * @see #getRooms(RoomFilter, RoomSort)
+   * @see #getRoomById(Integer, String)
+   */
+  ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token);
+
   // ===== ROOM PARTICIPATION =====
 
   /**
