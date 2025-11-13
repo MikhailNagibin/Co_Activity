@@ -11,6 +11,7 @@ import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
+import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
@@ -361,6 +362,20 @@ public interface UserController {
    */
   ApiResponse<Void> cancelRequest(String token, Integer requestId);
 
+  /**
+   * Retrieves all rooms where the authenticated user is currently banned.
+   * <p>
+   * Provides users with visibility into rooms they are excluded from, allowing them to understand
+   * their participation limitations. Users can see basic room information but cannot access
+   * protected content or request to join these rooms while banned.
+   * </p>
+   *
+   * @param token valid JWT token of the authenticated user
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} for rooms where the
+   * user is banned, or empty list if the user is not banned from any rooms
+   * @throws SecurityException if authentication token is invalid or expired
+   */
+  ApiResponse<List<RoomSummaryResponse>> getBanRooms(String token);
 
   /**
    * Verifies whether a specific user is a participant in a given room.
