@@ -1,13 +1,17 @@
 package com.coactivity.controller.impl;
 
+import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
+import com.coactivity.domain.Notification;
 import com.coactivity.service.UserService;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Map;
 
 public class UserControllerImpl {
   private final UserService userService = new UserService();
@@ -54,7 +58,26 @@ public class UserControllerImpl {
     }
   }
 
-  private  static boolean isWithinLast100Years(Instant instantToCheck) {
+
+  public ApiResponse<Void> deleteAccount(int token) {
+    return userService.deleteAccount(token);
+  }
+
+  public ApiResponse<Void> configureNotificationSettings(int token,
+                                                                                Map<Notification, Boolean> notifications) {
+    try {
+      var request = new NotificationSettingsRequest();
+      request.setActivityClosed(notifications.get("ACTIVITY_CLOSED"));
+      request.setNewJoinRequest(notifications.get("NEW_JOIN_REQUEST"));
+      request.setMembershipAccepted(notifications.get("MEMBERSHIP_ACCEPTED"));
+      request.setMembershipRejected(notifications.get("MEMBERSHIP_REJECTED"));
+      return userService.configureNotificationSettings(token, request);
+    } catch (Exception e) {
+      return ApiResponse.error(null);
+    }
+  }
+
+  private static boolean isWithinLast100Years(Instant instantToCheck) {
     if (instantToCheck == null) {
       return false;
     }

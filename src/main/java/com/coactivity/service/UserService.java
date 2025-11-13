@@ -1,8 +1,10 @@
 package com.coactivity.service;
 
 import com.coactivity.DataRepository;
+import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -35,7 +37,8 @@ public class UserService {
       return ApiResponse.success(null);
     }
   }
-  public ApiResponse updateUserProfile(int token, UserProfileUpdateRequest request) {
+
+  public ApiResponse<Void> updateUserProfile(int token, UserProfileUpdateRequest request) {
     User user = users.getUserById(token);
     try {
       users.updateUser(user, user.getPassword(), request.getDateOfBirth(), request.getCountry(), request.getCity(),
@@ -43,6 +46,37 @@ public class UserService {
       return ApiResponse.success(null);
     } catch (Exception e) {
       return ApiResponse.error(null);
+    }
+  }
+
+  public ApiResponse<Void> deleteAccount(int token) {
+    try {
+      users.deleteUser(token);
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      return ApiResponse.error(null);
+    }
+  }
+
+  public ApiResponse<Void> configureNotificationSettings(int token,
+                                                         NotificationSettingsRequest request) {
+    try {
+      if (request.getActivityClosed()) {
+        users.setNotification(token, "activityClosed");
+      }
+      if (request.getNewJoinRequest()) {
+        users.setNotification(token, "newJoinRequest");
+      }
+      if (request.getMembershipAccepted()) {
+        users.setNotification(token, "membershipAccepted");
+      }
+      if (request.getMembershipRejected()) {
+        users.setNotification(token, "membershipRejected");
+      }
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
     }
   }
 }

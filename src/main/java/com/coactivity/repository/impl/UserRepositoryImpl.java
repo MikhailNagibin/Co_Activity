@@ -75,6 +75,7 @@ public class UserRepositoryImpl implements UserRepository {
             statement.setString(5, newCity);
             statement.setString(6, newDescription);
             statement.setInt(7, newAvatarId);
+            statement.executeUpdate();
 
             user.setPassword(newPassword);
             user.setDataOfBirth(newBirthday.toInstant());
@@ -159,6 +160,23 @@ public class UserRepositoryImpl implements UserRepository {
         throw new RuntimeException();
       }
       return null;
+    }
+
+    public void setNotification(int id, String notification) {
+      String sql = """
+        Insert into usersNotification (user_id, notification_id)  values (user_id = ?,
+        notification_id = (select id from Notifications where notification = ?));
+        """;
+      try (Connection connection = dataRepository.getDataSource().getConnection();
+           PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setInt(1, id);
+        statement.setString(2, notification);
+        statement.executeUpdate();
+
+      } catch (SQLException e) {
+        System.err.println(e.getMessage());
+        throw new RuntimeException();
+      }
     }
 
     private User mapResultSetToUser(ResultSet resultSet) throws SQLException{

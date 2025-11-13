@@ -221,7 +221,7 @@ public interface UserController {
    * @throws SecurityException if authentication fails or user doesn't exist
    * @see #registerUser(UserRegistrationRequest)
    */
-  ApiResponse<Void> deleteAccount(String token);
+  ApiResponse<Void> deleteAccount(String token);ApiResponse<Void> deleteAccount(String token);
 
   /**
    * Grants administrator privileges to a room participant.

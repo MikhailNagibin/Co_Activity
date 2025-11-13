@@ -100,14 +100,14 @@ CREATE TABLE Answers(
 
 
 
-create table Notification (
+create table Notifications (
     id serial PRIMARY KEY,
     notification varchar(50),
 );
 
 create table usersNotification (
     user_id int,
-    notificationId int,
+    notification_id int,
     FOREIGN KEY (user_id) REFERENCES Users(id)
     FOREIGN KEY (notificationId) REFERENCES Notification(id)
 );
@@ -123,31 +123,31 @@ create table BulletinBoard (
 );
 
 Insert into Roles(role) values
-(Admin),
-(Participant),
-(Owner);
+("Admin"),
+("Participant"),
+("Owner");
 
 Insert into Categories(name) values
-(Sport),
-(Music),
-(Art),
-(Entertainments),
-(Business),
-(Education),
-(ActiveRecreation),
-(PassiveRecreation),
-(isAMassEvent),
-(Other),
-(NotSpecified);
+("Sport"),
+("Music"),
+("Art"),
+("Entertainments"),
+("Business"),
+("Education"),
+("ActiveRecreation"),
+("PassiveRecreation"),
+("isAMassEvent"),
+("Other"),
+("NotSpecified");
 
 
 Insert into RequestStatuses(status_info) values
-(Consideration),
-(Accepted),
-(Refused);
+("Consideration"),
+("Accepted"),
+("Refused");
 
 Insert into Notifications(notification) values
-(membershipAccepted),
-(membershipRejected),
-(activityClosed),
-(newJoinRequest);
+("membershipAccepted"),
+("membershipRejected"),
+("activityClosed"),
+("newJoinRequest");
