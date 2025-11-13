@@ -72,19 +72,21 @@ public interface RoomController {
    * Retrieves rooms based on specified filtering and sorting criteria.
    * <p>
    * <b>Access Control:</b> Public endpoint - no authentication required.
-   * Unauthorized users can call this method by passing {@code null} as the token parameter. All
-   * users receive basic room information. Authenticated users receive additional context about
-   * their participation status in each room.
+   * Provides efficient, cache-friendly access to room listings for all users, including
+   * unauthenticated visitors. Room discovery and browsing are designed as public operations to
+   * encourage platform engagement and user acquisition.
    * </p>
    *
-   * @param filter structured filter criteria for searching rooms, or {@code null} for all rooms
-   * @param sortBy sorting preference, or {@code null} for default sorting
-   * @param token  optional JWT token for personalized participation status. Pass {@code null} for
-   *               unauthorized access.
-   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with basic room
-   * information for all users, plus participation context for authenticated users
+   * @param filter structured filter criteria for searching rooms, or {@code null} to return all
+   *               active rooms
+   * @param sortBy sorting preference, or {@code null} for default relevance-based sorting
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with public room
+   * information suitable for display to any user, authenticated or not
+   * @see RoomSummaryResponse
+   * @see RoomFilter
+   * @see RoomSort
    */
-  ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy, String token);
+  ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy);
 
   /**
    * Retrieves detailed information for a specific room with conditional data exposure.
