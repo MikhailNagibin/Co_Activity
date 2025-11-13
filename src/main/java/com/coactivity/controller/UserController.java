@@ -325,7 +325,8 @@ public interface UserController {
    * @param token     valid JWT token of a user with room administration privileges
    * @param requestId unique identifier of the join request to process
    * @param action    the action to perform: {@link RequestStatus#ACCEPTED} to approve,
-   *                  {@link RequestStatus#REFUSED} to reject
+   *                  {@link RequestStatus#REFUSED} to reject,
+   *                  {@link RequestStatus#REFUSED_WITH_BAN} to reject and ban the user
    * @return {@link ApiResponse} with empty data but success status confirming the request was
    * processed, or error details for invalid requests or insufficient permissions
    */
