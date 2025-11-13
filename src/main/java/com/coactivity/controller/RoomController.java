@@ -7,8 +7,10 @@ import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.RequestStatus;
+import com.coactivity.domain.Role;
 import java.util.List;
 
 /**
@@ -189,4 +191,24 @@ public interface RoomController {
    * @see #createRoom(String, RoomCreationRequest)
    */
   ApiResponse<Void> deleteRoom(String token, Integer roomId);
+
+  /**
+   * Retrieves the list of participants for a specific room with optional role filtering.
+   * <p>
+   * Provides room administrators with comprehensive participant information including user details,
+   * roles, join dates, and activity timestamps. Enables effective room management and moderation
+   * with flexible filtering capabilities.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * (OWNER or ADMIN) in the specified room.</p>
+   *
+   * @param token      valid JWT token of a user with room administration privileges
+   * @param roomId     unique identifier of the room to retrieve participants for
+   * @param roleFilter optional role to filter participants by (e.g., only ADMINs). If null, all participants are returned.
+   * @return {@link ApiResponse} containing list of participant information with enhanced user details
+   * @throws SecurityException if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if the room doesn't exist
+   */
+  ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId, Role roleFilter);
 }
