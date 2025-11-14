@@ -23,7 +23,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   public Room createRoom(boolean isActive, boolean isPrivate, String chatLink, int categoryId,
                          String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
                          int ageRating, int frequency, int maximumNumberOfPeople,
-                         AbstractMap.SimpleEntry<Integer, Integer> users) {
+                         int  users) {
 
     String sql = """
       INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
@@ -50,13 +50,10 @@ public class RoomRepositoryImpl implements RoomRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int roomId = resultSet.getInt("id");
-          if (users != null) {
-            addUserToRoom(roomId, users.getKey(), users.getValue());
-          }
+            addUserToRoom(roomId, users, 1);
           return getRoomById(roomId);
         }
       }
-
     } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();

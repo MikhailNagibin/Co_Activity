@@ -8,7 +8,7 @@ public interface RoomRepository {
   /**
    *
    * @param isActive
-   * @param isVisible
+   * @param isPrivate
    * @param chatLink
    * @param categoryId
    * @param name
@@ -21,7 +21,7 @@ public interface RoomRepository {
    * @param user
    * @return
    */
-  Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
+  Room createRoom(boolean isActive, boolean isPrivate, String chatLink, int categoryId,
                   String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
                   int ageRating, int frequency, int maximumNumberOfPeople,
                   int user);
