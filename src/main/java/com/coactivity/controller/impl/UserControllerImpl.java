@@ -59,8 +59,12 @@ public class UserControllerImpl {
   }
 
 
-  public ApiResponse<Void> deleteAccount(int token) {
-    return userService.deleteAccount(token);
+  public ApiResponse<Integer> deleteAccount(int token) {
+    try {
+      return userService.deleteAccount(token);
+    } catch (Exception e) {
+      return ApiResponse.error(null);
+    }
   }
 
   public ApiResponse<Void> configureNotificationSettings(int token,

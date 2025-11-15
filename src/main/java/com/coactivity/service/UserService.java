@@ -49,10 +49,10 @@ public class UserService {
     }
   }
 
-  public ApiResponse<Void> deleteAccount(int token) {
+  public ApiResponse<Integer> deleteAccount(int token) {
     try {
       users.deleteUser(token);
-      return ApiResponse.success(null);
+      return ApiResponse.success(200);
     } catch (Exception e) {
       return ApiResponse.error(null);
     }
