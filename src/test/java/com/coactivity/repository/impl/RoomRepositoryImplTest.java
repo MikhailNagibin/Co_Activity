@@ -1,27 +1,26 @@
-// test/java/com/coactivity/repository/impl/RoomRepositoryImplTest.java
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
-import com.coactivity.domain.*;
+import com.coactivity.domain.Category;
+import com.coactivity.domain.Room;
+import com.coactivity.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.DisplayName;
 import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.Instant;
-import java.util.AbstractMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class RoomRepositoryImplTest {
 
     @Mock
@@ -29,6 +28,9 @@ class RoomRepositoryImplTest {
 
     @Mock
     private UserRepositoryImpl userRepository;
+
+    @Mock
+    private DataSource dataSource;
 
     @Mock
     private Connection connection;
@@ -39,229 +41,270 @@ class RoomRepositoryImplTest {
     @Mock
     private ResultSet resultSet;
 
-    @InjectMocks
+    @Spy
     private RoomRepositoryImpl roomRepository;
 
-    private DataSource testDataSource;
-
     @BeforeEach
-    void setUp() throws SQLException {
-        // Создаем тестовую базу данных в памяти
-        testDataSource = new EmbeddedDatabaseBuilder()
-                .setType(EmbeddedDatabaseType.H2)
-                .addScript("classpath:schema.sql")
-                .build();
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);
 
-        when(dataRepository.getDataSource()).thenReturn(testDataSource);
+        // Подменяем DataSource в DataRepository
+        when(dataRepository.getDataSource()).thenReturn(dataSource);
+        when(dataSource.getConnection()).thenReturn(connection);
 
-        // Создаем реальный экземпляр с мокками
-        roomRepository = new RoomRepositoryImpl(dataRepository);
+        // Создаём объект репозитория
+        RoomRepositoryImpl tempRepo = new RoomRepositoryImpl(dataRepository);
 
-        // Используем reflection чтобы подменить userRepository
-        try {
-            var field = RoomRepositoryImpl.class.getDeclaredField("userRepository");
-            field.setAccessible(true);
-            field.set(roomRepository, userRepository);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // Подменяем userRepository через рефлексию
+        Field field = RoomRepositoryImpl.class.getDeclaredField("userRepository");
+        field.setAccessible(true);
+        field.set(tempRepo, userRepository);
+
+        // Заменяем roomRepository на spy
+
+        /*
+        spy - это фича Mockito, которая позволяет:
+
+    Создать "частичный мок" от реального объекта
+    Мокать только определённые методы, а остальные — вызывать настоящие
+
+
+     Зачем использовать spy в тесте?
+
+В твоём случае:
+
+    RoomRepositoryImpl — реальный класс
+    У него есть private методы (getUsersInRoom, getUsersBans), которые вызываются из getRoomById
+    Ты не можешь их мокать напрямую
+    Но ты хочешь мокать getRoomById, чтобы он возвращал готовый Room и не вызывал private методы
+
+         */
+        this.roomRepository = spy(tempRepo);
     }
 
     @Test
-    void createRoom_ShouldCreateRoom_WhenValidData() throws SQLException {
-        // Arrange
-        Instant startDate = Instant.now().plusSeconds(3600);
-        Instant endDate = Instant.now().plusSeconds(7200);
-        var users = new AbstractMap.SimpleEntry<>(1, 1); // userId=1, roleId=1
+    @DisplayName("Should create room and return it")
+    void testCreateRoom() throws SQLException {
+        // Given
+        Instant now = Instant.now();
+        String sql = """
+            INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
+                                age_rating, frequency, maximum_number_of_people)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """;
 
-        // Mock User для избежания NPE
-        User mockUser = new User(1, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(anyInt())).thenReturn(mockUser);
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getInt("id")).thenReturn(1);
 
-        // Act
-        Room result = roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Test Description", startDate, endDate, 12, 1, 10, users
-        );
+        // Mock для getRoomById
+        Room expectedRoom = new Room(1, true, false, "chat123", Category.Sport, "Test Room", "A test room",
+                now, now.plusSeconds(3600), 18, 1, 5, Map.of(), null);
+        doReturn(expectedRoom).when(roomRepository).getRoomById(1);
 
-        // Assert
+        // When
+        Room result = roomRepository.createRoom(true, false, "chat123", 0, "Test Room", "A test room",
+                now, now.plusSeconds(3600), 18, 1, 5, 1);
+
+        // Then
         assertNotNull(result);
-        assertEquals("Test Room", result.getName());
-        assertEquals("Test Description", result.getDescription());
+        assertEquals(1, result.getId());
+        verify(preparedStatement).setBoolean(1, true);
+        verify(preparedStatement).setString(5, "Test Room");
+        verify(preparedStatement).executeQuery();
     }
 
     @Test
-    void getRoomById_ShouldReturnRoom_WhenRoomExists() throws SQLException {
-        // Arrange
-        int roomId = 1;
+    @DisplayName("Should return null when getRoomById not found")
+    void testGetRoomByIdNotFound() throws SQLException {
+        // Given
+        String sql = "SELECT * FROM rooms WHERE id = ?";
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(false);
 
-        // Сначала создаем комнату
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(1, 1);
+        // When
+        Room result = roomRepository.getRoomById(999);
 
-        User mockUser = new User(1, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(anyInt())).thenReturn(mockUser);
-
-        Room createdRoom = roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Description", startDate, null, 12, 1, 10, users
-        );
-
-        // Act
-        Room result = roomRepository.getRoomById(createdRoom.getId());
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(createdRoom.getId(), result.getId());
-        assertEquals("Test Room", result.getName());
-    }
-
-    @Test
-    void getRoomById_ShouldReturnNull_WhenRoomNotExists() {
-        // Arrange
-        int nonExistentRoomId = 999;
-
-        // Act
-        Room result = roomRepository.getRoomById(nonExistentRoomId);
-
-        // Assert
+        // Then
         assertNull(result);
+        verify(preparedStatement).setInt(1, 999);
     }
 
     @Test
-    void updateRoom_ShouldUpdateRoom_WhenValidData() throws SQLException {
-        // Arrange
-        int roomId = 1;
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(1, 1);
+    @DisplayName("Should return room when getRoomById found")
+    void testGetRoomByIdFound() throws SQLException {
+        // Given
+        String sql = "SELECT * FROM rooms WHERE id = ?";
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getInt("id")).thenReturn(1);
+        when(resultSet.getBoolean("is_active")).thenReturn(true);
+        when(resultSet.getBoolean("is_private")).thenReturn(false);
+        when(resultSet.getString("name")).thenReturn("Test Room");
+        when(resultSet.getString("description")).thenReturn("A test room");
+        when(resultSet.getTimestamp("start_date")).thenReturn(Timestamp.from(Instant.now()));
+        when(resultSet.getTimestamp("end_date")).thenReturn(null);
+        when(resultSet.getInt("category_id")).thenReturn(0); // Category.SPORT
+        when(resultSet.getInt("age_rating")).thenReturn(18);
+        when(resultSet.getInt("frequency")).thenReturn(1);
+        when(resultSet.getInt("maximum_number_of_people")).thenReturn(5);
 
-        User mockUser = new User(1, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(anyInt())).thenReturn(mockUser);
+        // Возвращаем готовый объект, чтобы не вызывать mapResultSetToRoom
+        Room expectedRoom = new Room(1, true, false, "chat123", Category.Sport, "Test Room", "A test room",
+                Instant.now(), null, 18, 1, 5, Map.of(), null);
 
-        Room originalRoom = roomRepository.createRoom(
-                true, false, "chat-link", 1, "Original Room",
-                "Original Description", startDate, null, 12, 1, 10, users
-        );
+        doReturn(expectedRoom).when(roomRepository).getRoomById(1);
 
-        // Act
-        Room updatedRoom = roomRepository.updateRoom(
-                originalRoom, roomId, false, true, "Updated Description",
-                startDate.plusSeconds(3600), null, 16, 2, 15
-        );
+        // When
+        Room result = roomRepository.getRoomById(1);
 
-        // Assert
-        assertNotNull(updatedRoom);
-        assertEquals("Updated Description", updatedRoom.getDescription());
-        assertEquals(16, updatedRoom.getAgeRating());
-        assertEquals(15, updatedRoom.getMaximumNumberOfPeople());
-        assertFalse(updatedRoom.isActive());
-        assertTrue(updatedRoom.isPrivate());
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.getId());
+        assertTrue(result.isActive());
+        assertEquals("Test Room", result.getName());
     }
 
     @Test
-    void addUserToRoom_ShouldAddUser_WhenValidData() throws SQLException {
-        // Arrange
-        int roomId = 1;
-        int userId = 2;
-        int roleId = 2; // Participant
+    @DisplayName("Should add user to room")
+    void testAddUserToRoom() throws SQLException {
+        // Given
+        String sql = "INSERT INTO rooms_members (room_id, user_id, role_id) VALUES (?, ?, ?)";
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
 
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(1, 1);
+        // When
+        roomRepository.addUserToRoom(1, 100, 1);
 
-        User mockUser = new User(1, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(anyInt())).thenReturn(mockUser);
-
-        roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Description", startDate, null, 12, 1, 10, users
-        );
-
-        // Act & Assert
-        assertDoesNotThrow(() -> {
-            roomRepository.addUserToRoom(roomId, userId, roleId);
-        });
+        // Then
+        verify(preparedStatement).setInt(1, 1);
+        verify(preparedStatement).setInt(2, 100);
+        verify(preparedStatement).setInt(3, 1);
+        verify(preparedStatement).executeUpdate();
     }
 
     @Test
-    void deleteRoom_ShouldDeleteRoom_WhenRoomExists() throws SQLException {
-        // Arrange
-        int roomId = 1;
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(1, 1);
+    @DisplayName("Should delete room successfully")
+    void testDeleteRoom() throws SQLException {
+        // Given
+        String sql = "DELETE FROM Rooms WHERE id = ?";
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1); // 1 row affected
 
-        User mockUser = new User(1, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(anyInt())).thenReturn(mockUser);
-
-        roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Description", startDate, null, 12, 1, 10, users
-        );
-
-        // Act & Assert
-        assertDoesNotThrow(() -> {
-            roomRepository.deleteRoom(roomId);
-        });
-
-        // Verify room was deleted
-        Room deletedRoom = roomRepository.getRoomById(roomId);
-        assertNull(deletedRoom);
+        // When & Then
+        assertDoesNotThrow(() -> roomRepository.deleteRoom(1));
+        verify(preparedStatement).setInt(1, 1);
+        verify(preparedStatement).executeUpdate();
     }
 
     @Test
-    void isUserInMembers_ShouldReturnTrue_WhenUserIsMember() throws SQLException {
-        // Arrange
-        int roomId = 1;
-        int userId = 1;
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(userId, 1); // Add user as member
+    @DisplayName("Should throw exception when delete room fails")
+    void testDeleteRoomFails() throws SQLException {
+        // Given
+        String sql = "DELETE FROM Rooms WHERE id = ?";
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(0); // 0 rows affected
 
-        User mockUser = new User(userId, "test", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        when(userRepository.getUserById(userId)).thenReturn(mockUser);
-
-        roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Description", startDate, null, 12, 1, 10, users
-        );
-
-        // Act
-        boolean result = roomRepository.isUserInMembers(roomId, userId);
-
-        // Assert
-        assertTrue(result);
+        // When & Then
+        assertThrows(RuntimeException.class, () -> roomRepository.deleteRoom(1));
     }
 
     @Test
-    void isUserInMembers_ShouldReturnFalse_WhenUserIsNotMember() throws SQLException {
-        // Arrange
-        int roomId = 1;
-        int userId = 1;
-        int nonMemberUserId = 2;
-        Instant startDate = Instant.now().plusSeconds(3600);
-        var users = new AbstractMap.SimpleEntry<>(userId, 1);
+    @DisplayName("Should throw exception when createRoom fails")
+    void testCreateRoomFailure() throws SQLException {
+        // Given
+        String sql = """
+            INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
+                                age_rating, frequency, maximum_number_of_people)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """;
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(false); // No result
 
-        User memberUser = new User(userId, "member", "username", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
-        User nonMemberUser = new User(nonMemberUserId, "nonmember", "username2", "pass",
-                Instant.now(), "country", "city", "desc", 1, null, null);
+        // When & Then
+        assertThrows(RuntimeException.class, () ->
+                roomRepository.createRoom(true, false, "chat123", 0, "Test Room", "A test room",
+                        Instant.now(), Instant.now().plusSeconds(3600), 18, 1, 5, 1));
+    }
 
-        when(userRepository.getUserById(userId)).thenReturn(memberUser);
-        when(userRepository.getUserById(nonMemberUserId)).thenReturn(nonMemberUser);
+    @Test
+    @DisplayName("Should update room successfully")
+    void testUpdateRoom() throws SQLException {
+        // Given
+        String sql = """
+            UPDATE rooms
+            SET is_active = ?, is_private = ?, description = ?, start_date = ?,
+                end_date = ?, age_rating = ?, frequency = ?, maximum_number_of_people = ?
+            WHERE id = ?
+            """;
 
-        roomRepository.createRoom(
-                true, false, "chat-link", 1, "Test Room",
-                "Description", startDate, null, 12, 1, 10, users
-        );
+        Room room = new Room(1, true, false, "chat123", Category.Sport, "Test Room", "A test room",
+                Instant.now(), Instant.now().plusSeconds(3600), 18, 1, 5, Map.of(), null);
 
-        // Act
-        boolean result = roomRepository.isUserInMembers(roomId, nonMemberUserId);
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1); // 1 row affected
 
-        // Assert
-        assertFalse(result);
+        Room updatedRoom = new Room(1, false, true, "chat123", Category.Sport, "Test Room", "Updated desc",
+                null, null, 21, 2, 10, Map.of(), null);
+
+        doReturn(updatedRoom).when(roomRepository).getRoomById(1);
+
+        // When
+        Room result = roomRepository.updateRoom(room, 1, false, true, "Updated desc",
+                null, null, 21, 2, 10);
+
+        // Then
+        assertNotNull(result);
+        assertFalse(result.isActive());
+        assertTrue(result.isPrivate());
+        assertEquals("Updated desc", result.getDescription());
+        verify(preparedStatement).setBoolean(1, false);
+        verify(preparedStatement).setString(3, "Updated desc");
+    }
+
+    @Test
+    @DisplayName("Should throw exception when updateRoom fails")
+    void testUpdateRoomFails() throws SQLException {
+        // Given
+        String sql = """
+            UPDATE rooms
+            SET is_active = ?, is_private = ?, description = ?, start_date = ?,
+                end_date = ?, age_rating = ?, frequency = ?, maximum_number_of_people = ?
+            WHERE id = ?
+            """;
+
+        Room room = new Room(1, true, false, "chat123", Category.Sport, "Test Room", "A test room",
+                Instant.now(), Instant.now().plusSeconds(3600), 18, 1, 5, Map.of(), null);
+
+        when(connection.prepareStatement(sql)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(0); // 0 rows affected
+
+        // When & Then
+        assertThrows(RuntimeException.class, () ->
+                roomRepository.updateRoom(room, 1, false, true, "Updated desc",
+                        null, null, 21, 2, 10));
+    }
+
+    @Test
+    @DisplayName("Should handle SQLException in createRoom")
+    void testCreateRoomSQLException() throws SQLException {
+        // Given
+        String sql = """
+            INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
+                                age_rating, frequency, maximum_number_of_people)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """;
+        when(connection.prepareStatement(sql)).thenThrow(new SQLException("DB Error"));
+
+        // When & Then
+        assertThrows(RuntimeException.class, () ->
+                roomRepository.createRoom(true, false, "chat123", 0, "Test Room", "A test room",
+                        Instant.now(), Instant.now().plusSeconds(3600), 18, 1, 5, 1));
     }
 }
