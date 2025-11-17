@@ -1,4 +1,4 @@
-package com.coactivity.Service.dto;
+package com.coactivity.service.dto;
 
 /**
  * Simple immutable carrier for login (email) and password values extracted from an authentication
