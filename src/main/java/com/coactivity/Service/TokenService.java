@@ -13,7 +13,7 @@ import javax.crypto.spec.SecretKeySpec;
  * with a server-side secret and encoded before being returned to the client. 
  * </p>
  */
-public class AuthenticationService {
+public class TokenService {
 
   /**
    * Hard-coded secret used to encrypt/decrypt the token payload.
