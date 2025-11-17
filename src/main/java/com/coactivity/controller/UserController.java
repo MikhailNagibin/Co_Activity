@@ -7,7 +7,6 @@ import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
-import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
@@ -173,6 +172,25 @@ public interface UserController {
    */
   ApiResponse<UserProfileResponse> updateUserProfile(String token,
       UserProfileUpdateRequest request);
+
+  /**
+   * Securely changes the user's password and issues a new authentication token.
+   * <p>
+   * Requires verification of the current password as an additional security measure. All existing
+   * tokens for the user are invalidated upon successful password change.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and current password verification.</p>
+   *
+   * @param token           valid JWT token of the authenticated user
+   * @param currentPassword the user's current password for security verification
+   * @param newPassword     the new password to set
+   * @return {@link ApiResponse} containing {@link LoginResponse} with new JWT token
+   * @throws SecurityException        if current password verification fails
+   * @throws IllegalArgumentException if new password validation fails
+   */
+  ApiResponse<LoginResponse> updatePassword(String token, String currentPassword,
+      String newPassword);
 
   /**
    * Updates the user's notification preferences and delivery settings.
