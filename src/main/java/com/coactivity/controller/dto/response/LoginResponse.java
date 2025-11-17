@@ -4,13 +4,14 @@ import com.coactivity.domain.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.Instant;
 
 /**
- * Response payload returned after successful user authentication.
+ * Response payload returned after a login attempt is verified with the email code.
  * <p>
- * Contains the JWT token and session information needed for subsequent API calls.
- * The token is valid for 30 minutes as specified in the functional requirements.
+ * Provides the opaque token that represents the authenticated session together with
+ * minimal user metadata needed by the client. Tokens are simple encoded strings that
+ * never expire and must be echoed back in every protected request instead of sending
+ * the username/password pair.
  * </p>
  */
 @Data
@@ -19,11 +20,11 @@ import java.time.Instant;
 public class LoginResponse {
 
   /**
-   * JSON Web Token for authenticating subsequent API requests.
+   * Encoded token issued after successful verification.
    * <p>
-   * This token must be included in the {@code Authorization} header of all
-   * authenticated requests. The token contains encrypted user identity information
-   * and expires after 30 minutes of inactivity.
+   * The token encapsulates the login and password (encrypted with a server-side
+   * secret) and should be supplied by the client when calling any controller method
+   * that requires authentication.
    * </p>
    */
   private String token;
@@ -31,9 +32,8 @@ public class LoginResponse {
   /**
    * Unique identifier of the authenticated user.
    * <p>
-   * This ID should be used by the client when displaying user-specific content
-   * or making user-related API calls. It corresponds to the {@code id} field
-   * in the {@link User} domain model.
+   * Mirrors the {@code id} field in the {@link User} domain model so the client
+   * can keep track of which user is logged in.
    * </p>
    */
   private Integer userId;
@@ -46,14 +46,5 @@ public class LoginResponse {
    * </p>
    */
   private String username;
-
-  /**
-   * Timestamp indicating when the JWT token becomes invalid.
-   * <p>
-   * Clients should use this information to implement proactive token refresh
-   * or to warn users about impending session expiration.
-   * </p>
-   */
-  private Instant expiresAt;
 }
 

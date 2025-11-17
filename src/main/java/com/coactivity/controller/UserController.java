@@ -84,20 +84,6 @@ public interface UserController {
   ApiResponse<LoginResponse> verifyLogin(String login, String verificationCode);
 
   /**
-   * Validates a JWT token and checks session status.
-   * <p>
-   * Verifies that the provided token is properly signed, has not expired, and contains valid user
-   * claims. This method enables the "no re-login within 30 minutes" functionality by allowing
-   * clients to check token validity and automatically extend sessions when appropriate.
-   * </p>
-   *
-   * @param token the JWT token to validate, typically from the {@code Authorization} header
-   * @return {@link ApiResponse} with empty data but success status indicating token validity, or
-   * error details for invalid/expired tokens
-   */
-  ApiResponse<Void> validateToken(String token);
-
-  /**
    * Invalidates the user's current authentication token and ends the session.
    * <p>
    * Securely logs the user out by invalidating the provided JWT token on the server side. After
