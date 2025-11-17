@@ -51,7 +51,7 @@ public interface UserRepository {
    * @return
    */
 
-  User getUser(int login, String password);
+  User getUser(String login, String password);
 
   /**
    *
