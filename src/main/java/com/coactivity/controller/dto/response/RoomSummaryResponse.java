@@ -3,8 +3,8 @@ package com.coactivity.controller.dto.response;
 import com.coactivity.domain.Category;
 import java.time.Instant;
 import java.util.List;
-import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
 
 /**
  * Simplified room information for listing and search interfaces.
@@ -15,7 +15,7 @@ import lombok.Data;
  * </p>
  */
 @Data
-@Builder
+@SuperBuilder
 public class RoomSummaryResponse {
 
   /**
