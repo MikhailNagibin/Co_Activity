@@ -1,11 +1,11 @@
-package com.coactivity.controller.dto;
+package com.coactivity.controller.impl;
 
 import com.coactivity.Service.UserService;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 
 public class UserControllerImpl {
-  ApiResponse<UserProfileResponse> getUserProfile(String token) {
+  public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     return UserService.getUserProfile(token);
   }
 }
