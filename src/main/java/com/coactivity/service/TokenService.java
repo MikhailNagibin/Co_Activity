@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.stereotype.Service;
 
 /**
  * Manages authentication token lifecycle for the CoActivity platform.
@@ -13,8 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * are tracked in memory to prevent use of invalidated tokens.
  * </p>
  */
+@Service
 public class TokenService {
 
+  /**
+   * Map of active tokens consisting of pairs (login : token)
+   * TokenService is singleton, so this field is actual in every instance of service
+   */
   private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
 
   /**
