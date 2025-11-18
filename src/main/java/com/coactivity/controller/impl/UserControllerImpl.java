@@ -4,6 +4,7 @@ import com.coactivity.AuthToken;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.service.UserService;
@@ -110,7 +111,15 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
   }
-  
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    if (!AuthToken.isTokenExpired(token)) {
+      return ApiResponse.error("401");
+    }
+
+    return userService.isUserInRoom(token, roomId);
+  }
+
   private static boolean isWithinLast100Years(Instant instantToCheck) {
     if (instantToCheck == null) {
       return false;

@@ -185,5 +185,4 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       throw new RuntimeException();
     }
   }
-  }
 }

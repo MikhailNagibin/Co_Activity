@@ -5,6 +5,7 @@ import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
@@ -126,6 +127,15 @@ public class UserService {
     }
     try {
       requests.deleteRequest(requestId);
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    try {
+      rooms.isUserInMembers(roomId, AuthToken.getId(token));
       return ApiResponse.success(null);
     } catch (Exception e) {
       throw new RuntimeException(e);
