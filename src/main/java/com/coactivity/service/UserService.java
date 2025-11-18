@@ -8,17 +8,20 @@ import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 
 public class UserService {
   private UserRepositoryImpl users;
   private DataRepository repository;
   private RoomRepositoryImpl rooms;
+  private RoomsRequestRepositoryImpl requests;
 
   public UserService() {
     repository = new DataRepository();
     users = new UserRepositoryImpl(repository);
     rooms = new RoomRepositoryImpl(repository);
+    requests = new RoomsRequestRepositoryImpl(repository);
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
@@ -114,6 +117,18 @@ public class UserService {
 
     } catch (Exception e) {
       return ApiResponse.error("400");
+    }
+  }
+
+  public ApiResponse<Void> cancelRequest(String token, Integer requestId) {
+    if (!requests.checkRequest(requestId, AuthToken.getId(token))) {
+      return ApiResponse.error("401");
+    }
+    try {
+      requests.deleteRequest(requestId);
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }

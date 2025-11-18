@@ -100,6 +100,17 @@ public class UserControllerImpl {
     }
   }
 
+  public ApiResponse<Void> cancelRequest(String token, Integer requestId) {
+    if (!AuthToken.isTokenExpired(token)) {
+      return ApiResponse.error("401");
+    }
+    try {
+      return userService.cancelRequest(token, requestId);
+    } catch (Exception e) {
+      return ApiResponse.error("401");
+    }
+  }
+  
   private static boolean isWithinLast100Years(Instant instantToCheck) {
     if (instantToCheck == null) {
       return false;
