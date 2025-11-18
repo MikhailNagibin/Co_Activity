@@ -1,21 +1,24 @@
 package com.coactivity.service;
 
+import com.coactivity.AuthToken;
 import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
-import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.domain.User;
+import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 
 public class UserService {
   private UserRepositoryImpl users;
   private DataRepository repository;
+  private RoomRepositoryImpl rooms;
 
   public UserService() {
     repository = new DataRepository();
     users = new UserRepositoryImpl(repository);
+    rooms = new RoomRepositoryImpl(repository);
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
@@ -77,6 +80,40 @@ public class UserService {
     } catch (Exception e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
+    }
+  }
+
+  public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
+                                           Integer userId) {
+
+    int roomOwnerId = AuthToken.getId(token);
+    try {
+      if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
+        return ApiResponse.error(null);
+      }
+
+      rooms.getRoleByUserIdAndRoomId(userId, roomId, "admin");
+      return ApiResponse.success(null);
+
+    } catch (Exception e) {
+      return ApiResponse.error("400");
+    }
+  }
+
+  public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
+                                           Integer userId) {
+
+    int roomOwnerId = AuthToken.getId(token);
+    try {
+      if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
+        return ApiResponse.error(null);
+      }
+
+      rooms.getRoleByUserIdAndRoomId(userId, roomId, "Participant");
+      return ApiResponse.success(null);
+
+    } catch (Exception e) {
+      return ApiResponse.error("400");
     }
   }
 }

@@ -3,8 +3,6 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.*;
 import com.coactivity.repository.RoomRepository;
-import com.coactivity.repository.impl.UserRepositoryImpl;
-
 
 
 import java.sql.*;
@@ -224,12 +222,13 @@ public class RoomRepositoryImpl implements RoomRepository {
   private Map<User, Role> getUsersInRoom(int roomId) {
     String sql = """
       SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
-       INNER JOIN role AS r ON r.id = rm.Role_id;
+       INNER JOIN role AS r ON r.id = rm.Role_id
+       where rm.room_id = ?;
       """;
     var usersInRoom = new HashMap<User, Role>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-
+        statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           User user = userRepository.getUserById(resultSet.getInt(1));
@@ -269,4 +268,53 @@ public class RoomRepositoryImpl implements RoomRepository {
     return users.containsKey(userRepository.getUserById(userId));
   }
 
+  public boolean isUserOwnerInRoom(int userId, int roomId) {
+    if (!isUserInMembers(roomId, userId)) {
+      return false;
+    }
+    String sql = """
+      select * from Rooms_members
+      where user_id = ? and room_id = ? and
+      role_id in (select id from Roles where role == 'Owner')
+      """;
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, userId);
+      statement.setInt(2, roomId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return true;
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    return false;
+  }
+
+  public void getRoleByUserIdAndRoomId(int userId, int roomId, String role) {
+    String sql = """
+      UPDATE Rooms_members
+      SET role_id = (select id from Roles where role = ?)
+      where room_id = ? and user_id = ?""";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setString(1, role);
+        statement.setInt(2, roomId);
+        statement.setInt(3, userId);
+
+      int affectedRows = statement.executeUpdate();
+
+      if (affectedRows > 0) {
+        return;
+      } else {
+        throw new RuntimeException();
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
 }
