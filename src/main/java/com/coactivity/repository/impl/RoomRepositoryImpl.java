@@ -317,4 +317,26 @@ public class RoomRepositoryImpl implements RoomRepository {
       throw new RuntimeException();
     }
   }
+
+  public String getUserRoleByRoomId(int roomId, int userId) {
+    String sql = """
+      select r.role from Rooms_members as rm inner join Roles as r on r.id = rm.role_id
+       where rm.room_id = ? and rm.user_id = ?""";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, userId);
+      statement.setInt(2, roomId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getString(1);
+        } else {
+          throw new RuntimeException();
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
 }
