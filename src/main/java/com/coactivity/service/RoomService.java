@@ -17,10 +17,6 @@ public class RoomService {
   }
 
   public ApiResponse<Void> deleteRoom(String token, Integer roomId) {
-    if (!AuthToken.isTokenExpired(token)) {
-      return ApiResponse.error("401");
-    }
-
     if (rooms.getUserRoleByRoomId(roomId, AuthToken.getId(token)).equals("Owner")) {
       rooms.deleteRoom(roomId);
       return ApiResponse.success(null);
