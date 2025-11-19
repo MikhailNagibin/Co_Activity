@@ -3,11 +3,11 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.BulletinBoard;
 import com.coactivity.repository.BulletinBoardRepository;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
-import com.coactivity.repository.impl.UserRepositoryImpl;
-import jakarta.persistence.criteria.CriteriaBuilder;
 
 
 // TODO: add method isBulletinBoardExists(int roomId)
@@ -26,10 +26,10 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   @Override
   public BulletinBoard createBulletinBoard(int roomId, String content, int authorId) {
     String sql = "INSERT INTO bulletinBoard (room_id, content, author_id, updated_at) " +
-      "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
+        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
       statement.setString(2, content);
@@ -40,7 +40,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
           int boardId = resultSet.getInt("id");
           Instant createdAt = resultSet.getTimestamp(2).toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId),
-            content, userRepository.getUserById(authorId), createdAt);
+              content, userRepository.getUserById(authorId), createdAt);
         }
       }
 
@@ -53,11 +53,12 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId) {
-    String sql = "UPDATE bulletin_board SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
-      " WHERE roomId = ? RETURNING id, CURRENT_TIMESTAMP";
+    String sql =
+        "UPDATE bulletin_board SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
+            " WHERE roomId = ? RETURNING id, CURRENT_TIMESTAMP";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, content);
       statement.setInt(2, authorId);
@@ -68,7 +69,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
           int boardId = resultSet.getInt("id");
           Instant updatedAt = resultSet.getTimestamp(2).toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId), content,
-            userRepository.getUserById(authorId), updatedAt);
+              userRepository.getUserById(authorId), updatedAt);
         }
       }
 
@@ -89,7 +90,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     String sql = "SELECT * FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
 
@@ -110,7 +111,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     String sql = "DELETE FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
       int affectedRows = statement.executeUpdate();
@@ -133,6 +134,6 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
     Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
 
     return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,
-      userRepository.getUserById(authorId), updatedAt);
+        userRepository.getUserById(authorId), updatedAt);
   }
 }

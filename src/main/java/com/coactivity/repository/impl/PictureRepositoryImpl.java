@@ -3,10 +3,12 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Picture;
 import com.coactivity.repository.PictureRepository;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
 
 public class PictureRepositoryImpl implements PictureRepository {
 
@@ -23,7 +25,7 @@ public class PictureRepositoryImpl implements PictureRepository {
     String sql = "INSERT INTO pictures (room_id) VALUES (?) RETURNING picture_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
 
@@ -46,7 +48,7 @@ public class PictureRepositoryImpl implements PictureRepository {
     String sql = "SELECT * FROM pictures WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
 
@@ -67,7 +69,7 @@ public class PictureRepositoryImpl implements PictureRepository {
     String sql = "DELETE FROM pictures WHERE picture_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, photoId);
       int affectedRows = statement.executeUpdate();

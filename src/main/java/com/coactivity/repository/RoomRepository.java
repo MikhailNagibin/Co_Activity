@@ -2,8 +2,6 @@ package com.coactivity.repository;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.Room;
-import java.time.Instant;
-import java.util.AbstractMap;
 
 public interface RoomRepository {
 

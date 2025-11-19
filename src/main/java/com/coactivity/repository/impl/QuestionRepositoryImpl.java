@@ -1,12 +1,15 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
+import com.coactivity.domain.Category;
 import com.coactivity.domain.Question;
 import com.coactivity.repository.QuestionRepository;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import com.coactivity.domain.Category;
 
 
 public class QuestionRepositoryImpl implements QuestionRepository {
@@ -24,7 +27,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "INSERT INTO questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, userId);
       statement.setString(2, question);
@@ -33,7 +36,8 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int questionId = resultSet.getInt("id");
-          return new Question(questionId, userRepository.getUserById(userId), question, Category.getByIndex(categoryId));
+          return new Question(questionId, userRepository.getUserById(userId), question,
+              Category.getByIndex(categoryId));
         }
       }
 
@@ -49,8 +53,8 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "SELECT * FROM questions ORDER BY id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql);
-         ResultSet resultSet = statement.executeQuery()) {
+        PreparedStatement statement = connection.prepareStatement(sql);
+        ResultSet resultSet = statement.executeQuery()) {
 
       while (resultSet.next()) {
         var question = mapResultSetToQuestion(resultSet);
@@ -66,7 +70,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "SELECT * FROM questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
 
@@ -87,7 +91,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "UPDATE questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, question);
       statement.setInt(2, categoryId);
@@ -111,7 +115,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "DELETE FROM questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
       int affectedRows = statement.executeUpdate();
@@ -129,7 +133,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String sql = "DELETE FROM Answers WHERE question_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, questionId);
       int affectedRows = statement.executeUpdate();
 
@@ -147,6 +151,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     String questionText = resultSet.getString("question");
     int categoryId = resultSet.getInt("category_id");
 
-    return new Question(id, userRepository.getUserById(ownerId), questionText, Category.getByIndex(categoryId));
+    return new Question(id, userRepository.getUserById(ownerId), questionText,
+        Category.getByIndex(categoryId));
   }
 }

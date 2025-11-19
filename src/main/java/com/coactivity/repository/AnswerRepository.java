@@ -1,12 +1,10 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.Answer;
-import com.coactivity.domain.Question;
-import com.coactivity.domain.User;
-
 import java.util.List;
 
 public interface AnswerRepository {
+
   /**
    *
    * @param questionId

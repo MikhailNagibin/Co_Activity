@@ -3,9 +3,10 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.Answer;
 import com.coactivity.repository.AnswerRepository;
-import com.coactivity.repository.impl.UserRepositoryImpl;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,11 +23,12 @@ public class AnswerRepositoryImpl implements AnswerRepository {
   }
 
   @Override
-  public Answer createAnswer(int questionId, int previousAnswerId, String currentAnswer, int ownerId) {
+  public Answer createAnswer(int questionId, int previousAnswerId, String currentAnswer,
+      int ownerId) {
     String sql = "INSERT INTO answers (question_id, prev_ans_id, answer, owner) VALUES (?, ?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
 
@@ -38,7 +40,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
         if (resultSet.next()) {
           int answerId = resultSet.getInt("id");
           return new Answer(answerId, questionId, previousAnswerId, currentAnswer,
-            userRepository.getUserById(ownerId), Instant.now());
+              userRepository.getUserById(ownerId), Instant.now());
         }
       }
 
@@ -54,16 +56,16 @@ public class AnswerRepositoryImpl implements AnswerRepository {
     var answers = new ArrayList<Answer>();
     String sql = "SELECT * FROM answers WHERE question_id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
 
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           var answer = new Answer(resultSet.getInt("id"), questionId,
-            resultSet.getInt("prev_ans_id"), resultSet.getString("answer"),
-            userRepository.getUserById(resultSet.getInt("owner")),
-            resultSet.getTimestamp("created_at").toInstant());
+              resultSet.getInt("prev_ans_id"), resultSet.getString("answer"),
+              userRepository.getUserById(resultSet.getInt("owner")),
+              resultSet.getTimestamp("created_at").toInstant());
           answers.add(answer);
         }
       }
@@ -79,7 +81,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
     String sql = "DELETE FROM answers WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, answer.getId());
       int affectedRows = statement.executeUpdate();

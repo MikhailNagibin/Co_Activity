@@ -1,11 +1,10 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.Picture;
-import com.coactivity.domain.Room;
-
 import java.util.List;
 
 public interface PictureRepository {
+
   /**
    *
    * @param roomId

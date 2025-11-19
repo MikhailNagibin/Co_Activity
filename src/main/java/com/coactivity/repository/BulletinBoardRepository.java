@@ -1,12 +1,9 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.BulletinBoard;
-import com.coactivity.domain.Room;
-import com.coactivity.domain.User;
-
-import java.time.Instant;
 
 public interface BulletinBoardRepository {
+
   /**
    *
    * @param roomId

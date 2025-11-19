@@ -93,13 +93,16 @@ public class UserRepositoryImpl implements UserRepository {
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
-      String newUsername = request.getUsername() != null ? request.getUsername() : user.getUsername();
+      String newUsername =
+          request.getUsername() != null ? request.getUsername() : user.getUsername();
 
-      Timestamp newBirthday = request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
-          Timestamp.from(user.getDataOfBirth());
+      Timestamp newBirthday =
+          request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
+              Timestamp.from(user.getDataOfBirth());
       String newCountry = request.getCountry() != null ? request.getCountry() : user.getCountry();
       String newCity = request.getCity() != null ? request.getCity() : user.getCity();
-      String newDescription = request.getDescription() != null ? request.getDescription() : user.getDescription();
+      String newDescription =
+          request.getDescription() != null ? request.getDescription() : user.getDescription();
       int newAvatarId = request.getAvatarId() != 0 ? request.getAvatarId() : user.getAvatarId();
       statement.setString(1, newUsername);
       statement.setTimestamp(2, newBirthday);
