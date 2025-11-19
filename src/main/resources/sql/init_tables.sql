@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS  Categories (
 CREATE TABLE IF NOT EXISTS  Rooms (
   id SERIAl PRIMARY KEY,
   is_active BOOLEAN NOT NULL,
-  is_visible BOOLEAN NOT NULL,
+  is_public BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT,
   name VARCHAR(100) NOT NULL,
@@ -26,11 +26,8 @@ CREATE TABLE IF NOT EXISTS  Rooms (
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   age_rating INT,
---  owner_id INT,
-  frequency INT,
+  frequency TIMESTAMP,
   maximum_number_of_people int,
-  current_number_of_people int,
---  FOREIGN KEY (owner_id) REFERENCES Users(id)
   FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
 
