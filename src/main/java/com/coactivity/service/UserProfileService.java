@@ -2,25 +2,65 @@ package com.coactivity.service;
 
 import com.coactivity.AuthToken;
 import com.coactivity.DataRepository;
+import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
+import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.LoginResponse;
+import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
+import com.coactivity.controller.dto.response.UserSummaryResponse;
+import com.coactivity.domain.Role;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 
-public class UserService {
+public class UserProfileService {
   private UserRepositoryImpl users;
   private DataRepository repository;
   private RoomRepositoryImpl rooms;
 
-  public UserService() {
+  public UserProfileService() {
     repository = new DataRepository();
     users = new UserRepositoryImpl(repository);
     rooms = new RoomRepositoryImpl(repository);
   }
 
+//  TODO: implement following methods:
+  public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<Void> loginUser(LoginRequest request) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<LoginResponse> verifyLogin(String login, String verificationCode) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<Void> logoutUser(String token) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<LoginResponse> updatePassword(String token, String currentPassword,
+      String newPassword) {
+    return ApiResponse.success(null);
+  }
+
+
+// TODO: UserWithRoomService that contains following methods:
+//  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
+//  getRoomParticipants, isUserInRoom
+// TODO: JoinRequestsService that contains following methods:
+//  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
+//  getSentRequests, cancelRequest
+// TODO:
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();
     try {
@@ -87,11 +127,11 @@ public class UserService {
 
     int roomOwnerId = AuthToken.getId(token);
     try {
-      if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
+      if (!rooms.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
       }
 
-      rooms.getRoleByUserIdAndRoomId(userId, roomId, "admin");
+      rooms.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
       return ApiResponse.success(null);
 
     } catch (Exception e) {
@@ -104,11 +144,11 @@ public class UserService {
 
     int roomOwnerId = AuthToken.getId(token);
     try {
-      if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
+      if (!rooms.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
       }
 
-      rooms.getRoleByUserIdAndRoomId(userId, roomId, "Participant");
+      rooms.setRoleByUserIdAndRoomId(userId, roomId, Role.PARTICIPANT);
       return ApiResponse.success(null);
 
     } catch (Exception e) {

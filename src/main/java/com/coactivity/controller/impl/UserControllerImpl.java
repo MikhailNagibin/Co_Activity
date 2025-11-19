@@ -4,16 +4,15 @@ import com.coactivity.AuthToken;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
-import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
-import com.coactivity.service.UserService;
+import com.coactivity.service.UserProfileService;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
 public class UserControllerImpl {
-  private final UserService userService = new UserService();
+  private final UserProfileService userService = new UserProfileService();
 
   public UserControllerImpl() {}
 
