@@ -1,14 +1,19 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
-import com.coactivity.domain.*;
-import com.coactivity.repository.UserRepository;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
+import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.Notification;
-
+import com.coactivity.domain.Room;
+import com.coactivity.domain.User;
+import com.coactivity.repository.UserRepository;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,29 +28,51 @@ public class UserRepositoryImpl implements UserRepository {
     this.roomRepository = new RoomRepositoryImpl(dataRepository);
   }
 
+  private static String sha256(String input) throws NoSuchAlgorithmException {
+    MessageDigest md = MessageDigest.getInstance("SHA-256");
+    byte[] hash = md.digest(input.getBytes());
+    return bytesToHex(hash);
+  }
+
+  private static String bytesToHex(byte[] bytes) {
+    StringBuilder hexString = new StringBuilder();
+    for (byte b : bytes) {
+      String hex = Integer.toHexString(0xff & b);
+      if (hex.length() == 1) {
+        hexString.append('0');
+      }
+      hexString.append(hex);
+    }
+    return hexString.toString();
+  }
+
   @Override
-  public User createUser(String login, String username, String password, Instant birthday, String country,
-                         String city, String description, int avatarId) {
-    String sql = "INSERT INTO Users (login, password, birthday, country, city, description, avatar_id, username) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+  public User createUser(UserRegistrationRequest request) {
+    String sql =
+        "INSERT INTO Users (login, password, birthday, city, country, description, avatar_id, username) "
+            +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-      Timestamp newBirthday = Timestamp.from(birthday);
-      statement.setString(1, login);
-      statement.setString(2, sha256(password));
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      Timestamp newBirthday = Timestamp.from(request.getDateOfBirth());
+
+      statement.setString(1, request.getLogin());
+      statement.setString(2, sha256(request.getPassword()));
       statement.setTimestamp(3, newBirthday);
-      statement.setString(4, country);
-      statement.setString(5, city);
-      statement.setString(6, description);
-      statement.setInt(7, avatarId);
-      statement.setString(8, username);
+      statement.setString(4, request.getCity());
+      statement.setString(5, request.getCountry());
+      statement.setString(6, request.getDescription());
+      statement.setInt(7, request.getAvatarId());
+      statement.setString(8, request.getUsername());
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int userId = resultSet.getInt("id");
-          return new User(userId, login, username, password, birthday, country, city, description, avatarId,
-            List.of(), List.of());
+          return new User(userId, request.getLogin(), request.getUsername(), request.getPassword(),
+              request.getDateOfBirth(), request.getCity(), request.getCountry(),
+              request.getDescription(), request.getAvatarId(),
+              List.of(), List.of());
         }
       }
     } catch (SQLException e) {
@@ -58,39 +85,37 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   @Override
-  public void updateUser(User user, String password, Instant birthday, String country,
-                         String city, String description, int avatarId, String username) {
-    String sql = "UPDATE Users SET username = ?, password = ?, birthday = ?, country = ?, " +
-      "city = ?, description = ?, avatar_id = ? WHERE id = ?;";
+  public void updateUser(int userId, UserProfileUpdateRequest request) {
+    String sql = "UPDATE Users SET username = ?, birthday = ?, country = ?, " +
+        "city = ?, description = ?, avatar_id = ? WHERE id = ?;";
+
+    User user = getUserById(userId);
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-      String newPassword = password != null ? sha256(password) : user.getPassword();
-      String newUsername = password != null ? password : user.getUsername();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      String newUsername = request.getUsername() != null ? request.getUsername() : user.getUsername();
 
-      Timestamp newBirthday = birthday != null ? Timestamp.from(birthday) :
-        Timestamp.from(user.getDataOfBirth());
-      String newCountry = country != null ? country : user.getCountry();
-      String newCity = city != null ? city : user.getCity();
-      String newDescription = description != null ? description : user.getDescription();
-      int newAvatarId = avatarId != 0 ? avatarId : user.getAvatarId();
+      Timestamp newBirthday = request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
+          Timestamp.from(user.getDataOfBirth());
+      String newCountry = request.getCountry() != null ? request.getCountry() : user.getCountry();
+      String newCity = request.getCity() != null ? request.getCity() : user.getCity();
+      String newDescription = request.getDescription() != null ? request.getDescription() : user.getDescription();
+      int newAvatarId = request.getAvatarId() != 0 ? request.getAvatarId() : user.getAvatarId();
       statement.setString(1, newUsername);
-      statement.setString(2, newPassword);
-      statement.setTimestamp(3, newBirthday);
-      statement.setString(4, newCountry);
-      statement.setString(5, newCity);
-      statement.setString(6, newDescription);
-      statement.setInt(7, newAvatarId);
+      statement.setTimestamp(2, newBirthday);
+      statement.setString(3, newCountry);
+      statement.setString(4, newCity);
+      statement.setString(5, newDescription);
+      statement.setInt(6, newAvatarId);
       statement.executeUpdate();
 
-      user.setPassword(newPassword);
       user.setDataOfBirth(newBirthday.toInstant());
       user.setCountry(newCountry);
       user.setCity(newCity);
       user.setDescription(newDescription);
       user.setAvatarId(newAvatarId);
 
-    } catch (SQLException | NoSuchAlgorithmException e) {
+    } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
@@ -100,17 +125,17 @@ public class UserRepositoryImpl implements UserRepository {
   @Override
   public void deleteUser(int id) {
     String sql = """
-      DELETE FROM Rooms_members WHERE user_id = ?;
-      DELETE FROM Rooms_requests WHERE user_id = ?;
-      DELETE FROM Bans WHERE user_id = ?;
-      DELETE FROM Questions WHERE user_id = ?;
-      DELETE FROM Answers WHERE user_id = ?;
-      DELETE FROM Subscriptions WHERE user_id = ?;
-      DELETE FROM BulletinBoard WHERE user_id = ?;
-      DELETE FROM Users WHERE id = ?;
-      """;
+        DELETE FROM Rooms_members WHERE user_id = ?;
+        DELETE FROM Rooms_requests WHERE user_id = ?;
+        DELETE FROM Bans WHERE user_id = ?;
+        DELETE FROM Questions WHERE user_id = ?;
+        DELETE FROM Answers WHERE user_id = ?;
+        DELETE FROM Subscriptions WHERE user_id = ?;
+        DELETE FROM BulletinBoard WHERE user_id = ?;
+        DELETE FROM Users WHERE id = ?;
+        """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       for (int i = 1; i <= 8; i++) {
         statement.setInt(i, id);
       }
@@ -132,7 +157,7 @@ public class UserRepositoryImpl implements UserRepository {
     String sql = "SELECT * FROM Users WHERE login = ? AND password = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, login);
       statement.setString(2, password);
@@ -152,7 +177,7 @@ public class UserRepositoryImpl implements UserRepository {
   public User getUserById(int id) {
     String sql = "SELECT * FROM user WHERE id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, id);
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -170,11 +195,11 @@ public class UserRepositoryImpl implements UserRepository {
 
   public void setNotification(int id, String notification) {
     String sql = """
-      Insert into usersNotification (user_id, notification_id)  values (user_id = ?,
-      notification_id = (select id from Notifications where notification = ?));
-      """;
+        Insert into usersNotification (user_id, notification_id)  values (user_id = ?,
+        notification_id = (select id from Notifications where notification = ?));
+        """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, id);
       statement.setString(2, notification);
       statement.executeUpdate();
@@ -196,15 +221,16 @@ public class UserRepositoryImpl implements UserRepository {
     String username = resultSet.getString("username");
     int avatarId = resultSet.getInt("avatar_id");
 
-    return new User(userId, login, username, password, birthday, country, city, description, avatarId,
-      getRooms(userId), getNotification(userId));
+    return new User(userId, login, username, password, birthday, country, city, description,
+        avatarId,
+        getRooms(userId), getNotification(userId));
   }
 
   private List<Room> getRooms(int userId) {
     String sql = "select room_id from Rooms_members where user_id = ?";
     var rooms = new ArrayList<Room>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
@@ -223,7 +249,7 @@ public class UserRepositoryImpl implements UserRepository {
     String sql = "select notification_id from usersNotification where user_id = ?";
     var notifications = new ArrayList<Notification>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
@@ -236,21 +262,5 @@ public class UserRepositoryImpl implements UserRepository {
       throw new RuntimeException();
     }
     return notifications;
-  }
-
-  private static String sha256(String input) throws NoSuchAlgorithmException {
-    MessageDigest md = MessageDigest.getInstance("SHA-256");
-    byte[] hash = md.digest(input.getBytes());
-    return bytesToHex(hash);
-  }
-
-  private static String bytesToHex(byte[] bytes) {
-    StringBuilder hexString = new StringBuilder();
-    for (byte b : bytes) {
-      String hex = Integer.toHexString(0xff & b);
-      if (hex.length() == 1) hexString.append('0');
-      hexString.append(hex);
-    }
-    return hexString.toString();
   }
 }
