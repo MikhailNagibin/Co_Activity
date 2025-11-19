@@ -2,6 +2,7 @@ package com.coactivity.service;
 
 import com.coactivity.service.dto.TokenPayload;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,36 +11,47 @@ import org.springframework.stereotype.Service;
 /**
  * Manages authentication token lifecycle for the CoActivity platform.
  * <p>
- * Tokens are simple base64-encoded strings containing login and password credentials. Active tokens
- * are tracked in memory to prevent use of invalidated tokens.
+ * Tokens are base64-encoded strings containing user id and expiration timestamp.
+ * Tokens automatically expire 30 minutes after creation. Active tokens are tracked
+ * in memory to prevent use of invalidated or expired tokens. This service is a
+ * singleton managed by Spring, ensuring all services share the same active token registry.
  * </p>
  */
 @Service
 public class TokenService {
 
   /**
-   * Map of active tokens consisting of pairs (login : token)
-   * TokenService is singleton, so this field is actual in every instance of service
+   * Token expiration duration in minutes.
    */
-  private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
+  private static final int TOKEN_EXPIRATION_MINUTES = 30;
 
   /**
-   * Creates a new authentication token from user credentials.
-   *
-   * @param login    the user's email/login identifier
-   * @param password the user's password for verification
-   * @return base64-encoded token containing login:password
+   * Map of active tokens consisting of pairs (userId : token).
+   * TokenService is singleton, so this field is shared across all service instances.
    */
-  public String createToken(String login, String password) {
-    String payload = login + ":" + password;
+  private final Map<Integer, String> activeTokens = new ConcurrentHashMap<>();
+
+  /**
+   * Creates a new authentication token for the specified user.
+   * <p>
+   * The token automatically expires 30 minutes after creation. The token contains
+   * the user's id and expiration timestamp encoded in base64 format.
+   * </p>
+   *
+   * @param userId the user's unique identifier
+   * @return base64-encoded token containing userId:expiresAt
+   */
+  public String createToken(Integer userId) {
+    Instant expiresAt = Instant.now().plusSeconds(TOKEN_EXPIRATION_MINUTES * 60L);
+    String payload = userId + ":" + expiresAt.toEpochMilli();
     return Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
   }
 
   /**
-   * Decodes a token and extracts the user credentials.
+   * Decodes a token and extracts the user information.
    *
    * @param token the authentication token to decode
-   * @return TokenPayload containing login and password
+   * @return TokenPayload containing userId and expiresAt
    * @throws IllegalArgumentException if token format is invalid
    */
   public TokenPayload decodeToken(String token) {
@@ -49,7 +61,9 @@ public class TokenService {
       if (parts.length != 2) {
         throw new IllegalArgumentException("Invalid token format");
       }
-      return new TokenPayload(parts[0], parts[1]);
+      Integer userId = Integer.parseInt(parts[0]);
+      Instant expiresAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+      return new TokenPayload(userId, expiresAt);
     } catch (Exception e) {
       throw new IllegalArgumentException("Invalid token", e);
     }
@@ -61,23 +75,38 @@ public class TokenService {
    * If the user already has an active token, it will be replaced.
    * </p>
    *
-   * @param login the user login to associate with the token
-   * @param token the token to register as active
+   * @param userId the user id to associate with the token
+   * @param token  the token to register as active
    */
-  public void registerToken(String login, String token) {
-    activeTokens.put(login, token);
+  public void registerToken(Integer userId, String token) {
+    activeTokens.put(userId, token);
   }
 
   /**
    * Verifies that a token is currently active and valid.
+   * <p>
+   * A token is considered valid if:
+   * <ul>
+   *   <li>It can be successfully decoded</li>
+   *   <li>It has not expired (expiresAt is in the future)</li>
+   *   <li>It is registered and matches the stored active token for the user</li>
+   * </ul>
+   * </p>
    *
    * @param token the token to validate
-   * @return true if the token is registered and matches the stored active token
+   * @return true if the token is registered, not expired, and matches the stored active token
    */
   public boolean isTokenActive(String token) {
     try {
       TokenPayload payload = decodeToken(token);
-      return token.equals(activeTokens.get(payload.login()));
+      
+      // Check if token has expired
+      if (payload.expiresAt().isBefore(Instant.now())) {
+        return false;
+      }
+      
+      // Check if token is registered and matches the active token for this user
+      return token.equals(activeTokens.get(payload.userId()));
     } catch (Exception e) {
       return false;
     }
@@ -94,7 +123,7 @@ public class TokenService {
   public void invalidateToken(String token) {
     try {
       TokenPayload payload = decodeToken(token);
-      activeTokens.remove(payload.login(), token);
+      activeTokens.remove(payload.userId(), token);
     } catch (Exception e) {
       // Token was invalid anyway - no action needed
     }

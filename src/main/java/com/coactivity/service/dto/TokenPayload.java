@@ -1,9 +1,11 @@
 package com.coactivity.service.dto;
 
+import java.time.Instant;
+
 /**
- * Represents user credentials extracted from an authentication token.
+ * Represents user information extracted from an authentication token.
  *
- * @param login the user's email/login identifier
- * @param password the user's password for verification
+ * @param userId the user's unique identifier
+ * @param expiresAt the token expiration timestamp
  */
-public record TokenPayload(String login, String password) {}
+public record TokenPayload(Integer userId, Instant expiresAt) {}

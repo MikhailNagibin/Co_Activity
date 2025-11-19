@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 /**
  * Response payload returned after a login attempt is verified with the email code.
  * <p>
- * Provides the opaque token that represents the authenticated session together with
- * minimal user metadata needed by the client. Tokens are simple encoded strings that
- * never expire and must be echoed back in every protected request instead of sending
- * the username/password pair.
+ * Provides the authentication token that represents the authenticated session together with
+ * minimal user metadata needed by the client. Tokens are base64-encoded strings containing
+ * the user's id and expiration timestamp. Tokens expire 30 minutes after creation and must
+ * be echoed back in every protected request for authentication.
  * </p>
  */
 @Data
@@ -22,9 +22,10 @@ public class LoginResponse {
   /**
    * Encoded token issued after successful verification.
    * <p>
-   * The token encapsulates the login and password (encrypted with a server-side
-   * secret) and should be supplied by the client when calling any controller method
-   * that requires authentication.
+   * The token encapsulates the user's id and expiration timestamp (30 minutes from creation).
+   * It should be supplied by the client when calling any controller method that requires
+   * authentication. The token automatically expires after 30 minutes, requiring the user
+   * to log in again.
    * </p>
    */
   private String token;
