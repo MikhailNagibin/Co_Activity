@@ -23,7 +23,7 @@ public class PictureRepositoryImpl implements PictureRepository {
   }
 
   @Override
-  public Picture createPicture(int roomId) {
+  public Picture createPicture(Integer roomId) {
     String sql = "INSERT INTO pictures (room_id) VALUES (?) RETURNING picture_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -33,7 +33,7 @@ public class PictureRepositoryImpl implements PictureRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int generatedPictureId = resultSet.getInt("picture_id");
+          Integer generatedPictureId = resultSet.getInt("picture_id");
           return new Picture(roomRepository.getRoomById(roomId), generatedPictureId);
         }
       }
@@ -45,7 +45,7 @@ public class PictureRepositoryImpl implements PictureRepository {
   }
 
   @Override
-  public List<Picture> getRoomPictures(int roomId) {
+  public List<Picture> getRoomPictures(Integer roomId) {
     var pictures = new ArrayList<Picture>();
     String sql = "SELECT * FROM pictures WHERE room_id = ?";
 
@@ -67,7 +67,7 @@ public class PictureRepositoryImpl implements PictureRepository {
   }
 
   @Override
-  public void deletePicture(int photoId) {
+  public void deletePicture(Integer photoId) {
     String sql = "DELETE FROM pictures WHERE picture_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -86,8 +86,8 @@ public class PictureRepositoryImpl implements PictureRepository {
   }
 
   private Picture mapResultSetToPicture(ResultSet resultSet) throws SQLException {
-    int pictureId = resultSet.getInt("picture_id");
-    int roomId = resultSet.getInt("room_id");
+    Integer pictureId = resultSet.getInt("picture_id");
+    Integer roomId = resultSet.getInt("room_id");
 
     return new Picture(roomRepository.getRoomById(roomId), pictureId);
   }

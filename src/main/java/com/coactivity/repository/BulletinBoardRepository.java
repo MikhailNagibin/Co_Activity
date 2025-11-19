@@ -11,7 +11,7 @@ public interface BulletinBoardRepository {
    * @param authorId
    * @return
    */
-  BulletinBoard createBulletinBoard(int roomId, String content, int authorId);
+  BulletinBoard createBulletinBoard(Integer roomId, String content, Integer authorId);
 
   /**
    *
@@ -20,7 +20,7 @@ public interface BulletinBoardRepository {
    * @param authorId
    * @return BulletinBoard обновленная доска объявлений
    */
-  BulletinBoard updateBulletinBoard(int roomId, String content, int authorId);
+  BulletinBoard updateBulletinBoard(Integer roomId, String content, Integer authorId);
 
   /**
    * Проверяет, есть ли у комнаты доска объявлений
@@ -28,18 +28,18 @@ public interface BulletinBoardRepository {
    * @param roomId
    * @return
    */
-  boolean isBulletinBoardExists(int roomId);
+  boolean isBulletinBoardExists(Integer roomId);
 
   /**
    *
    * @param roomId
    * @return
    */
-  BulletinBoard getBulletinBoard(int roomId);
+  BulletinBoard getBulletinBoard(Integer roomId);
 
   /**
    *
    * @param roomId
    */
-  void deleteBulletinBoard(int roomId);
+  void deleteBulletinBoard(Integer roomId);
 }

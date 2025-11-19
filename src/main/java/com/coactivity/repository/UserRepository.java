@@ -21,15 +21,15 @@ public interface UserRepository {
    * @param userId
    * @param request
    */
-  void updateUser(int userId, UserProfileUpdateRequest request);
+  void updateUser(Integer userId, UserProfileUpdateRequest request);
 
 
   /**
    * Удаление пользователя
    *
-   * @param id - идентификатор пользователя
+   * @param userId идентификатор пользователя
    */
-  void deleteUser(int id);
+  void deleteUser(Integer userId);
 
   /**
    * Получение юзера по логину и паролю
@@ -44,8 +44,8 @@ public interface UserRepository {
   /**
    * Получение юзера по id
    *
-   * @param id
+   * @param userId
    * @return
    */
-  User getUserById(int id);
+  User getUserById(Integer userId);
 }

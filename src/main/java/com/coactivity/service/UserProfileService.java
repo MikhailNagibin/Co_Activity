@@ -136,7 +136,7 @@ public class UserProfileService {
   public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
       Integer userId) {
 
-    int roomOwnerId = tokenService.decodeToken(token).userId();
+    Integer roomOwnerId = tokenService.decodeToken(token).userId();
     try {
       if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
@@ -153,7 +153,7 @@ public class UserProfileService {
   public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
       Integer userId) {
 
-    int roomOwnerId = tokenService.decodeToken(token).userId();
+    Integer roomOwnerId = tokenService.decodeToken(token).userId();
     try {
       if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);

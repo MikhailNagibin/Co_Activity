@@ -32,7 +32,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public Room createRoom(int ownerId, RoomCreationRequest request) {
+  public Room createRoom(Integer ownerId, RoomCreationRequest request) {
 
     String sql = """
         INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
@@ -61,7 +61,7 @@ public class RoomRepositoryImpl implements RoomRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int roomId = resultSet.getInt("id");
+          Integer roomId = resultSet.getInt("id");
           addUserToRoom(roomId, ownerId, 1);
           return getRoomById(roomId);
         }
@@ -75,7 +75,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public Room getRoomById(int roomId) {
+  public Room getRoomById(Integer roomId) {
     String sql = "SELECT * FROM rooms WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -96,7 +96,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public void addUserToRoom(int roomId, int userId, int roleId) {
+  public void addUserToRoom(Integer roomId, Integer userId, Integer roleId) {
     String sql = "INSERT INTO rooms_members (room_id, user_id, role_id) " +
         "VALUES (?, ?, ?)";
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -112,7 +112,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public void deleteRoom(int roomId) {
+  public void deleteRoom(Integer roomId) {
     deleteAllWithRooms(roomId);
     String sql = "DELETE FROM Rooms WHERE id = ?";
 
@@ -137,7 +137,7 @@ public class RoomRepositoryImpl implements RoomRepository {
    *
    * @param roomId
    */
-  private void deleteAllWithRooms(int roomId) {
+  private void deleteAllWithRooms(Integer roomId) {
     String sql = """
         DELETE FROM BulletinBoard where room_id = ?;
         DELETE FROM Bans WHERE room_id = ?;
@@ -159,11 +159,11 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
-    int id = resultSet.getInt("id");
+    Integer id = resultSet.getInt("id");
     boolean isActive = resultSet.getBoolean("is_active");
     boolean isVisible = resultSet.getBoolean("is_private");
     String chatLink = resultSet.getString("chat_link");
-    int categoryId = resultSet.getInt("category_id");
+    Integer categoryId = resultSet.getInt("category_id");
     String name = resultSet.getString("name");
     String description = resultSet.getString("description");
     Instant startDate = resultSet.getTimestamp("start_date") != null ?
@@ -180,7 +180,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         getUsersWithBanInRoom(id));
   }
 
-  private Map<User, Role> getUsersInRoom(int roomId) {
+  private Map<User, Role> getUsersInRoom(Integer roomId) {
     String sql = """
         SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
          INNER JOIN role AS r ON r.id = rm.Role_id
@@ -210,7 +210,7 @@ public class RoomRepositoryImpl implements RoomRepository {
    * @param roomId
    * @return
    */
-  private List<User> getUsersWithBanInRoom(int roomId) {
+  private List<User> getUsersWithBanInRoom(Integer roomId) {
     String sql = "select user_id from Bans where room_id = ?";
     var bans = new ArrayList<User>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -228,14 +228,14 @@ public class RoomRepositoryImpl implements RoomRepository {
     return bans;
   }
 
-  public boolean isUserInMembers(int roomId, int userId) {
+  public boolean isUserInMembers(Integer roomId, Integer userId) {
     Room room = getRoomById(roomId);
     Map<User, Role> users = room.getUsers();
 
     return users.containsKey(userRepository.getUserById(userId));
   }
 
-  public boolean isUserOwnerOfRoom(int userId, int roomId) {
+  public boolean isUserOwnerOfRoom(Integer userId, Integer roomId) {
     if (!isUserInMembers(roomId, userId)) {
       return false;
     }
@@ -261,7 +261,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     return false;
   }
 
-  public void setRoleByUserIdAndRoomId(int userId, int roomId, Role role) {
+  public void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role) {
     String sql = """
         UPDATE Rooms_members
         SET role_id = (select id from Roles where role = ?)
@@ -285,7 +285,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
   }
 
-  public Role getUserRoleByRoomId(int roomId, int userId) {
+  public Role getUserRoleByRoomId(Integer roomId, Integer userId) {
     String sql = """
         select r.role from Rooms_members as rm inner join Roles as r on r.id = rm.role_id
          where rm.room_id = ? and rm.user_id = ?""";

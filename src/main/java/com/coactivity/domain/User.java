@@ -19,7 +19,7 @@ public class User {
   private String city;
   private String country;
   private String description;
-  private int avatarId;
+  private Integer avatarId;
   private List<Room> rooms;
   private List<Notification> notifications;
 }

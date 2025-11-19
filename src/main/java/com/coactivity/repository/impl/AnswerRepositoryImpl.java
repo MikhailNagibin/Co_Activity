@@ -24,8 +24,8 @@ public class AnswerRepositoryImpl implements AnswerRepository {
   }
 
   @Override
-  public Answer createAnswer(int questionId, int previousAnswerId, String currentAnswer,
-      int ownerId) {
+  public Answer createAnswer(Integer questionId, Integer previousAnswerId, String currentAnswer,
+      Integer ownerId) {
     String sql = "INSERT INTO answers (question_id, prev_ans_id, answer, owner) VALUES (?, ?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -39,7 +39,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int answerId = resultSet.getInt("id");
+          Integer answerId = resultSet.getInt("id");
           return new Answer(answerId, questionId, previousAnswerId, currentAnswer,
               userRepository.getUserById(ownerId), Instant.now());
         }
@@ -53,7 +53,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
   }
 
   @Override
-  public List<Answer> getAnswers(int questionId) {
+  public List<Answer> getAnswers(Integer questionId) {
     var answers = new ArrayList<Answer>();
     String sql = "SELECT * FROM answers WHERE question_id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();

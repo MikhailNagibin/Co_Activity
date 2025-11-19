@@ -10,7 +10,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
-// TODO: add method isBulletinBoardExists(int roomId)
+// TODO: add method isBulletinBoardExists(Integer roomId)
 @Repository
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
@@ -27,7 +27,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public BulletinBoard createBulletinBoard(int roomId, String content, int authorId) {
+  public BulletinBoard createBulletinBoard(Integer roomId, String content, Integer authorId) {
     String sql = "INSERT INTO bulletinBoard (room_id, content, author_id, updated_at) " +
         "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
 
@@ -40,7 +40,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int boardId = resultSet.getInt("id");
+          Integer boardId = resultSet.getInt("id");
           Instant createdAt = resultSet.getTimestamp(2).toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId),
               content, userRepository.getUserById(authorId), createdAt);
@@ -55,7 +55,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public BulletinBoard updateBulletinBoard(int roomId, String content, int authorId) {
+  public BulletinBoard updateBulletinBoard(Integer roomId, String content, Integer authorId) {
     String sql =
         "UPDATE bulletin_board SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
             " WHERE roomId = ? RETURNING id, CURRENT_TIMESTAMP";
@@ -69,7 +69,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int boardId = resultSet.getInt("id");
+          Integer boardId = resultSet.getInt("id");
           Instant updatedAt = resultSet.getTimestamp(2).toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId), content,
               userRepository.getUserById(authorId), updatedAt);
@@ -84,12 +84,12 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public boolean isBulletinBoardExists(int roomId) {
+  public boolean isBulletinBoardExists(Integer roomId) {
     return false;
   }
 
   @Override
-  public BulletinBoard getBulletinBoard(int roomId) {
+  public BulletinBoard getBulletinBoard(Integer roomId) {
     String sql = "SELECT * FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -110,7 +110,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public void deleteBulletinBoard(int roomId) {
+  public void deleteBulletinBoard(Integer roomId) {
     String sql = "DELETE FROM bulletin_board WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -130,10 +130,10 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   private BulletinBoard mapResultSetToBulletinBoard(ResultSet resultSet) throws SQLException {
-    int id = resultSet.getInt("id");
-    int roomId = resultSet.getInt("room_id");
+    Integer id = resultSet.getInt("id");
+    Integer roomId = resultSet.getInt("room_id");
     String content = resultSet.getString("content");
-    int authorId = resultSet.getInt("author_id");
+    Integer authorId = resultSet.getInt("author_id");
     Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
 
     return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,

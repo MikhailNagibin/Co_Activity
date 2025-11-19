@@ -24,7 +24,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   @Override
-  public Question createQuestion(int userId, String question, int categoryId) {
+  public Question createQuestion(Integer userId, String question, Integer categoryId) {
     String sql = "INSERT INTO questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -36,7 +36,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int questionId = resultSet.getInt("id");
+          Integer questionId = resultSet.getInt("id");
           return new Question(questionId, userRepository.getUserById(userId), question,
               Category.getByIndex(categoryId));
         }
@@ -67,7 +67,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     return questions;
   }
 
-  public Question getQuestionById(int questionId) {
+  public Question getQuestionById(Integer questionId) {
     String sql = "SELECT * FROM questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -88,7 +88,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   @Override
-  public Question updateQuestion(int questionId, String question, int categoryId) {
+  public Question updateQuestion(Integer questionId, String question, Integer categoryId) {
     String sql = "UPDATE questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -111,7 +111,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   @Override
-  public void deleteQuestion(int questionId) {
+  public void deleteQuestion(Integer questionId) {
     deleteAllWithQuestion(questionId);
     String sql = "DELETE FROM questions WHERE id = ?";
 
@@ -130,7 +130,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     }
   }
 
-  private void deleteAllWithQuestion(int questionId) {
+  private void deleteAllWithQuestion(Integer questionId) {
     String sql = "DELETE FROM Answers WHERE question_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -147,10 +147,10 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {
-    int id = resultSet.getInt("id");
-    int ownerId = resultSet.getInt("owner");
+    Integer id = resultSet.getInt("id");
+    Integer ownerId = resultSet.getInt("owner");
     String questionText = resultSet.getString("question");
-    int categoryId = resultSet.getInt("category_id");
+    Integer categoryId = resultSet.getInt("category_id");
 
     return new Question(id, userRepository.getUserById(ownerId), questionText,
         Category.getByIndex(categoryId));

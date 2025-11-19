@@ -91,5 +91,5 @@ public class UserSummaryResponse {
    * this ID to construct avatar image URLs according to the platform's media serving pattern.
    * </p>
    */
-  private int avatarId;
+  private Integer avatarId;
 }

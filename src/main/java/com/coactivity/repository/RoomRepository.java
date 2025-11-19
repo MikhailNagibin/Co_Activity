@@ -12,7 +12,7 @@ public interface RoomRepository {
    * @param request
    * @return
    */
-  Room createRoom(int ownerId, RoomCreationRequest request);
+  Room createRoom(Integer ownerId, RoomCreationRequest request);
 
 
   /**
@@ -20,7 +20,7 @@ public interface RoomRepository {
    * @param roomId
    * @return
    */
-  Room getRoomById(int roomId);
+  Room getRoomById(Integer roomId);
 
   /**
    *
@@ -28,13 +28,13 @@ public interface RoomRepository {
    * @param userId
    * @param roleId
    */
-  void addUserToRoom(int roomId, int userId, int roleId);
+  void addUserToRoom(Integer roomId, Integer userId, Integer roleId);
 
   /**
    *
    * @param roomId
    */
-  void deleteRoom(int roomId);
+  void deleteRoom(Integer roomId);
 
   /**
    *
@@ -42,5 +42,5 @@ public interface RoomRepository {
    * @param userId
    * @return
    */
-  boolean isUserInMembers(int roomId, int userId);
+  boolean isUserInMembers(Integer roomId, Integer userId);
 }

@@ -9,7 +9,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Question {
 
-  private int id;
+  private Integer id;
   private User owner;
   private String question;
   private Category category;

@@ -10,18 +10,18 @@ public interface PictureRepository {
    * @param roomId
    * @return
    */
-  Picture createPicture(int roomId);
+  Picture createPicture(Integer roomId);
 
   /**
    *
    * @param roomId
    * @return
    */
-  List<Picture> getRoomPictures(int roomId);
+  List<Picture> getRoomPictures(Integer roomId);
 
   /**
    *
    * @param photoId
    */
-  void deletePicture(int photoId);
+  void deletePicture(Integer photoId);
 }
