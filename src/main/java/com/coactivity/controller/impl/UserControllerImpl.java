@@ -1,11 +1,10 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.AuthToken;
+import com.coactivity.service.AuthTokenService;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
-import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.service.UserService;
 
@@ -19,12 +18,12 @@ public class UserControllerImpl {
   public UserControllerImpl() {}
 
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {
-    return userService.getUserProfile(AuthToken.getId(token));
+    return userService.getUserProfile(AuthTokenService.getId(token));
   }
 
   public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
 
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
     if (request.getUsername() != null && (request.getUsername().length() > 50 || request.getUsername().length() < 3)) {
@@ -45,7 +44,7 @@ public class UserControllerImpl {
     }
 
     try {
-      userService.updateUserProfile(AuthToken.getId(token), request);
+      userService.updateUserProfile(AuthTokenService.getId(token), request);
       return ApiResponse.success("200");
     } catch (Exception e) {
       return ApiResponse.error("400");
@@ -53,11 +52,11 @@ public class UserControllerImpl {
   }
 
   public ApiResponse<Integer> deleteAccount(String token) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
     try {
-      return userService.deleteAccount(AuthToken.getId(token));
+      return userService.deleteAccount(AuthTokenService.getId(token));
     } catch (Exception e) {
       return ApiResponse.error("400");
     }
@@ -65,11 +64,11 @@ public class UserControllerImpl {
 
   public ApiResponse<Void> configureNotificationSettings(String token,
                                                          NotificationSettingsRequest request) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
     try {
-      return userService.configureNotificationSettings(AuthToken.getId(token), request);
+      return userService.configureNotificationSettings(AuthTokenService.getId(token), request);
     } catch (Exception e) {
       return ApiResponse.error(null);
     }
@@ -77,7 +76,7 @@ public class UserControllerImpl {
 
   public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
                                                              Integer userId) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
 
@@ -90,7 +89,7 @@ public class UserControllerImpl {
 
   public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
                                            Integer userId) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
 
@@ -102,18 +101,18 @@ public class UserControllerImpl {
   }
 
   public ApiResponse<Void> cancelRequest(String token, Integer requestId) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
     try {
       return userService.cancelRequest(token, requestId);
     } catch (Exception e) {
-      return ApiResponse.error("401");
+      return ApiResponse.error("402");
     }
   }
 
   public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
-    if (!AuthToken.isTokenExpired(token)) {
+    if (!AuthTokenService.isTokenExpired(token)) {
       return ApiResponse.error("401");
     }
 

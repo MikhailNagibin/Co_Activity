@@ -1,4 +1,4 @@
-package com.coactivity;
+package com.coactivity.service;
 
 import java.time.Instant;
 import java.util.Base64;
@@ -7,10 +7,22 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.StringTokenizer;
 
-public class AuthToken {
+public class AuthTokenService {
   private static final Integer SECRET_KEY = 321;
 
-  private AuthToken() {}
+  private static class TokenData {
+    String login;
+    Integer userID;
+    Instant finishAt;
+
+    TokenData(String login, Integer id, Instant finishAt) {
+      this.login = login;
+      this.userID = id;
+      this.finishAt = finishAt;
+    }
+  }
+
+  private AuthTokenService() {}
 
   public static String generateToken(String login, Integer id) {
     try {
@@ -25,7 +37,7 @@ public class AuthToken {
   public static Integer getId(String token) {
     try {
       TokenData tokenData = decryptToken(token);
-      return tokenData.id;
+      return tokenData.userID;
     } catch (Exception e) {
       throw new IllegalArgumentException("Invalid token", e);
     }
@@ -46,18 +58,6 @@ public class AuthToken {
       return Instant.now().isAfter(tokenData.finishAt);
     } catch (Exception e) {
       return true;
-    }
-  }
-
-  private static class TokenData {
-    String login;
-    Integer id;
-    Instant finishAt;
-
-    TokenData(String login, Integer id, Instant finishAt) {
-      this.login = login;
-      this.id = id;
-      this.finishAt = finishAt;
     }
   }
 

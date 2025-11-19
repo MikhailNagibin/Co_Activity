@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.AuthToken;
 import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
@@ -24,7 +23,7 @@ public class UserService {
     rooms = new RoomRepositoryImpl(repository);
     requests = new RoomsRequestRepositoryImpl(repository);
   }
-
+л
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();
     try {
@@ -65,8 +64,7 @@ public class UserService {
     }
   }
 
-  public ApiResponse<Void> configureNotificationSettings(int token,
-                                                         NotificationSettingsRequest request) {
+  public ApiResponse<Void> configureNotificationSettings(int token, NotificationSettingsRequest request) {
     try {
       if (request.getActivityClosed()) {
         users.setNotification(token, "activityClosed");
@@ -90,7 +88,7 @@ public class UserService {
   public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
                                            Integer userId) {
 
-    int roomOwnerId = AuthToken.getId(token);
+    int roomOwnerId = AuthTokenService.getId(token);
     try {
       if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
@@ -107,7 +105,7 @@ public class UserService {
   public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
                                            Integer userId) {
 
-    int roomOwnerId = AuthToken.getId(token);
+    int roomOwnerId = AuthTokenService.getId(token);
     try {
       if (!rooms.isUserOwnerInRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
@@ -122,7 +120,7 @@ public class UserService {
   }
 
   public ApiResponse<Void> cancelRequest(String token, Integer requestId) {
-    if (!requests.checkRequest(requestId, AuthToken.getId(token))) {
+    if (!requests.checkRequest(requestId, AuthTokenService.getId(token))) {
       return ApiResponse.error("401");
     }
     try {
@@ -135,7 +133,7 @@ public class UserService {
 
   public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
     try {
-      rooms.isUserInMembers(roomId, AuthToken.getId(token));
+      rooms.isUserInMembers(roomId, AuthTokenService.getId(token));
       return ApiResponse.success(null);
     } catch (Exception e) {
       throw new RuntimeException(e);
