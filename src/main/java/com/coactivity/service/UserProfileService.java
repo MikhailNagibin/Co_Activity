@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.AuthToken;
 import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
@@ -15,19 +14,28 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import org.springframework.stereotype.Service;
 
+/**
+ * Handles user profile operations including registration, profile management, and account
+ * lifecycle.
+ */
+@Service
 public class UserProfileService {
-  private UserRepositoryImpl users;
-  private DataRepository repository;
-  private RoomRepositoryImpl rooms;
+
+  private final UserRepositoryImpl userRepository;
+  private final DataRepository repository;
+  private final RoomRepositoryImpl roomRepository;
+  private final TokenService tokenService;
 
   public UserProfileService() {
-    repository = new DataRepository();
-    users = new UserRepositoryImpl(repository);
-    rooms = new RoomRepositoryImpl(repository);
+    this.repository = new DataRepository();
+    this.userRepository = new UserRepositoryImpl(repository);
+    this.roomRepository = new RoomRepositoryImpl(repository);
+    this.tokenService = new TokenService();
   }
 
-//  TODO: implement following methods:
+  //  TODO: implement following methods:
   public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
     return ApiResponse.success(null);
   }
@@ -53,18 +61,18 @@ public class UserProfileService {
     return ApiResponse.success(null);
   }
 
+  // TODO: UserWithRoomService that contains following methods:
+  //  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
+  //  getRoomParticipants, isUserInRoom
+  // TODO: JoinRequestsService that contains following methods:
+  //  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
+  //  getSentRequests, cancelRequest
+  // TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов
 
-// TODO: UserWithRoomService that contains following methods:
-//  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
-//  getRoomParticipants, isUserInRoom
-// TODO: JoinRequestsService that contains following methods:
-//  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
-//  getSentRequests, cancelRequest
-// TODO:
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();
     try {
-      User user = users.getUserById(token);
+      User user = userRepository.getUserById(token);
 
       response.setId(user.getId());
       response.setCity(user.getCity());
@@ -82,9 +90,9 @@ public class UserProfileService {
   }
 
   public ApiResponse<Void> updateUserProfile(int token, UserProfileUpdateRequest request) {
-    User user = users.getUserById(token);
+    User user = userRepository.getUserById(token);
     try {
-      users.updateUser(user.getId(), request);
+      userRepository.updateUser(user.getId(), request);
       return ApiResponse.success(null);
     } catch (Exception e) {
       return ApiResponse.error(null);
@@ -93,7 +101,7 @@ public class UserProfileService {
 
   public ApiResponse<Integer> deleteAccount(int token) {
     try {
-      users.deleteUser(token);
+      userRepository.deleteUser(token);
       return ApiResponse.success(200);
     } catch (Exception e) {
       return ApiResponse.error(null);
@@ -101,19 +109,19 @@ public class UserProfileService {
   }
 
   public ApiResponse<Void> configureNotificationSettings(int token,
-                                                         NotificationSettingsRequest request) {
+      NotificationSettingsRequest request) {
     try {
       if (request.getActivityClosed()) {
-        users.setNotification(token, "activityClosed");
+        userRepository.setNotification(token, "activityClosed");
       }
       if (request.getNewJoinRequest()) {
-        users.setNotification(token, "newJoinRequest");
+        userRepository.setNotification(token, "newJoinRequest");
       }
       if (request.getMembershipAccepted()) {
-        users.setNotification(token, "membershipAccepted");
+        userRepository.setNotification(token, "membershipAccepted");
       }
       if (request.getMembershipRejected()) {
-        users.setNotification(token, "membershipRejected");
+        userRepository.setNotification(token, "membershipRejected");
       }
       return ApiResponse.success(null);
     } catch (Exception e) {
@@ -123,15 +131,15 @@ public class UserProfileService {
   }
 
   public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
-                                           Integer userId) {
+      Integer userId) {
 
-    int roomOwnerId = AuthToken.getId(token);
+    int roomOwnerId = tokenService.decodeToken(token).userId();
     try {
-      if (!rooms.isUserOwnerOfRoom(roomOwnerId, roomId)) {
+      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
       }
 
-      rooms.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
+      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
       return ApiResponse.success(null);
 
     } catch (Exception e) {
@@ -140,15 +148,15 @@ public class UserProfileService {
   }
 
   public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
-                                           Integer userId) {
+      Integer userId) {
 
-    int roomOwnerId = AuthToken.getId(token);
+    int roomOwnerId = tokenService.decodeToken(token).userId();
     try {
-      if (!rooms.isUserOwnerOfRoom(roomOwnerId, roomId)) {
+      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
         return ApiResponse.error(null);
       }
 
-      rooms.setRoleByUserIdAndRoomId(userId, roomId, Role.PARTICIPANT);
+      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.PARTICIPANT);
       return ApiResponse.success(null);
 
     } catch (Exception e) {

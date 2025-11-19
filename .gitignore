@@ -1,3 +1,5 @@
 .idea
+.vscode
 /src/main/resources/config.json
 docker-compose.yml
+target

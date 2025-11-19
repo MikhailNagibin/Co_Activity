@@ -5,10 +5,13 @@ import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.RequestStatus;
+import com.coactivity.domain.Role;
 import java.util.List;
 
 /**
@@ -72,19 +75,21 @@ public interface RoomController {
    * Retrieves rooms based on specified filtering and sorting criteria.
    * <p>
    * <b>Access Control:</b> Public endpoint - no authentication required.
-   * Unauthorized users can call this method by passing {@code null} as the token parameter. All
-   * users receive basic room information. Authenticated users receive additional context about
-   * their participation status in each room.
+   * Provides efficient, cache-friendly access to room listings for all users, including
+   * unauthenticated visitors. Room discovery and browsing are designed as public operations to
+   * encourage platform engagement and user acquisition.
    * </p>
    *
-   * @param filter structured filter criteria for searching rooms, or {@code null} for all rooms
-   * @param sortBy sorting preference, or {@code null} for default sorting
-   * @param token  optional JWT token for personalized participation status. Pass {@code null} for
-   *               unauthorized access.
-   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with basic room
-   * information for all users, plus participation context for authenticated users
+   * @param filter structured filter criteria for searching rooms, or {@code null} to return all
+   *               active rooms
+   * @param sortBy sorting preference, or {@code null} for default relevance-based sorting
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with public room
+   * information suitable for display to any user, authenticated or not
+   * @see RoomSummaryResponse
+   * @see RoomFilter
+   * @see RoomSort
    */
-  ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy, String token);
+  ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy);
 
   /**
    * Retrieves detailed information for a specific room with conditional data exposure.
@@ -103,6 +108,33 @@ public interface RoomController {
    * data exposure based on whether a valid token was provided
    */
   ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token);
+
+  /**
+   * Retrieves all rooms where the authenticated user is an active participant.
+   * <p>
+   * Provides users with a comprehensive view of their current activity engagements, including both
+   * rooms they've joined and rooms they administer. This method serves as the user's personal
+   * activity dashboard, showing all rooms where they have an active membership regardless of their
+   * role (participant, administrator, or owner).
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication. Users can only view
+   * their own room participations. The response includes both public and private rooms where the
+   * user has membership.</p>
+   *
+   * <p><b>Response Details:</b> Returns room summaries with full details including
+   * protected content like chat links and bulletin boards, since the user is a verified participant
+   * in these rooms.</p>
+   *
+   * @param token valid JWT token of the authenticated user
+   * @return {@link ApiResponse} containing list of {@link RoomDetailedResponse} with complete room
+   * information including protected content for all rooms where the user has active participation
+   * @throws SecurityException if authentication token is invalid or expired
+   * @see RoomDetailedResponse
+   * @see #getRooms(RoomFilter, RoomSort)
+   * @see #getRoomById(Integer, String)
+   */
+  ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token);
 
   // ===== ROOM PARTICIPATION =====
 
@@ -160,4 +192,50 @@ public interface RoomController {
    * @see #createRoom(String, RoomCreationRequest)
    */
   ApiResponse<Void> deleteRoom(String token, Integer roomId);
+
+  /**
+   * Retrieves the list of participants for a specific room with optional role filtering.
+   * <p>
+   * Provides room administrators with comprehensive participant information including user details,
+   * roles, join dates, and activity timestamps. Enables effective room management and moderation
+   * with flexible filtering capabilities.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * (OWNER or ADMIN) in the specified room.</p>
+   *
+   * @param token      valid JWT token of a user with room administration privileges
+   * @param roomId     unique identifier of the room to retrieve participants for
+   * @param roleFilter optional role to filter participants by (e.g., only ADMINs). If null, all
+   *                   participants are returned.
+   * @return {@link ApiResponse} containing list of participant information with enhanced user
+   * details
+   * @throws SecurityException        if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if the room doesn't exist
+   */
+  ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId,
+      Role roleFilter);
+
+  /**
+   * Verifies whether a specific user is a participant in a given room.
+   * <p>
+   * This method is exclusively for room administrators (OWNER or ADMIN) to verify the membership
+   * status of any user within their managed rooms. Regular participants cannot use this method to
+   * check other users' membership status.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * (OWNER or ADMIN) in the specified room. The requesting user must be an administrator of the
+   * room they are checking.</p>
+   *
+   * @param token  valid JWT token of a user with room administration privileges
+   * @param roomId unique identifier of the room to check
+   * @param userId unique identifier of the user to verify membership for
+   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
+   * results and role information, or indicates the user is not a participant
+   * @throws SecurityException        if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if the room or target user doesn't exist
+   */
+  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
+      Integer userId);
 }
