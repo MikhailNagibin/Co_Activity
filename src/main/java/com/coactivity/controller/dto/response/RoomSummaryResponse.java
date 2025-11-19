@@ -73,7 +73,7 @@ public class RoomSummaryResponse {
   /**
    * Frequency of the event.
    */
-  private int frequency;
+  private Instant frequency;
 
   /**
    * Current number of active participants in the room.
