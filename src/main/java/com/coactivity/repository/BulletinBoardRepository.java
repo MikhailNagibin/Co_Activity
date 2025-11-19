@@ -26,6 +26,14 @@ public interface BulletinBoardRepository {
   BulletinBoard updateBulletinBoard(int roomId, String content, int authorId);
 
   /**
+   * Проверяет, есть ли у комнаты доска объявлений
+   *
+   * @param roomId
+   * @return
+   */
+  boolean isBulletinBoardExists(int roomId);
+
+  /**
    *
    * @param roomId
    * @return

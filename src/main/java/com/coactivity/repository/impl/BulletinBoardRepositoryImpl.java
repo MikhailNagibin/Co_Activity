@@ -10,6 +10,7 @@ import com.coactivity.repository.impl.UserRepositoryImpl;
 import jakarta.persistence.criteria.CriteriaBuilder;
 
 
+// TODO: add method isBulletinBoardExists(int roomId)
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   private final DataRepository dataRepository;
@@ -76,6 +77,11 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       throw new RuntimeException();
     }
     throw new RuntimeException();
+  }
+
+  @Override
+  public boolean isBulletinBoardExists(int roomId) {
+    return false;
   }
 
   @Override
