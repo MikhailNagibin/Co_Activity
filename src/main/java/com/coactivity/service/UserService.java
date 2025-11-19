@@ -47,8 +47,7 @@ public class UserService {
   public ApiResponse<Void> updateUserProfile(int token, UserProfileUpdateRequest request) {
     User user = users.getUserById(token);
     try {
-      users.updateUser(user, user.getPassword(), request.getDateOfBirth(), request.getCountry(), request.getCity(),
-        request.getDescription(), request.getAvatarId(), request.getUsername());
+      users.updateUser(user.getId(), request);
       return ApiResponse.success(null);
     } catch (Exception e) {
       return ApiResponse.error(null);

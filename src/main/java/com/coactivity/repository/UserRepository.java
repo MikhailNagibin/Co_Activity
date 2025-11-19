@@ -1,50 +1,38 @@
 package com.coactivity.repository;
 
+import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
+import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.User;
 
-import java.time.Instant;
-import java.util.AbstractMap;
-
 public interface UserRepository {
+
   /**
-   * создание нового пользователя
+   * Создание нового пользователя
    *
-   * @param login
-   * @param password
-   * @param birthday
-   * @param country
-   * @param city
-   * @param description
-   * @param avatarId
+   * @param request
    * @return
    */
+  User createUser(UserRegistrationRequest request);
 
-  User createUser(String login, String username, String password, Instant birthday, String country, String city, String description, int avatarId);
 
   /**
-   * обновления персональных данных
+   * Обновление персональных данных
    *
-   * @param user
-   * @param password
-   * @param birthday
-   * @param country
-   * @param city
-   * @param description
-   * @param avatarId
+   * @param userId
+   * @param request
    */
-
-  void updateUser(User user, String password, Instant birthday, String country, String city, String description, int avatarId, String username);
+  void updateUser(int userId, UserProfileUpdateRequest request);
 
 
   /**
-   * удаление пользователя
+   * Удаление пользователя
    *
    * @param id - идентификатор пользователя
    */
   void deleteUser(int id);
 
   /**
-   *  Получение юзера
+   * Получение юзера по логину и паролю
    *
    * @param login
    * @param password
@@ -54,6 +42,7 @@ public interface UserRepository {
   User getUser(String login, String password);
 
   /**
+   * Получение юзера по id
    *
    * @param id
    * @return
