@@ -17,15 +17,18 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class UserRepositoryImpl implements UserRepository {
 
   private final DataRepository dataRepository;
   private final RoomRepositoryImpl roomRepository;
 
-  public UserRepositoryImpl(DataRepository dataRepository) {
+  public UserRepositoryImpl(DataRepository dataRepository, @Lazy RoomRepositoryImpl roomRepository) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.roomRepository = roomRepository;
   }
 
   private static String sha256(String input) throws NoSuchAlgorithmException {

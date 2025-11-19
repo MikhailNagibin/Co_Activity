@@ -9,15 +9,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class PictureRepositoryImpl implements PictureRepository {
 
   private final DataRepository dataRepository;
   private final RoomRepositoryImpl roomRepository;
 
-  public PictureRepositoryImpl(DataRepository dataRepository) {
+  public PictureRepositoryImpl(DataRepository dataRepository, RoomRepositoryImpl roomRepository) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.roomRepository = roomRepository;
   }
 
   @Override

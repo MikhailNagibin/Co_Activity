@@ -10,16 +10,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository;
 
-
+@Repository
 public class QuestionRepositoryImpl implements QuestionRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
 
-  public QuestionRepositoryImpl(DataRepository dataRepository) {
+  public QuestionRepositoryImpl(DataRepository dataRepository, UserRepositoryImpl userRepository) {
     this.dataRepository = dataRepository;
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.userRepository = userRepository;
   }
 
   @Override

@@ -17,9 +17,9 @@ public class UserControllerImpl {
   private final UserProfileService userService;
   private final TokenService tokenService;
 
-  public UserControllerImpl() {
-    this.userService = new UserProfileService();
-    this.tokenService = new TokenService();
+  public UserControllerImpl(UserProfileService userService, TokenService tokenService) {
+    this.userService = userService;
+    this.tokenService = tokenService;
   }
 
   private static boolean isWithinLast100Years(Instant instantToCheck) {

@@ -28,11 +28,14 @@ public class UserProfileService {
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
-  public UserProfileService() {
-    this.repository = new DataRepository();
-    this.userRepository = new UserRepositoryImpl(repository);
-    this.roomRepository = new RoomRepositoryImpl(repository);
-    this.tokenService = new TokenService();
+  public UserProfileService(DataRepository repository, 
+                           UserRepositoryImpl userRepository,
+                           RoomRepositoryImpl roomRepository,
+                           TokenService tokenService) {
+    this.repository = repository;
+    this.userRepository = userRepository;
+    this.roomRepository = roomRepository;
+    this.tokenService = tokenService;
   }
 
   //  TODO: implement following methods:

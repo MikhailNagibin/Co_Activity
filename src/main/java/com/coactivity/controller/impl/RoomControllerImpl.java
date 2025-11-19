@@ -11,9 +11,9 @@ public class RoomControllerImpl {
   private final RoomService roomService;
   private final TokenService tokenService;
 
-  public RoomControllerImpl() {
-    this.roomService = new RoomService();
-    this.tokenService = new TokenService();
+  public RoomControllerImpl(RoomService roomService, TokenService tokenService) {
+    this.roomService = roomService;
+    this.tokenService = tokenService;
   }
 
   public ApiResponse<Void> deleteRoom(String token, Integer roomId) {

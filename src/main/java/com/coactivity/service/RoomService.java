@@ -13,10 +13,12 @@ public class RoomService {
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
-  public RoomService() {
-    this.repository = new DataRepository();
-    this.roomRepository = new RoomRepositoryImpl(repository);
-    this.tokenService = new TokenService();
+  public RoomService(DataRepository repository, 
+                    RoomRepositoryImpl roomRepository,
+                    TokenService tokenService) {
+    this.repository = repository;
+    this.roomRepository = roomRepository;
+    this.tokenService = tokenService;
   }
 
   public ApiResponse<Void> deleteRoom(String token, Integer roomId) {

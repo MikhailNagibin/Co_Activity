@@ -10,16 +10,17 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository;
 
-
+@Repository
 public class AnswerRepositoryImpl implements AnswerRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
 
-  public AnswerRepositoryImpl(DataRepository dataRepository) {
+  public AnswerRepositoryImpl(DataRepository dataRepository, UserRepositoryImpl userRepository) {
     this.dataRepository = dataRepository;
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.userRepository = userRepository;
   }
 
   @Override

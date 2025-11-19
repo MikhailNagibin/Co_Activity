@@ -8,19 +8,22 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-
+import org.springframework.stereotype.Repository;
 
 // TODO: add method isBulletinBoardExists(int roomId)
+@Repository
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
   private final RoomRepositoryImpl roomRepository;
 
-  public BulletinBoardRepositoryImpl(DataRepository dataRepository) {
+  public BulletinBoardRepositoryImpl(DataRepository dataRepository,
+                                    UserRepositoryImpl userRepository,
+                                    RoomRepositoryImpl roomRepository) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.userRepository = userRepository;
+    this.roomRepository = roomRepository;
   }
 
   @Override

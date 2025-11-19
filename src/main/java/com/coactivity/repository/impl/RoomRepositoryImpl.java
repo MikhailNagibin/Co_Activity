@@ -17,15 +17,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class RoomRepositoryImpl implements RoomRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
 
-  public RoomRepositoryImpl(DataRepository dataRepository) {
+  public RoomRepositoryImpl(DataRepository dataRepository, @Lazy UserRepositoryImpl userRepository) {
     this.dataRepository = dataRepository;
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.userRepository = userRepository;
   }
 
   @Override
