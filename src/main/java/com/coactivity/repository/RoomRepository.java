@@ -1,30 +1,20 @@
 package com.coactivity.repository;
 
+import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.Room;
 import java.time.Instant;
 import java.util.AbstractMap;
 
 public interface RoomRepository {
+
   /**
+   * Создание комнаты по запросу
    *
-   * @param isActive
-   * @param isVisible
-   * @param chatLink
-   * @param categoryId
-   * @param name
-   * @param description
-   * @param dateOfStartEvent
-   * @param dateOfEndEvent
-   * @param ageRating
-   * @param frequency
-   * @param maximumNumberOfPeople
-   * @param user
+   * @param ownerId
+   * @param request
    * @return
    */
-  Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
-                  String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
-                  int ageRating, int frequency, int maximumNumberOfPeople,
-                  int user);
+  Room createRoom(int ownerId, RoomCreationRequest request);
 
 
   /**
@@ -33,25 +23,6 @@ public interface RoomRepository {
    * @return
    */
   Room getRoomById(int roomId);
-
-  /**
-   *
-   * @param room
-   * @param roomId
-   * @param isActive
-   * @param isVisible
-   * @param description
-   * @param dateOfStartEvent
-   * @param dateOfEndEvent
-   * @param ageRating
-   * @param frequency
-   * @param maximumNumberOfPeople
-   * @return
-   */
-  Room updateRoom(Room room, int roomId, boolean isActive, boolean isVisible,
-                  String description, Instant dateOfStartEvent,
-                  Instant dateOfEndEvent, int ageRating,
-                  int frequency, int maximumNumberOfPeople);
 
   /**
    *

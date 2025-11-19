@@ -1,6 +1,7 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
+import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.*;
 import com.coactivity.repository.RoomRepository;
 
@@ -20,9 +21,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
-  public Room createRoom(boolean isActive, boolean isVisible, String chatLink, int categoryId,
-                         String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
-                         int ageRating, int frequency, int maximumNumberOfPeople, int user) {
+  public Room createRoom(int ownerId, RoomCreationRequest request) {
 
     String sql = """
       INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
@@ -34,22 +33,25 @@ public class RoomRepositoryImpl implements RoomRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
-      statement.setBoolean(1, isActive);
-      statement.setBoolean(2, isVisible);
-      statement.setString(3, chatLink);
-      statement.setInt(4, categoryId);
-      statement.setString(5, name);
-      statement.setString(6, description);
-      statement.setTimestamp(7, dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) : null);
-      statement.setTimestamp(8, dateOfEndEvent != null ? Timestamp.from(dateOfEndEvent) : null);
-      statement.setInt(9, ageRating);
-      statement.setInt(10, frequency);
-      statement.setInt(11, maximumNumberOfPeople);
+      statement.setBoolean(1, true);
+      statement.setBoolean(2, request.getIsPublic());
+      statement.setString(3, request.getChatLink());
+      statement.setInt(4, request.getCategoryId());
+      statement.setString(5, request.getName());
+      statement.setString(6, request.getDescription());
+      statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
+          Timestamp.from(request.getDateOfStartEvent()) : null);
+      statement.setTimestamp(8, request.getDateOfEndEvent() != null ?
+          Timestamp.from(request.getDateOfEndEvent()) : null);
+      statement.setInt(9, request.getAgeRating());
+      statement.setTimestamp(10, request.getFrequency() != null ?
+          Timestamp.from(request.getFrequency()) : null);
+      statement.setInt(11, request.getMaximumNumberOfPeople());
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           int roomId = resultSet.getInt("id");
-          addUserToRoom(roomId, user, 1);
+          addUserToRoom(roomId, ownerId, 1);
           return getRoomById(roomId);
         }
       }
@@ -80,64 +82,6 @@ public class RoomRepositoryImpl implements RoomRepository {
       throw new RuntimeException();
     }
     return null;
-  }
-
-  @Override
-  public Room updateRoom(Room room, int roomId, boolean isActive, boolean isVisible, String description,
-                         Instant dateOfStartEvent, Instant dateOfEndEvent, int ageRating,
-                         int frequency, int maximumNumberOfPeople) {
-
-    String sql = """
-      UPDATE rooms
-      SET is_active = ?, is_private = ?, description = ?, start_date = ?,
-          end_date = ?, age_rating = ?, frequency = ?, maximum_number_of_people = ?
-      WHERE id = ?
-      """;
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      boolean newIsActive = isActive;
-      boolean newIsVisible = isVisible;
-      String newDescription = description != null ? description : room.getDescription();
-      Timestamp newDateOfStart = dateOfStartEvent != null ? Timestamp.from(dateOfStartEvent) :
-        (room.getDateOfStartEvent() != null ? Timestamp.from(room.getDateOfStartEvent()) : null);
-      Timestamp newDateOfEnd = dateOfEndEvent != null ? Timestamp.from(dateOfEndEvent) :
-        (room.getDateOfEndEvent() != null ? Timestamp.from(room.getDateOfEndEvent()) : null);
-      int newAgeRating = ageRating != 0 ? ageRating : room.getAgeRating();
-      int newFrequency = frequency != 0 ? frequency : room.getFrequency();
-      int newMaximumNumberOfPeople = maximumNumberOfPeople != 0 ? maximumNumberOfPeople : room.getMaximumNumberOfPeople();
-
-      statement.setBoolean(1, newIsActive);
-      statement.setBoolean(2, newIsVisible);
-      statement.setString(3, newDescription);
-      statement.setTimestamp(4, newDateOfStart);
-      statement.setTimestamp(5, newDateOfEnd);
-      statement.setInt(6, newAgeRating);
-      statement.setInt(7, newFrequency);
-      statement.setInt(8, newMaximumNumberOfPeople);
-
-      room.setActive(newIsActive);
-      room.setPublic(newIsVisible);
-      room.setDescription(newDescription);
-      room.setDateOfStartEvent(newDateOfStart != null ? newDateOfStart.toInstant() : null);
-      room.setDateOfEndEvent(newDateOfEnd != null ? newDateOfEnd.toInstant() : null);
-      room.setAgeRating(newAgeRating);
-      room.setFrequency(newFrequency);
-      room.setMaximumNumberOfPeople(newMaximumNumberOfPeople);
-
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows > 0) {
-        return getRoomById(roomId);
-      } else {
-        throw new RuntimeException();
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
-    }
   }
 
   @Override
@@ -177,6 +121,11 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
   }
 
+  /**
+   * Удалить из БД всё, связанное с данной комнатой
+   *
+   * @param roomId
+   */
   private void deleteAllWithRooms(int roomId) {
     String sql = """
       DELETE FROM BulletinBoard where room_id = ?;
@@ -211,12 +160,12 @@ public class RoomRepositoryImpl implements RoomRepository {
     Instant endDate = resultSet.getTimestamp("end_date") != null ?
       resultSet.getTimestamp("end_date").toInstant() : null;
     int ageRating = resultSet.getInt("age_rating");
-    int frequency = resultSet.getInt("frequency");
+    Instant frequency = resultSet.getTimestamp("frequency").toInstant();
     int maxPeople = resultSet.getInt("maximum_number_of_people");
     Category category = Category.getByIndex(categoryId);
 
     return new Room(id, isActive, isVisible, chatLink, category, name, description,
-      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id), getUsersBans(id));
+      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id), getUsersWithBanInRoom(id));
   }
 
   private Map<User, Role> getUsersInRoom(int roomId) {
@@ -243,7 +192,13 @@ public class RoomRepositoryImpl implements RoomRepository {
     return usersInRoom;
   }
 
-  private List<User> getUsersBans(int roomId) {
+  /**
+   * Получение всех пользователей с баном в данной комнате
+   *
+   * @param roomId
+   * @return
+   */
+  private List<User> getUsersWithBanInRoom(int roomId) {
     String sql = "select user_id from Bans where room_id = ?";
     var bans = new ArrayList<User>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -268,7 +223,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     return users.containsKey(userRepository.getUserById(userId));
   }
 
-  public boolean isUserOwnerInRoom(int userId, int roomId) {
+  public boolean isUserOwnerOfRoom(int userId, int roomId) {
     if (!isUserInMembers(roomId, userId)) {
       return false;
     }
@@ -294,14 +249,14 @@ public class RoomRepositoryImpl implements RoomRepository {
     return false;
   }
 
-  public void getRoleByUserIdAndRoomId(int userId, int roomId, String role) {
+  public void setRoleByUserIdAndRoomId(int userId, int roomId, Role role) {
     String sql = """
       UPDATE Rooms_members
       SET role_id = (select id from Roles where role = ?)
       where room_id = ? and user_id = ?""";
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-        statement.setString(1, role);
+        statement.setString(1, role.name());
         statement.setInt(2, roomId);
         statement.setInt(3, userId);
 
@@ -318,7 +273,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
   }
 
-  public String getUserRoleByRoomId(int roomId, int userId) {
+  public Role getUserRoleByRoomId(int roomId, int userId) {
     String sql = """
       select r.role from Rooms_members as rm inner join Roles as r on r.id = rm.role_id
        where rm.room_id = ? and rm.user_id = ?""";
@@ -329,12 +284,12 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(2, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          return resultSet.getString(1);
+          return Role.valueOf(resultSet.getString(1).toUpperCase());
         } else {
           throw new RuntimeException();
         }
       }
-    } catch (SQLException e) {
+    } catch (SQLException | IllegalArgumentException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
