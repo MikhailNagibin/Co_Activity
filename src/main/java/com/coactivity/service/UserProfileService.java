@@ -135,37 +135,4 @@ public class UserProfileService {
     }
   }
 
-  public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
-      Integer userId) {
-
-    Integer roomOwnerId = tokenService.decodeToken(token).userId();
-    try {
-      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        return ApiResponse.error(null);
-      }
-
-      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
-      return ApiResponse.success(null);
-
-    } catch (Exception e) {
-      return ApiResponse.error("400");
-    }
-  }
-
-  public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
-      Integer userId) {
-
-    Integer roomOwnerId = tokenService.decodeToken(token).userId();
-    try {
-      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        return ApiResponse.error(null);
-      }
-
-      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.PARTICIPANT);
-      return ApiResponse.success(null);
-
-    } catch (Exception e) {
-      return ApiResponse.error("400");
-    }
-  }
 }

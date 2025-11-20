@@ -18,8 +18,8 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   private final RoomRepositoryImpl roomRepository;
 
   public BulletinBoardRepositoryImpl(DataRepository dataRepository,
-      UserRepositoryImpl userRepository,
-      RoomRepositoryImpl roomRepository) {
+                                    UserRepositoryImpl userRepository,
+                                    RoomRepositoryImpl roomRepository) {
     this.dataRepository = dataRepository;
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
@@ -83,29 +83,6 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public boolean isBulletinBoardExists(Integer roomId) {
-    String sql = "SELECT COUNT(*) FROM BulletinBoard WHERE room_id = ?";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          int count = resultSet.getInt(1);
-          return count > 0;
-        }
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException("Failed to check bulletin board existence for room: " + roomId, e);
-    }
-    return false;
-  }
-
-  @Override
   public BulletinBoard getBulletinBoard(Integer roomId) {
     String sql = "SELECT * FROM BulletinBoard WHERE room_id = ?";
 
@@ -142,6 +119,27 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
     } catch (SQLException e) {
       System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
+  @Override
+  public boolean isBulletinBoardExists(Integer roomId) {
+    String sql = "select * from BulletinBoard WHERE room_id = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setInt(1, roomId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+    } catch (SQLException e) {
       throw new RuntimeException();
     }
   }
