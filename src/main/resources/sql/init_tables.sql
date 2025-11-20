@@ -127,12 +127,13 @@ create table IF NOT EXISTS  BulletinBoard (
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (author_id) REFERENCES Users(id)
 );
+
 --
 --Insert into Roles(role) values
 --('Admin'),
 --('Participant'),
 --('Owner');
---
+
 --INSERT INTO Categories(name) VALUES
 --('Sport'),
 --('Music'),
@@ -142,18 +143,18 @@ create table IF NOT EXISTS  BulletinBoard (
 --('Education'),
 --('ActiveRecreation'),
 --('PassiveRecreation'),
---('isAMassEvent'),
+--('MassEvent'),
 --('Other'),
 --('NotSpecified');
---
+
 --INSERT INTO RequestStatuses(status_info) VALUES
 --('Consideration'),
 --('Accepted'),
 --('Refused'),
 --('RefusedWithBan');
---
+
 --INSERT INTO Notifications(notification) VALUES
---('membershipAccepted'),
---('membershipRejected'),
---('activityClosed'),
---('newJoinRequest');
+--('MembershipAccepted'),
+--('MembershipRejected'),
+--('ActivityClosed'),
+--('NewJoinRequest');
