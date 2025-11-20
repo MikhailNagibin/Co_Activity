@@ -1,30 +1,34 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.DataRepository;
+import com.coactivity.domain.Category;
 import com.coactivity.domain.Question;
 import com.coactivity.repository.QuestionRepository;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import com.coactivity.domain.Category;
+import org.springframework.stereotype.Repository;
 
-
+@Repository
 public class QuestionRepositoryImpl implements QuestionRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
 
-  public QuestionRepositoryImpl(DataRepository dataRepository) {
+  public QuestionRepositoryImpl(DataRepository dataRepository, UserRepositoryImpl userRepository) {
     this.dataRepository = dataRepository;
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.userRepository = userRepository;
   }
 
   @Override
-  public Question createQuestion(int userId, String question, int categoryId) {
-    String sql = "INSERT INTO questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
+  public Question createQuestion(Integer userId, String question, Integer categoryId) {
+    String sql = "INSERT INTO Questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, userId);
       statement.setString(2, question);
@@ -32,8 +36,9 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int questionId = resultSet.getInt("id");
-          return new Question(questionId, userRepository.getUserById(userId), question, Category.getByIndex(categoryId));
+          Integer questionId = resultSet.getInt("id");
+          return new Question(questionId, userRepository.getUserById(userId), question,
+              Category.getByIndex(categoryId));
         }
       }
 
@@ -46,11 +51,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   @Override
   public List<Question> getAllQuestions() {
     var questions = new ArrayList<Question>();
-    String sql = "SELECT * FROM questions ORDER BY id";
+    String sql = "SELECT * FROM Questions ORDER BY id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql);
-         ResultSet resultSet = statement.executeQuery()) {
+        PreparedStatement statement = connection.prepareStatement(sql);
+        ResultSet resultSet = statement.executeQuery()) {
 
       while (resultSet.next()) {
         var question = mapResultSetToQuestion(resultSet);
@@ -62,11 +67,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     return questions;
   }
 
-  public Question getQuestionById(int questionId) {
-    String sql = "SELECT * FROM questions WHERE id = ?";
+  public Question getQuestionById(Integer questionId) {
+    String sql = "SELECT * FROM Questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
 
@@ -83,11 +88,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   @Override
-  public Question updateQuestion(int questionId, String question, int categoryId) {
-    String sql = "UPDATE questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
+  public Question updateQuestion(Integer questionId, String question, Integer categoryId) {
+    String sql = "UPDATE Questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, question);
       statement.setInt(2, categoryId);
@@ -106,12 +111,12 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   @Override
-  public void deleteQuestion(int questionId) {
+  public void deleteQuestion(Integer questionId) {
     deleteAllWithQuestion(questionId);
-    String sql = "DELETE FROM questions WHERE id = ?";
+    String sql = "DELETE FROM Questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, questionId);
       int affectedRows = statement.executeUpdate();
@@ -125,11 +130,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     }
   }
 
-  private void deleteAllWithQuestion(int questionId) {
+  private void deleteAllWithQuestion(Integer questionId) {
     String sql = "DELETE FROM Answers WHERE question_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, questionId);
       int affectedRows = statement.executeUpdate();
 
@@ -142,11 +147,12 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {
-    int id = resultSet.getInt("id");
-    int ownerId = resultSet.getInt("owner");
+    Integer id = resultSet.getInt("id");
+    Integer ownerId = resultSet.getInt("owner");
     String questionText = resultSet.getString("question");
-    int categoryId = resultSet.getInt("category_id");
+    Integer categoryId = resultSet.getInt("category_id");
 
-    return new Question(id, userRepository.getUserById(ownerId), questionText, Category.getByIndex(categoryId));
+    return new Question(id, userRepository.getUserById(ownerId), questionText,
+        Category.getByIndex(categoryId));
   }
 }

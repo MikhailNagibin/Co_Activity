@@ -1,11 +1,10 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.Question;
-import com.coactivity.domain.User;
-
 import java.util.List;
 
 public interface QuestionRepository {
+
   /**
    *
    * @param userId
@@ -13,7 +12,7 @@ public interface QuestionRepository {
    * @param categoryId
    * @return
    */
-  Question createQuestion(int userId, String question, int categoryId);
+  Question createQuestion(Integer userId, String question, Integer categoryId);
 
   /**
    *
@@ -26,7 +25,7 @@ public interface QuestionRepository {
    * @param questionId
    * @return
    */
-  Question getQuestionById(int questionId);
+  Question getQuestionById(Integer questionId);
 
   /**
    *
@@ -35,11 +34,11 @@ public interface QuestionRepository {
    * @param categoryId
    * @return
    */
-  Question updateQuestion(int questionId, String question, int categoryId);
+  Question updateQuestion(Integer questionId, String question, Integer categoryId);
 
   /**
    *
    * @param questionId
    */
-  void deleteQuestion(int questionId);
+  void deleteQuestion(Integer questionId);
 }

@@ -6,7 +6,9 @@ import java.io.InputStream;
 import javax.sql.DataSource;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
 
+@Component
 public class DataRepository {
 
   private DataSource dataSource;

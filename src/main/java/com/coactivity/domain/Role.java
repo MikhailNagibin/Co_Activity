@@ -2,9 +2,11 @@ package com.coactivity.domain;
 
 
 public enum Role {
-  OWNER,
-  ADMIN,
-  PARTICIPANT;
+  OWNER("owner"),
+  ADMIN("admin"),
+  PARTICIPANT("participant");
+
+  private final String roleName;
 
   public static Role getByIndex(int index) {
     Role[] roles = values();
@@ -12,5 +14,14 @@ public enum Role {
       return roles[index];
     }
     throw new IllegalArgumentException("Invalid role index: " + index);
+  }
+
+  Role(String roleName) {
+    this.roleName = roleName;
+  }
+
+  @Override
+  public String toString() {
+    return roleName;
   }
 }

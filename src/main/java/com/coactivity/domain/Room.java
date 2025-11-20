@@ -13,7 +13,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Room {
 
-  private int id;
+  private Integer id;
   private boolean isActive;
   private boolean isPublic;
   private String chatLink;
@@ -23,7 +23,7 @@ public class Room {
   private Instant dateOfStartEvent;
   private Instant dateOfEndEvent;
   private int ageRating;
-  private int frequency;
+  private Instant frequency;
   private int maximumNumberOfPeople;
   private Map<User, Role> users;
   private List<User> bans;

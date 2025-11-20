@@ -17,15 +17,18 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class UserRepositoryImpl implements UserRepository {
 
   private final DataRepository dataRepository;
   private final RoomRepositoryImpl roomRepository;
 
-  public UserRepositoryImpl(DataRepository dataRepository) {
+  public UserRepositoryImpl(DataRepository dataRepository, @Lazy RoomRepositoryImpl roomRepository) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
+    this.roomRepository = roomRepository;
   }
 
   private static String sha256(String input) throws NoSuchAlgorithmException {
@@ -68,7 +71,7 @@ public class UserRepositoryImpl implements UserRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          int userId = resultSet.getInt("id");
+          Integer userId = resultSet.getInt("id");
           return new User(userId, request.getLogin(), request.getUsername(), request.getPassword(),
               request.getDateOfBirth(), request.getCity(), request.getCountry(),
               request.getDescription(), request.getAvatarId(),
@@ -85,7 +88,7 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   @Override
-  public void updateUser(int userId, UserProfileUpdateRequest request) {
+  public void updateUser(Integer userId, UserProfileUpdateRequest request) {
     String sql = "UPDATE Users SET username = ?, birthday = ?, country = ?, " +
         "city = ?, description = ?, avatar_id = ? WHERE id = ?;";
 
@@ -93,14 +96,17 @@ public class UserRepositoryImpl implements UserRepository {
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
-      String newUsername = request.getUsername() != null ? request.getUsername() : user.getUsername();
+      String newUsername =
+          request.getUsername() != null ? request.getUsername() : user.getUsername();
 
-      Timestamp newBirthday = request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
-          Timestamp.from(user.getDataOfBirth());
+      Timestamp newBirthday =
+          request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
+              Timestamp.from(user.getDataOfBirth());
       String newCountry = request.getCountry() != null ? request.getCountry() : user.getCountry();
       String newCity = request.getCity() != null ? request.getCity() : user.getCity();
-      String newDescription = request.getDescription() != null ? request.getDescription() : user.getDescription();
-      int newAvatarId = request.getAvatarId() != 0 ? request.getAvatarId() : user.getAvatarId();
+      String newDescription =
+          request.getDescription() != null ? request.getDescription() : user.getDescription();
+      Integer newAvatarId = request.getAvatarId() != null ? request.getAvatarId() : user.getAvatarId();
       statement.setString(1, newUsername);
       statement.setTimestamp(2, newBirthday);
       statement.setString(3, newCountry);
@@ -123,21 +129,21 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   @Override
-  public void deleteUser(int id) {
+  public void deleteUser(Integer userId) {
     String sql = """
         DELETE FROM Rooms_members WHERE user_id = ?;
         DELETE FROM Rooms_requests WHERE user_id = ?;
         DELETE FROM Bans WHERE user_id = ?;
-        DELETE FROM Questions WHERE user_id = ?;
-        DELETE FROM Answers WHERE user_id = ?;
-        DELETE FROM Subscriptions WHERE user_id = ?;
-        DELETE FROM BulletinBoard WHERE user_id = ?;
+        DELETE FROM Questions WHERE owner = ?;
+        DELETE FROM Answers WHERE owner = ?;
+        DELETE FROM usersNotification WHERE user_id = ?;
+        DELETE FROM BulletinBoard WHERE author_id = ?;
         DELETE FROM Users WHERE id = ?;
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
       for (int i = 1; i <= 8; i++) {
-        statement.setInt(i, id);
+        statement.setInt(i, userId);
       }
       int affectedRows = statement.executeUpdate();
 
@@ -174,12 +180,12 @@ public class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
-  public User getUserById(int id) {
-    String sql = "SELECT * FROM user WHERE id = ?";
+  public User getUserById(Integer userId) {
+    String sql = "SELECT * FROM Users WHERE id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
 
-      statement.setInt(1, id);
+      statement.setInt(1, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return mapResultSetToUser(resultSet);
@@ -193,10 +199,10 @@ public class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
-  public void setNotification(int id, String notification) {
+  public void setNotification(Integer id, String notification) {
     String sql = """
-        Insert into usersNotification (user_id, notification_id)  values (user_id = ?,
-        notification_id = (select id from Notifications where notification = ?));
+        Insert into usersNotification (user_id, notification_id)  values (?,
+        (select id from Notifications where notification = ?));
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -211,7 +217,7 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   private User mapResultSetToUser(ResultSet resultSet) throws SQLException {
-    int userId = resultSet.getInt("id");
+    Integer userId = resultSet.getInt("id");
     String login = resultSet.getString("login");
     String password = resultSet.getString("password");
     Instant birthday = resultSet.getTimestamp("birthday").toInstant();
@@ -219,14 +225,14 @@ public class UserRepositoryImpl implements UserRepository {
     String city = resultSet.getString("city");
     String description = resultSet.getString("description");
     String username = resultSet.getString("username");
-    int avatarId = resultSet.getInt("avatar_id");
+    Integer avatarId = resultSet.getInt("avatar_id");
 
     return new User(userId, login, username, password, birthday, country, city, description,
         avatarId,
         getRooms(userId), getNotification(userId));
   }
 
-  private List<Room> getRooms(int userId) {
+  private List<Room> getRooms(Integer userId) {
     String sql = "select room_id from Rooms_members where user_id = ?";
     var rooms = new ArrayList<Room>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -245,7 +251,7 @@ public class UserRepositoryImpl implements UserRepository {
     return rooms;
   }
 
-  private List<Notification> getNotification(int userId) {
+  private List<Notification> getNotification(Integer userId) {
     String sql = "select notification_id from usersNotification where user_id = ?";
     var notifications = new ArrayList<Notification>();
     try (Connection connection = dataRepository.getDataSource().getConnection();

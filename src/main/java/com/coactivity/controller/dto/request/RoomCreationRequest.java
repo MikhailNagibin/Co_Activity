@@ -1,5 +1,6 @@
 package com.coactivity.controller.dto.request;
 
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -61,4 +62,16 @@ public class RoomCreationRequest {
    * </p>
    */
   private Integer maximumNumberOfPeople;
+
+  /**
+   * add
+   */
+  private String chatLink;
+
+  private Instant dateOfStartEvent;
+  private Instant dateOfEndEvent;
+  private Instant frequency;
+  private int ageRating;
 }
+
+// TODO: add chatLink, dateOfStartEvent, dateOfEndEvent, frequency, ageRating

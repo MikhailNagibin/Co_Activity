@@ -7,10 +7,10 @@ import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
-import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
+import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
@@ -84,20 +84,6 @@ public interface UserController {
   ApiResponse<LoginResponse> verifyLogin(String login, String verificationCode);
 
   /**
-   * Validates a JWT token and checks session status.
-   * <p>
-   * Verifies that the provided token is properly signed, has not expired, and contains valid user
-   * claims. This method enables the "no re-login within 30 minutes" functionality by allowing
-   * clients to check token validity and automatically extend sessions when appropriate.
-   * </p>
-   *
-   * @param token the JWT token to validate, typically from the {@code Authorization} header
-   * @return {@link ApiResponse} with empty data but success status indicating token validity, or
-   * error details for invalid/expired tokens
-   */
-  ApiResponse<Void> validateToken(String token);
-
-  /**
    * Invalidates the user's current authentication token and ends the session.
    * <p>
    * Securely logs the user out by invalidating the provided JWT token on the server side. After
@@ -132,7 +118,7 @@ public interface UserController {
    * @return {@link ApiResponse} containing {@link UserProfileResponse} with complete user profile
    * data, or error details for invalid tokens or missing users
    */
-  ApiResponse<UserProfileResponse> getUserProfile(int token);
+  ApiResponse<UserProfileResponse> getUserProfile(String token);
 
   /**
    * Retrieves public profile information for any user in the system.
@@ -154,7 +140,7 @@ public interface UserController {
    * @see UserSummaryResponse
    * @see #getUserProfile(int)
    */
-  ApiResponse<UserSummaryResponse> getUserProfileById(String token, Integer userId);
+  ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId);
 
   /**
    * Updates the authenticated user's profile information.
@@ -172,6 +158,25 @@ public interface UserController {
    */
   ApiResponse<UserProfileResponse> updateUserProfile(String token,
       UserProfileUpdateRequest request);
+
+  /**
+   * Securely changes the user's password and issues a new authentication token.
+   * <p>
+   * Requires verification of the current password as an additional security measure. All existing
+   * tokens for the user are invalidated upon successful password change.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and current password verification.</p>
+   *
+   * @param token           valid JWT token of the authenticated user
+   * @param currentPassword the user's current password for security verification
+   * @param newPassword     the new password to set
+   * @return {@link ApiResponse} containing {@link LoginResponse} with new JWT token
+   * @throws SecurityException        if current password verification fails
+   * @throws IllegalArgumentException if new password validation fails
+   */
+  ApiResponse<LoginResponse> updatePassword(String token, String currentPassword,
+      String newPassword);
 
   /**
    * Updates the user's notification preferences and delivery settings.
@@ -325,7 +330,8 @@ public interface UserController {
    * @param token     valid JWT token of a user with room administration privileges
    * @param requestId unique identifier of the join request to process
    * @param action    the action to perform: {@link RequestStatus#ACCEPTED} to approve,
-   *                  {@link RequestStatus#REFUSED} to reject
+   *                  {@link RequestStatus#REFUSED} to reject,
+   *                  {@link RequestStatus#REFUSED_WITH_BAN} to reject and ban the user
    * @return {@link ApiResponse} with empty data but success status confirming the request was
    * processed, or error details for invalid requests or insufficient permissions
    */
@@ -360,27 +366,18 @@ public interface UserController {
    */
   ApiResponse<Void> cancelRequest(String token, Integer requestId);
 
-
   /**
-   * Verifies whether a specific user is a participant in a given room.
+   * Retrieves all rooms where the authenticated user is currently banned.
    * <p>
-   * Provides a programmatic way to check room membership without requiring QR code scanning. This
-   * method serves as a backend alternative to the QR verification system and can be used for
-   * administrative purposes or integration with other systems.
+   * Provides users with visibility into rooms they are excluded from, allowing them to understand
+   * their participation limitations. Users can see basic room information but cannot access
+   * protected content or request to join these rooms while banned.
    * </p>
    *
-   * <p><b>Access Control:</b> Requires valid authentication. Users can check their own
-   * membership or, if they have administrative privileges in the room, they can check other users'
-   * membership status.</p>
-   *
-   * @param token  valid JWT token of the requesting user
-   * @param roomId unique identifier of the room to check
-   * @param userId unique identifier of the user to verify
-   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
-   * results and role information
-   * @throws SecurityException if user lacks permission to check membership
-   * @see MembershipVerificationResponse
+   * @param token valid JWT token of the authenticated user
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} for rooms where the
+   * user is banned, or empty list if the user is not banned from any rooms
+   * @throws SecurityException if authentication token is invalid or expired
    */
-  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
-      Integer userId);
+  ApiResponse<List<RoomSummaryResponse>> getBanRooms(String token);
 }

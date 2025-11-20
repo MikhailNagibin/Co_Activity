@@ -1,31 +1,22 @@
 package com.coactivity.controller.dto.response;
 
+import com.coactivity.domain.Role;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Secure summary representation of user information for public API responses.
+ * Represents a participant in a room with their role and basic user information.
  * <p>
- * Provides essential user profile data suitable for public display while excluding sensitive
- * information such as email addresses, passwords, and internal system fields. This DTO is used
- * throughout the API wherever user information needs to be exposed to other users, ensuring
- * consistent and secure data exposure.
+ * Used for room administration views where both user details and participation context are required
+ * for effective management.
  * </p>
- *
- * <p><b>Security Implementation:</b> This class deliberately omits sensitive user data
- * to prevent information leakage. It is the primary mechanism for sharing user information between
- * different users of the platform.</p>
- *
- * @see BulletinBoardResponse
- * @see RoomSummaryResponse
- * @see RoomDetailedResponse
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserSummaryResponse {
+public class RoomParticipantResponse {
 
   /**
    * Unique identifier for the user account.
@@ -75,6 +66,11 @@ public class UserSummaryResponse {
   private String country;
 
   /**
+   * User's profile picture identifier.
+   */
+  private Integer avatarId;
+
+  /**
    * Personal description or bio provided by the user.
    * <p>
    * A free-form text field where users can share information about their interests, background, or
@@ -85,11 +81,7 @@ public class UserSummaryResponse {
   private String description;
 
   /**
-   * Identifier for the user's profile avatar image.
-   * <p>
-   * References the stored avatar image in the platform's media storage system. Clients should use
-   * this ID to construct avatar image URLs according to the platform's media serving pattern.
-   * </p>
+   * User's role within this specific room.
    */
-  private Integer avatarId;
+  private Role role;
 }
