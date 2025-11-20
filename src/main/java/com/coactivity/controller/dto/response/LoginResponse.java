@@ -46,6 +46,6 @@ public class LoginResponse {
    * to identify the current user.
    * </p>
    */
-  private String username;
+  private String userName;
 }
 
