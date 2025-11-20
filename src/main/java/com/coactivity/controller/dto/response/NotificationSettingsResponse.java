@@ -2,8 +2,9 @@ package com.coactivity.controller.dto.response;
 
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import java.time.Instant;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents a user's current notification preferences and settings.
@@ -26,7 +27,8 @@ import lombok.Data;
  * NotificationSettingsRequest)
  */
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NotificationSettingsResponse {
 
   /**

@@ -1,8 +1,9 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Role;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents the result of verifying a user's membership status in a specific room.
@@ -23,7 +24,8 @@ import lombok.Data;
  * @see Role
  */
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MembershipVerificationResponse {
 
   /**

@@ -1,6 +1,8 @@
 package com.coactivity.controller.dto.request;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Request DTO for updating user notification preferences and settings.
@@ -26,6 +28,8 @@ import lombok.Data;
  * @since 2024
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class NotificationSettingsRequest {
 
   /**

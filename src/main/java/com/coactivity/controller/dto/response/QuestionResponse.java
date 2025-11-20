@@ -1,16 +1,16 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Category;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.Instant;
 
 /**
  * Response payload representing a question in the Q&A system.
  * <p>
- * Contains complete question information including author details and metadata
- * for display in question lists and individual question pages.
+ * Contains complete question information including author details and metadata for display in
+ * question lists and individual question pages.
  * </p>
  */
 @Data
@@ -50,12 +50,4 @@ public class QuestionResponse {
    * Timestamp when the question was originally asked.
    */
   private Instant createdAt;
-
-  /**
-   * Timestamp of the most recent answer to this question.
-   * <p>
-   * Helps users identify recently active discussions.
-   * </p>
-   */
-  private Instant lastActivityAt;
 }
