@@ -10,7 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class NotificationServiceTest { // ← Must be public
+public class NotificationServiceTest {
 
   @Mock
   private MailService mailService;
@@ -18,22 +18,19 @@ public class NotificationServiceTest { // ← Must be public
   @InjectMocks
   private NotificationService notificationService;
 
-  @Test // ← Must have @Test annotation
-  public void testSendMembershipAccepted() { // ← Must be public
-    // Test implementation
+  @Test
+  public void testSendMembershipAccepted() {
     notificationService.sendMembershipAccepted("test@test.com", "Test Room");
     verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
   }
 
   @Test
   void sendRealTestEmail() {
-    // Replace with your actual email address
-    String yourEmail = "bumaginnicita@yandex.ru";
+    String actualEmail = "bumaginnicita@yandex.ru";
 
-    // Test one notification type
-    notificationService.sendMembershipAccepted(yourEmail, "CoActivity Test Room");
+    notificationService.sendMembershipAccepted(actualEmail, "CoActivity Test Room");
 
-    System.out.println("📧 Test email sent to: " + yourEmail);
+    System.out.println("📧 Test email sent to: " + actualEmail);
     System.out.println("✅ Check your inbox (and spam folder)!");
   }
 }

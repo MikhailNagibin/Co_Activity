@@ -15,6 +15,9 @@ import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.springframework.stereotype.Service;
 
+// TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов.
+//  Имею ввиду ApiResponse.success(null)
+// TODO: implement all the methods
 /**
  * Handles user profile operations including registration, profile management, and account
  * lifecycle.
@@ -34,7 +37,6 @@ public class UserProfileService {
     this.tokenService = tokenService;
   }
 
-  //  TODO: implement following methods:
   public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
     return ApiResponse.success(null);
   }
@@ -59,14 +61,6 @@ public class UserProfileService {
       String newPassword) {
     return ApiResponse.success(null);
   }
-
-  // TODO: UserWithRoomService that contains following methods:
-  //  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
-  //  getRoomParticipants, isUserInRoom
-  // TODO: JoinRequestsService that contains following methods:
-  //  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
-  //  getSentRequests, cancelRequest
-  // TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов
 
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();

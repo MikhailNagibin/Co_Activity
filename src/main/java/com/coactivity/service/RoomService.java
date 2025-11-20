@@ -5,6 +5,8 @@ import com.coactivity.domain.Role;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import org.springframework.stereotype.Service;
 
+// TODO:
+//  add following methods: createRoom, getRooms, getRoomById, deleteRoom
 @Service
 public class RoomService {
 
@@ -25,6 +27,4 @@ public class RoomService {
       return ApiResponse.error("401");
     }
   }
-  // TODO: add methods: createRoom, getRooms, getRoomById, deleteRoom
-  // TODO: BulletinBoardService: updateBulletinBoard
 }
