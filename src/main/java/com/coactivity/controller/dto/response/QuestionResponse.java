@@ -1,7 +1,6 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Category;
-import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -37,17 +36,4 @@ public class QuestionResponse {
    * Author information of the user who asked the question.
    */
   private UserProfileResponse author;
-
-  /**
-   * Number of answers this question has received.
-   * <p>
-   * Indicates discussion activity and helps users identify popular questions.
-   * </p>
-   */
-  private Integer answerCount;
-
-  /**
-   * Timestamp when the question was originally asked.
-   */
-  private Instant createdAt;
 }
