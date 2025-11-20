@@ -2,6 +2,7 @@ package com.coactivity.service;
 
 import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.domain.Role;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -60,4 +61,14 @@ public class UserWithRoomService {
       return ApiResponse.error("400");
     }
   }
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    try {
+      roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId());
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }
