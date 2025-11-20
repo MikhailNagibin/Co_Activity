@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
@@ -24,15 +23,12 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
   private final UserRepositoryImpl userRepository;
-  private final DataRepository repository;
+
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
-  public UserProfileService(DataRepository repository, 
-                           UserRepositoryImpl userRepository,
-                           RoomRepositoryImpl roomRepository,
-                           TokenService tokenService) {
-    this.repository = repository;
+  public UserProfileService(UserRepositoryImpl userRepository, RoomRepositoryImpl roomRepository,
+      TokenService tokenService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.tokenService = tokenService;
