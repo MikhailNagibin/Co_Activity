@@ -73,7 +73,7 @@ public class UserProfileService {
       response.setDescription(user.getDescription());
       response.setCountry(user.getCountry());
       response.setEmail(user.getLogin());
-      response.setUsername(user.getUsername());
+      response.setUsername(user.getUserName());
       response.setDateOfBirth(user.getDataOfBirth());
 
       return ApiResponse.success(response);

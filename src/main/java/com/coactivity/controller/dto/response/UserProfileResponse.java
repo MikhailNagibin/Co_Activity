@@ -31,7 +31,7 @@ public class UserProfileResponse {
    * unique login identifier.
    * </p>
    */
-  private String email;
+  private String login;
 
   /**
    * Public display name visible to other users.

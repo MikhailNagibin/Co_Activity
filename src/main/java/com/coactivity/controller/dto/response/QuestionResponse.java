@@ -35,5 +35,5 @@ public class QuestionResponse {
   /**
    * Author information of the user who asked the question.
    */
-  private UserProfileResponse author;
+  private UserSummaryResponse author;
 }

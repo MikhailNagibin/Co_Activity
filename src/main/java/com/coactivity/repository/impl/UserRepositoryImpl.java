@@ -67,12 +67,12 @@ public class UserRepositoryImpl implements UserRepository {
       statement.setString(5, request.getCountry());
       statement.setString(6, request.getDescription());
       statement.setInt(7, request.getAvatarId());
-      statement.setString(8, request.getUsername());
+      statement.setString(8, request.getUserName());
 
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           Integer userId = resultSet.getInt("id");
-          return new User(userId, request.getLogin(), request.getUsername(), request.getPassword(),
+          return new User(userId, request.getLogin(), request.getUserName(), request.getPassword(),
               request.getDateOfBirth(), request.getCity(), request.getCountry(),
               request.getDescription(), request.getAvatarId(),
               List.of(), List.of());
@@ -97,7 +97,7 @@ public class UserRepositoryImpl implements UserRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
       String newUsername =
-          request.getUsername() != null ? request.getUsername() : user.getUsername();
+          request.getUsername() != null ? request.getUsername() : user.getUserName();
 
       Timestamp newBirthday =
           request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :

@@ -13,7 +13,7 @@ public class User {
 
   private Integer id;
   private String login;
-  private String username;
+  private String userName;
   private String password;
   private Instant dataOfBirth;
   private String city;
