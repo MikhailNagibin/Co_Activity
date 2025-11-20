@@ -3,6 +3,9 @@ package com.coactivity.service;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.domain.BulletinBoard;
+import com.coactivity.domain.User;
+import com.coactivity.domain.Room;
+import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -44,8 +47,8 @@ public class BulletinBoardService {
         }
 
         // Fetch room and user entities
-        var room = roomRepository.getRoomById(roomId);
-        var author = userRepository.getUserById(authorId);
+        Room room = roomRepository.getRoomById(roomId);
+        User author = userRepository.getUserById(authorId);
 
         // Check if room and user exist
         if (room == null || author == null) {
@@ -78,11 +81,11 @@ public class BulletinBoardService {
 
         // Map the domain entity to the response DTO
         // Using the domain entity's fields, construct the BulletinBoardResponse DTO.
-        var responseDto = new BulletinBoardResponse();
+        BulletinBoardResponse responseDto = new BulletinBoardResponse();
         responseDto.setId(updatedDomainBoard.getId());
         responseDto.setContent(updatedDomainBoard.getContent());
         // The author field in BulletinBoardResponse is UserSummaryResponse
-        var authorSummary = new com.coactivity.controller.dto.response.UserSummaryResponse();
+        UserSummaryResponse authorSummary = new UserSummaryResponse();
         authorSummary.setId(author.getId());
         authorSummary.setUserName(author.getUserName()); // Assuming 'name' in UserSummary comes from 'username' in User
         authorSummary.setDateOfBirth(author.getDataOfBirth());
