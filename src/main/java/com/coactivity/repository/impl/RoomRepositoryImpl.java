@@ -42,7 +42,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         """;
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setBoolean(1, true);
       statement.setBoolean(2, request.getIsPublic());
@@ -51,12 +51,12 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setString(5, request.getName());
       statement.setString(6, request.getDescription());
       statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
-          Timestamp.from(request.getDateOfStartEvent()) : null);
+        Timestamp.from(request.getDateOfStartEvent()) : null);
       statement.setTimestamp(8, request.getDateOfEndEvent() != null ?
-          Timestamp.from(request.getDateOfEndEvent()) : null);
+        Timestamp.from(request.getDateOfEndEvent()) : null);
       statement.setInt(9, request.getAgeRating());
       statement.setTimestamp(10, request.getFrequency() != null ?
-          Timestamp.from(request.getFrequency()) : null);
+        Timestamp.from(request.getFrequency()) : null);
       statement.setInt(11, request.getMaximumNumberOfPeople());
 
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -79,7 +79,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     String sql = "SELECT * FROM Rooms WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
 
@@ -98,9 +98,9 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Integer roleId) {
     String sql = "INSERT INTO Rooms_members (room_id, user_id, role_id) " +
-        "VALUES (?, ?, ?)";
+      "VALUES (?, ?, ?)";
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       statement.setInt(2, userId);
       statement.setInt(3, roleId);
@@ -117,7 +117,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     String sql = "DELETE FROM Rooms WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setInt(1, roomId);
       int affectedRows = statement.executeUpdate();
@@ -146,7 +146,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         DELETE FROM Pictures WHERE room_id = ?;
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       for (int i = 1; i <= 5; i++) {
         statement.setInt(i, roomId);
       }
@@ -167,18 +167,18 @@ public class RoomRepositoryImpl implements RoomRepository {
     String name = resultSet.getString("name");
     String description = resultSet.getString("description");
     Instant startDate = resultSet.getTimestamp("start_date") != null ?
-        resultSet.getTimestamp("start_date").toInstant() : null;
+      resultSet.getTimestamp("start_date").toInstant() : null;
     Instant endDate = resultSet.getTimestamp("end_date") != null ?
-        resultSet.getTimestamp("end_date").toInstant() : null;
+      resultSet.getTimestamp("end_date").toInstant() : null;
     int ageRating = resultSet.getInt("age_rating");
     Instant frequency = resultSet.getTimestamp("frequency") != null ?
-        resultSet.getTimestamp("frequency").toInstant() : null;
+      resultSet.getTimestamp("frequency").toInstant() : null;
     int maxPeople = resultSet.getInt("maximum_number_of_people");
     Category category = Category.getByIndex(categoryId);
 
     return new Room(id, isActive, isPublic, chatLink, category, name, description,
-        startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id),
-        getUsersWithBanInRoom(id));
+      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id),
+      getUsersWithBanInRoom(id));
   }
 
   private Map<User, Role> getUsersInRoom(Integer roomId) {
@@ -189,7 +189,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         """;
     var usersInRoom = new HashMap<User, Role>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
@@ -215,7 +215,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     String sql = "select user_id from Bans where room_id = ?";
     var bans = new ArrayList<User>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
@@ -247,7 +247,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         """;
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, userId);
       statement.setInt(2, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -268,7 +268,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         SET role_id = (select id from Roles where role = ?)
         where room_id = ? and user_id = ?""";
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, role.name());
       statement.setInt(2, roomId);
       statement.setInt(3, userId);
@@ -292,7 +292,7 @@ public class RoomRepositoryImpl implements RoomRepository {
          where rm.room_id = ? and rm.user_id = ?""";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, userId);
       statement.setInt(2, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {

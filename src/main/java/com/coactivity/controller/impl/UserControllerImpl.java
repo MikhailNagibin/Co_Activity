@@ -9,6 +9,8 @@ import com.coactivity.service.UserProfileService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+
+import com.coactivity.service.UserWithRoomService;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -16,10 +18,13 @@ public class UserControllerImpl {
 
   private final UserProfileService userService;
   private final TokenService tokenService;
+  private final UserWithRoomService userWithRoomService;
 
-  public UserControllerImpl(UserProfileService userService, TokenService tokenService) {
+  public UserControllerImpl(UserProfileService userService, TokenService tokenService,
+                            UserWithRoomService userWithRoomService) {
     this.userService = userService;
     this.tokenService = tokenService;
+    this.userWithRoomService = userWithRoomService;
   }
 
   private static boolean isWithinLast100Years(Instant instantToCheck) {
@@ -103,7 +108,7 @@ public class UserControllerImpl {
     }
 
     try {
-      return userService.assignAdminRole(token, roomId, userId);
+      return userWithRoomService.assignAdminRole(token, roomId, userId);
     } catch (Exception e) {
       return ApiResponse.error("401");
     }
@@ -116,7 +121,7 @@ public class UserControllerImpl {
     }
 
     try {
-      return userService.demoteAdminRole(token, roomId, userId);
+      return userWithRoomService.demoteAdminRole(token, roomId, userId);
     } catch (Exception e) {
       return ApiResponse.error("401");
     }
