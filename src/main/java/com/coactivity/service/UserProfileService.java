@@ -37,6 +37,7 @@ public class UserProfileService {
     this.tokenService = tokenService;
   }
 
+  //  TODO: implement following methods:
   public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
     return ApiResponse.success(null);
   }
@@ -61,6 +62,14 @@ public class UserProfileService {
       String newPassword) {
     return ApiResponse.success(null);
   }
+
+  // TODO: UserWithRoomService that contains following methods:
+  //  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
+  //  getRoomParticipants, isUserInRoom
+  // TODO: JoinRequestsService that contains following methods:
+  //  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
+  //  getSentRequests, cancelRequest
+  // TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов
 
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();

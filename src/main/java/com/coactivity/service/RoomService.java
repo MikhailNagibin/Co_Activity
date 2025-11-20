@@ -27,4 +27,6 @@ public class RoomService {
       return ApiResponse.error("401");
     }
   }
+  // TODO: add methods: createRoom, getRooms, getRoomById, deleteRoom
+  // TODO: BulletinBoardService: updateBulletinBoard
 }
