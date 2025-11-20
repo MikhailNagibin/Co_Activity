@@ -48,7 +48,7 @@ public interface RoomController {
   ApiResponse<RoomCreationResponse> createRoom(String token, RoomCreationRequest request);
 
   /**
-   * Updates the bulletin board content for a specific room.
+   * Updates or creates if board does not exist the bulletin board content for a specific room.
    * <p>
    * Allows room administrators to post announcements, updates, and important information that will
    * be visible to all room participants. The bulletin board serves as the primary communication
@@ -70,6 +70,25 @@ public interface RoomController {
    */
   ApiResponse<BulletinBoardResponse> updateBulletinBoard(String token, Integer roomId,
       String newContent);
+
+  /**
+   * Deletes the bulletin board for a specific room.
+   * <p>
+   * Allows room administrators to delete the bulletin board if current information is deprecated
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and administrative privileges
+   * in the specified room. Only users with owner or administrator roles can modify the bulletin
+   * board content.</p>
+   *
+   * @param token  valid JWT token of a user with room administration privileges
+   * @param roomId unique identifier of the room to update
+   * @return {@link ApiResponse} with empty data but success status indicating that board was
+   * deleted
+   * @throws SecurityException        if user lacks administrative privileges for the room
+   * @throws IllegalArgumentException if room doesn't exist or content is invalid
+   */
+  ApiResponse<Void> deleteBulletinBoard(String token, Integer roomId);
 
   /**
    * Retrieves rooms based on specified filtering and sorting criteria.
