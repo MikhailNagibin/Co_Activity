@@ -72,7 +72,7 @@ public class UserProfileService {
       response.setAvatarId(user.getAvatarId());
       response.setDescription(user.getDescription());
       response.setCountry(user.getCountry());
-      response.setEmail(user.getLogin());
+      response.setLogin(user.getLogin());
       response.setUsername(user.getUserName());
       response.setDateOfBirth(user.getDataOfBirth());
 

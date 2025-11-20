@@ -33,7 +33,7 @@ public class UserRegistrationRequest {
    * marks. Usernames must be unique.
    * </p>
    */
-  private String username;
+  private String userName;
 
   /**
    * Account password for authentication.
