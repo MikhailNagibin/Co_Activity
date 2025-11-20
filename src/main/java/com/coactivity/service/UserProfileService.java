@@ -87,7 +87,7 @@ public class UserProfileService {
 
       return ApiResponse.success(response);
     } catch (Exception e) {
-      return ApiResponse.success(null);
+      return ApiResponse.error("401");
     }
   }
 

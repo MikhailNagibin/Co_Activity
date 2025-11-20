@@ -18,10 +18,11 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   private final UserRepositoryImpl userRepository;
   private  final RoomRepositoryImpl roomRepository;
 
-  public RoomsRequestRepositoryImpl(DataRepository dataRepository) {
+  public RoomsRequestRepositoryImpl(DataRepository dataRepository, RoomRepositoryImpl roomRepository,
+                                    UserRepositoryImpl userRepository) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.roomRepository = roomRepository;
+    this.userRepository = userRepository;
   }
 
   @Override
