@@ -6,6 +6,7 @@ import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 // TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов.
 //  Имею ввиду ApiResponse.success(null)
 // TODO: implement all the methods
+
 /**
  * Handles user profile operations including registration, profile management, and account
  * lifecycle.
@@ -54,22 +56,23 @@ public class UserProfileService {
     return ApiResponse.success(null);
   }
 
-  public ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId) {
-    return ApiResponse.success(null);
-  }
-
   public ApiResponse<LoginResponse> updatePassword(String token, String currentPassword,
       String newPassword) {
     return ApiResponse.success(null);
   }
 
-  // TODO: UserWithRoomService that contains following methods:
-  //  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
-  //  getRoomParticipants, isUserInRoom
-  // TODO: JoinRequestsService that contains following methods:
-  //  getPendingRequests, getPendingRequestsForRoom, processJoinRequest,
-  //  getSentRequests, cancelRequest
-  // TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов
+  public ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId) {
+    return ApiResponse.success(null);
+  }
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    try {
+      roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId());
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public ApiResponse<UserProfileResponse> getUserProfile(int token) {
     var response = new UserProfileResponse();

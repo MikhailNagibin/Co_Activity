@@ -3,6 +3,7 @@ package com.coactivity.controller.impl;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
@@ -34,6 +35,14 @@ public class UserControllerImpl {
         .toInstant();
 
     return !instantToCheck.isBefore(hundredYearsAgo) && !instantToCheck.isAfter(now);
+  }
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    if (!tokenService.isTokenActive(token)) {
+      return ApiResponse.error("401");
+    }
+
+    return userService.isUserInRoom(token, roomId);
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {
