@@ -134,10 +134,10 @@ public class UserRepositoryImpl implements UserRepository {
         DELETE FROM Rooms_members WHERE user_id = ?;
         DELETE FROM Rooms_requests WHERE user_id = ?;
         DELETE FROM Bans WHERE user_id = ?;
-        DELETE FROM Questions WHERE user_id = ?;
-        DELETE FROM Answers WHERE user_id = ?;
-        DELETE FROM Subscriptions WHERE user_id = ?;
-        DELETE FROM BulletinBoard WHERE user_id = ?;
+        DELETE FROM Questions WHERE owner = ?;
+        DELETE FROM Answers WHERE owner = ?;
+        DELETE FROM usersNotification WHERE user_id = ?;
+        DELETE FROM BulletinBoard WHERE author_id = ?;
         DELETE FROM Users WHERE id = ?;
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -181,7 +181,7 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   public User getUserById(Integer userId) {
-    String sql = "SELECT * FROM user WHERE id = ?";
+    String sql = "SELECT * FROM Users WHERE id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
 
@@ -201,8 +201,8 @@ public class UserRepositoryImpl implements UserRepository {
 
   public void setNotification(Integer id, String notification) {
     String sql = """
-        Insert into usersNotification (user_id, notification_id)  values (user_id = ?,
-        notification_id = (select id from Notifications where notification = ?));
+        Insert into usersNotification (user_id, notification_id)  values (?,
+        (select id from Notifications where notification = ?));
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {

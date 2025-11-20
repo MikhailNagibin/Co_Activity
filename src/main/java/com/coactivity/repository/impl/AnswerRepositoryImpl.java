@@ -26,7 +26,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
   @Override
   public Answer createAnswer(Integer questionId, Integer previousAnswerId, String currentAnswer,
       Integer ownerId) {
-    String sql = "INSERT INTO answers (question_id, prev_ans_id, answer, owner) VALUES (?, ?, ?, ?) RETURNING id";
+    String sql = "INSERT INTO Answers (question_id, prev_ans_id, answer, owner) VALUES (?, ?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -55,7 +55,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
   @Override
   public List<Answer> getAnswers(Integer questionId) {
     var answers = new ArrayList<Answer>();
-    String sql = "SELECT * FROM answers WHERE question_id = ?";
+    String sql = "SELECT * FROM Answers WHERE question_id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
 
@@ -66,7 +66,8 @@ public class AnswerRepositoryImpl implements AnswerRepository {
           var answer = new Answer(resultSet.getInt("id"), questionId,
               resultSet.getInt("prev_ans_id"), resultSet.getString("answer"),
               userRepository.getUserById(resultSet.getInt("owner")),
-              resultSet.getTimestamp("created_at").toInstant());
+              resultSet.getTimestamp("created_at") != null ?
+                  resultSet.getTimestamp("created_at").toInstant() : Instant.now());
           answers.add(answer);
         }
       }
@@ -79,7 +80,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
   @Override
   public void deleteAnswer(Answer answer) {
-    String sql = "DELETE FROM answers WHERE id = ?";
+    String sql = "DELETE FROM Answers WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {

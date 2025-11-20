@@ -35,7 +35,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   public Room createRoom(Integer ownerId, RoomCreationRequest request) {
 
     String sql = """
-        INSERT INTO rooms (is_active, is_private, chat_link, category_id, name, description, start_date, end_date,
+        INSERT INTO Rooms (is_active, is_public, chat_link, category_id, name, description, start_date, end_date,
                             age_rating, frequency, maximum_number_of_people)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
@@ -76,7 +76,7 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   @Override
   public Room getRoomById(Integer roomId) {
-    String sql = "SELECT * FROM rooms WHERE id = ?";
+    String sql = "SELECT * FROM Rooms WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -97,7 +97,7 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Integer roleId) {
-    String sql = "INSERT INTO rooms_members (room_id, user_id, role_id) " +
+    String sql = "INSERT INTO Rooms_members (room_id, user_id, role_id) " +
         "VALUES (?, ?, ?)";
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -161,7 +161,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
     Integer id = resultSet.getInt("id");
     boolean isActive = resultSet.getBoolean("is_active");
-    boolean isVisible = resultSet.getBoolean("is_private");
+    boolean isPublic = resultSet.getBoolean("is_public");
     String chatLink = resultSet.getString("chat_link");
     Integer categoryId = resultSet.getInt("category_id");
     String name = resultSet.getString("name");
@@ -171,19 +171,20 @@ public class RoomRepositoryImpl implements RoomRepository {
     Instant endDate = resultSet.getTimestamp("end_date") != null ?
         resultSet.getTimestamp("end_date").toInstant() : null;
     int ageRating = resultSet.getInt("age_rating");
-    Instant frequency = resultSet.getTimestamp("frequency").toInstant();
+    Instant frequency = resultSet.getTimestamp("frequency") != null ?
+        resultSet.getTimestamp("frequency").toInstant() : null;
     int maxPeople = resultSet.getInt("maximum_number_of_people");
     Category category = Category.getByIndex(categoryId);
 
-    return new Room(id, isActive, isVisible, chatLink, category, name, description,
+    return new Room(id, isActive, isPublic, chatLink, category, name, description,
         startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id),
         getUsersWithBanInRoom(id));
   }
 
   private Map<User, Role> getUsersInRoom(Integer roomId) {
     String sql = """
-        SELECT u.id, r.id FROM user AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
-         INNER JOIN role AS r ON r.id = rm.Role_id
+        SELECT u.id, r.id FROM Users AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
+         INNER JOIN Roles AS r ON r.id = rm.role_id
          where rm.room_id = ?;
         """;
     var usersInRoom = new HashMap<User, Role>();
@@ -242,7 +243,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     String sql = """
         select * from Rooms_members
         where user_id = ? and room_id = ? and
-        role_id in (select id from Roles where role == 'Owner')
+        role_id in (select id from Roles where role = 'owner')
         """;
 
     try (Connection connection = dataRepository.getDataSource().getConnection();

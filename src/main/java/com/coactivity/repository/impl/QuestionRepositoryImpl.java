@@ -25,7 +25,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
   @Override
   public Question createQuestion(Integer userId, String question, Integer categoryId) {
-    String sql = "INSERT INTO questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
+    String sql = "INSERT INTO Questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -51,7 +51,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   @Override
   public List<Question> getAllQuestions() {
     var questions = new ArrayList<Question>();
-    String sql = "SELECT * FROM questions ORDER BY id";
+    String sql = "SELECT * FROM Questions ORDER BY id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql);
@@ -68,7 +68,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   }
 
   public Question getQuestionById(Integer questionId) {
-    String sql = "SELECT * FROM questions WHERE id = ?";
+    String sql = "SELECT * FROM Questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -89,7 +89,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
   @Override
   public Question updateQuestion(Integer questionId, String question, Integer categoryId) {
-    String sql = "UPDATE questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
+    String sql = "UPDATE Questions SET question = ?, category_id = ? WHERE id = ? RETURNING id, owner, question, category_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -113,7 +113,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
   @Override
   public void deleteQuestion(Integer questionId) {
     deleteAllWithQuestion(questionId);
-    String sql = "DELETE FROM questions WHERE id = ?";
+    String sql = "DELETE FROM Questions WHERE id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {

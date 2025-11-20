@@ -24,7 +24,7 @@ public class PictureRepositoryImpl implements PictureRepository {
 
   @Override
   public Picture createPicture(Integer roomId) {
-    String sql = "INSERT INTO pictures (room_id) VALUES (?) RETURNING picture_id";
+    String sql = "INSERT INTO Pictures (room_id) VALUES (?) RETURNING picture_id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -47,7 +47,7 @@ public class PictureRepositoryImpl implements PictureRepository {
   @Override
   public List<Picture> getRoomPictures(Integer roomId) {
     var pictures = new ArrayList<Picture>();
-    String sql = "SELECT * FROM pictures WHERE room_id = ?";
+    String sql = "SELECT * FROM Pictures WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -68,7 +68,7 @@ public class PictureRepositoryImpl implements PictureRepository {
 
   @Override
   public void deletePicture(Integer photoId) {
-    String sql = "DELETE FROM pictures WHERE picture_id = ?";
+    String sql = "DELETE FROM Pictures WHERE picture_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {

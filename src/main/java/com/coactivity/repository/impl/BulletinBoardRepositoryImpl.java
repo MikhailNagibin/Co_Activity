@@ -28,8 +28,8 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard createBulletinBoard(Integer roomId, String content, Integer authorId) {
-    String sql = "INSERT INTO bulletinBoard (room_id, content, author_id, updated_at) " +
-        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, CURRENT_TIMESTAMP";
+    String sql = "INSERT INTO BulletinBoard (room_id, content, author_id, updated_at) " +
+        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, updated_at";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -41,7 +41,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           Integer boardId = resultSet.getInt("id");
-          Instant createdAt = resultSet.getTimestamp(2).toInstant();
+          Instant createdAt = resultSet.getTimestamp("updated_at").toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId),
               content, userRepository.getUserById(authorId), createdAt);
         }
@@ -57,8 +57,8 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   @Override
   public BulletinBoard updateBulletinBoard(Integer roomId, String content, Integer authorId) {
     String sql =
-        "UPDATE bulletin_board SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
-            " WHERE roomId = ? RETURNING id, CURRENT_TIMESTAMP";
+        "UPDATE BulletinBoard SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
+            " WHERE room_id = ? RETURNING id, updated_at";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -70,7 +70,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           Integer boardId = resultSet.getInt("id");
-          Instant updatedAt = resultSet.getTimestamp(2).toInstant();
+          Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
           return new BulletinBoard(boardId, roomRepository.getRoomById(roomId), content,
               userRepository.getUserById(authorId), updatedAt);
         }
@@ -90,7 +90,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public BulletinBoard getBulletinBoard(Integer roomId) {
-    String sql = "SELECT * FROM bulletin_board WHERE room_id = ?";
+    String sql = "SELECT * FROM BulletinBoard WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -111,7 +111,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
   @Override
   public void deleteBulletinBoard(Integer roomId) {
-    String sql = "DELETE FROM bulletin_board WHERE room_id = ?";
+    String sql = "DELETE FROM BulletinBoard WHERE room_id = ?";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
