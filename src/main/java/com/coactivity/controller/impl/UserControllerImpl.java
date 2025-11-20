@@ -51,7 +51,7 @@ public class UserControllerImpl {
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {
-    return userService.getUserProfile(tokenService.decodeToken(token).userId());
+    return userService.getUserProfile(token);
   }
 
   public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
@@ -80,7 +80,7 @@ public class UserControllerImpl {
     }
 
     try {
-      userService.updateUserProfile(tokenService.decodeToken(token).userId(), request);
+      userService.updateUserProfile(token, request);
       return ApiResponse.success("200");
     } catch (Exception e) {
       return ApiResponse.error("400");
@@ -92,7 +92,7 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
     try {
-      return userService.deleteAccount(tokenService.decodeToken(token).userId());
+      return userService.deleteAccount(token);
     } catch (Exception e) {
       return ApiResponse.error("400");
     }
@@ -104,7 +104,7 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
     try {
-      return userService.configureNotificationSettings(tokenService.decodeToken(token).userId(), request);
+      return userService.configureNotificationSettings(token, request);
     } catch (Exception e) {
       return ApiResponse.error(null);
     }
