@@ -10,7 +10,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
-// TODO: add method isBulletinBoardExists(Integer roomId)
 @Repository
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
@@ -84,11 +83,6 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   }
 
   @Override
-  public boolean isBulletinBoardExists(Integer roomId) {
-    return false;
-  }
-
-  @Override
   public BulletinBoard getBulletinBoard(Integer roomId) {
     String sql = "SELECT * FROM BulletinBoard WHERE room_id = ?";
 
@@ -125,6 +119,27 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
     } catch (SQLException e) {
       System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
+  @Override
+  public boolean isBulletinBoardExists(Integer roomId) {
+    String sql = "select * from BulletinBoard WHERE room_id = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setInt(1, roomId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+    } catch (SQLException e) {
       throw new RuntimeException();
     }
   }
