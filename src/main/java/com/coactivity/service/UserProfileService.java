@@ -10,7 +10,7 @@ import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
-import com.coactivity.domain.Role;
+import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -74,10 +74,10 @@ public class UserProfileService {
     }
   }
 
-  public ApiResponse<UserProfileResponse> getUserProfile(int token) {
+  public ApiResponse<UserProfileResponse> getUserProfile(String token) {
     var response = new UserProfileResponse();
     try {
-      User user = userRepository.getUserById(token);
+      User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
 
       response.setId(user.getId());
       response.setCity(user.getCity());
@@ -94,8 +94,8 @@ public class UserProfileService {
     }
   }
 
-  public ApiResponse<Void> updateUserProfile(int token, UserProfileUpdateRequest request) {
-    User user = userRepository.getUserById(token);
+  public ApiResponse<Void> updateUserProfile(String token, UserProfileUpdateRequest request) {
+    User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
     try {
       userRepository.updateUser(user.getId(), request);
       return ApiResponse.success(null);
@@ -104,29 +104,31 @@ public class UserProfileService {
     }
   }
 
-  public ApiResponse<Integer> deleteAccount(int token) {
+  public ApiResponse<Integer> deleteAccount(String token) {
     try {
-      userRepository.deleteUser(token);
+      userRepository.deleteUser(tokenService.decodeToken(token).userId());
       return ApiResponse.success(200);
     } catch (Exception e) {
       return ApiResponse.error(null);
     }
   }
 
-  public ApiResponse<Void> configureNotificationSettings(int token,
+  public ApiResponse<Void> configureNotificationSettings(String token,
       NotificationSettingsRequest request) {
     try {
+      Integer userId = tokenService.decodeToken(token).userId();
+
       if (request.getActivityClosed()) {
-        userRepository.setNotification(token, "activityClosed");
+        userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
       }
       if (request.getNewJoinRequest()) {
-        userRepository.setNotification(token, "newJoinRequest");
+        userRepository.setNotification(userId, Notification.NEW_JOIN_REQUEST);
       }
       if (request.getMembershipAccepted()) {
-        userRepository.setNotification(token, "membershipAccepted");
+        userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
       }
       if (request.getMembershipRejected()) {
-        userRepository.setNotification(token, "membershipRejected");
+        userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
       }
       return ApiResponse.success(null);
     } catch (Exception e) {

@@ -199,7 +199,7 @@ public class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
-  public void setNotification(Integer id, String notification) {
+  public void setNotification(Integer id, Notification notification) {
     String sql = """
         Insert into usersNotification (user_id, notification_id)  values (?,
         (select id from Notifications where notification = ?));
@@ -207,7 +207,7 @@ public class UserRepositoryImpl implements UserRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, id);
-      statement.setString(2, notification);
+      statement.setString(2, notification.toString());
       statement.executeUpdate();
 
     } catch (SQLException e) {

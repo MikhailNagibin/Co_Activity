@@ -3,25 +3,25 @@ package com.coactivity.repository.impl;
 import com.coactivity.DataRepository;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.RoomsRequest;
-import com.coactivity.domain.User;
 import com.coactivity.repository.RoomsRequestRepository;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
-import com.coactivity.repository.impl.UserRepositoryImpl;
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Repository;
+
+@Repository
 public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
   private  final RoomRepositoryImpl roomRepository;
 
-  public RoomsRequestRepositoryImpl(DataRepository dataRepository) {
+  public RoomsRequestRepositoryImpl(DataRepository dataRepository, RoomRepositoryImpl roomRepositoryImpl, UserRepositoryImpl userRepositoryImpl) {
     this.dataRepository = dataRepository;
-    this.roomRepository = new RoomRepositoryImpl(dataRepository);
-    this.userRepository = new UserRepositoryImpl(dataRepository);
+    this.roomRepository = roomRepositoryImpl;
+    this.userRepository = userRepositoryImpl;
   }
 
   @Override

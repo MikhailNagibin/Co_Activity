@@ -1,9 +1,7 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.RequestStatus;
-import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
-import com.coactivity.domain.User;
 
 import java.util.List;
 

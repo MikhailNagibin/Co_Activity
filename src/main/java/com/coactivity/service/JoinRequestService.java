@@ -1,12 +1,5 @@
 package com.coactivity.service;
 
-/*
-
-TODO черновая реализация, можно не смотреть вообще. :3>
-
- */
-
-
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.domain.RequestStatus;
@@ -14,10 +7,9 @@ import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
+// TODO черновая реализация, можно не смотреть вообще. :3>
 @Service
 public class JoinRequestService {
 
