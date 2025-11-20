@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
@@ -16,6 +15,9 @@ import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.springframework.stereotype.Service;
 
+// TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов.
+//  Имею ввиду ApiResponse.success(null)
+// TODO: implement all the methods
 /**
  * Handles user profile operations including registration, profile management, and account
  * lifecycle.
@@ -24,15 +26,12 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
   private final UserRepositoryImpl userRepository;
-  private final DataRepository repository;
+
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
-  public UserProfileService(DataRepository repository, 
-                           UserRepositoryImpl userRepository,
-                           RoomRepositoryImpl roomRepository,
-                           TokenService tokenService) {
-    this.repository = repository;
+  public UserProfileService(UserRepositoryImpl userRepository, RoomRepositoryImpl roomRepository,
+      TokenService tokenService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.tokenService = tokenService;
@@ -82,8 +81,8 @@ public class UserProfileService {
       response.setAvatarId(user.getAvatarId());
       response.setDescription(user.getDescription());
       response.setCountry(user.getCountry());
-      response.setEmail(user.getLogin());
-      response.setUsername(user.getUsername());
+      response.setLogin(user.getLogin());
+      response.setUsername(user.getUserName());
       response.setDateOfBirth(user.getDataOfBirth());
 
       return ApiResponse.success(response);

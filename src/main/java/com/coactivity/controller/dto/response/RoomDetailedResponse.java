@@ -1,8 +1,9 @@
 package com.coactivity.controller.dto.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
+import lombok.NoArgsConstructor;
 
 /**
  * Comprehensive room information with conditional data exposure.
@@ -12,7 +13,8 @@ import lombok.experimental.SuperBuilder;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoomDetailedResponse extends RoomSummaryResponse {
 
   /**

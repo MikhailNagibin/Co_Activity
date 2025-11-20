@@ -8,6 +8,9 @@ import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.springframework.stereotype.Service;
 
 @Service
+// TODO: UserWithRoomService that contains following methods:
+//  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
+//  getRoomParticipants, isUserInRoom
 public class UserWithRoomService {
   private final UserRepositoryImpl userRepository;
   private final DataRepository dataRepository;

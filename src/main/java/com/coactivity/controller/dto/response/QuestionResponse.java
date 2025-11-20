@@ -4,13 +4,12 @@ import com.coactivity.domain.Category;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.Instant;
 
 /**
  * Response payload representing a question in the Q&A system.
  * <p>
- * Contains complete question information including author details and metadata
- * for display in question lists and individual question pages.
+ * Contains complete question information including author details and metadata for display in
+ * question lists and individual question pages.
  * </p>
  */
 @Data
@@ -36,26 +35,5 @@ public class QuestionResponse {
   /**
    * Author information of the user who asked the question.
    */
-  private UserProfileResponse author;
-
-  /**
-   * Number of answers this question has received.
-   * <p>
-   * Indicates discussion activity and helps users identify popular questions.
-   * </p>
-   */
-  private Integer answerCount;
-
-  /**
-   * Timestamp when the question was originally asked.
-   */
-  private Instant createdAt;
-
-  /**
-   * Timestamp of the most recent answer to this question.
-   * <p>
-   * Helps users identify recently active discussions.
-   * </p>
-   */
-  private Instant lastActivityAt;
+  private UserSummaryResponse author;
 }

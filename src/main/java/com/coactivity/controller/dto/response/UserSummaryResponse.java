@@ -44,7 +44,7 @@ public class UserSummaryResponse {
    * publicly.
    * </p>
    */
-  private String name;
+  private String userName;
 
   /**
    * The user's date of birth for age verification and personalization.

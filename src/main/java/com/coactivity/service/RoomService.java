@@ -1,22 +1,19 @@
 package com.coactivity.service;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.domain.Role;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import org.springframework.stereotype.Service;
 
+// TODO:
+//  add following methods: createRoom, getRooms, getRoomById, deleteRoom
 @Service
 public class RoomService {
 
-  private final DataRepository repository;
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
-  public RoomService(DataRepository repository, 
-                    RoomRepositoryImpl roomRepository,
-                    TokenService tokenService) {
-    this.repository = repository;
+  public RoomService(RoomRepositoryImpl roomRepository, TokenService tokenService) {
     this.roomRepository = roomRepository;
     this.tokenService = tokenService;
   }
