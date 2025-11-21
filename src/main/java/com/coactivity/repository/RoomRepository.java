@@ -1,8 +1,10 @@
 package com.coactivity.repository;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 
+// TODO: getRooms(RoomFilter filter, RoomSort sortBy)
 public interface RoomRepository {
 
   /**
@@ -26,9 +28,9 @@ public interface RoomRepository {
    *
    * @param roomId
    * @param userId
-   * @param roleId
+   * @param role
    */
-  void addUserToRoom(Integer roomId, Integer userId, Integer roleId);
+  void addUserToRoom(Integer roomId, Integer userId, Role role);
 
   /**
    *
