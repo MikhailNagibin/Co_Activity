@@ -6,7 +6,6 @@ import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
-import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
@@ -28,7 +27,6 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
   private final UserRepositoryImpl userRepository;
-
   private final RoomRepositoryImpl roomRepository;
   private final TokenService tokenService;
 
@@ -39,7 +37,6 @@ public class UserProfileService {
     this.tokenService = tokenService;
   }
 
-  //  TODO: implement following methods:
   public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
     return ApiResponse.success(null);
   }
@@ -63,15 +60,6 @@ public class UserProfileService {
 
   public ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId) {
     return ApiResponse.success(null);
-  }
-
-  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
-    try {
-      roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId());
-      return ApiResponse.success(null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {

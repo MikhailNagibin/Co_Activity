@@ -24,8 +24,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
-// TODO:
-//  add following methods: createRoom, getRooms, getRoomById, deleteRoom
 @Service
 public class RoomService {
 

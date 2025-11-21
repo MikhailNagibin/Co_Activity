@@ -1,6 +1,7 @@
 package com.coactivity.service;
 
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
@@ -11,8 +12,8 @@ import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.springframework.stereotype.Service;
 
 // TODO: UserWithRoomService that contains following methods:
-//  assignAdminRole, demoteAdminRole, getBanRooms, getUserRooms, joinRoom, leaveRoom,
-//  getRoomParticipants, isUserInRoom
+//  getBanRooms, getUserRooms, leaveRoom,
+//  getRoomParticipants
 @Service
 public class UserWithRoomService {
 
@@ -62,6 +63,15 @@ public class UserWithRoomService {
 
     } catch (Exception e) {
       return ApiResponse.error("400");
+    }
+  }
+
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    try {
+      roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId());
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 

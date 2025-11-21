@@ -5,7 +5,6 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import java.util.List;
 
-// TODO: getRooms(RoomFilter filter, RoomSort sortBy)
 public interface RoomRepository {
 
   /**

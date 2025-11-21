@@ -47,7 +47,7 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
 
-    return userService.isUserInRoom(token, roomId);
+    return userWithRoomService.isUserInRoom(token, roomId);
   }
 
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {

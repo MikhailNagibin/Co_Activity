@@ -97,8 +97,4 @@ public class BulletinBoardService {
       return ApiResponse.error("500");
     }
   }
-
-  // Other potential methods for BulletinBoardService could be added here later:
-  // e.g., getBulletinBoardByRoomId, createBulletinBoard (if separate), deleteBulletinBoard, etc.
-  // For now, the spec only mentions updateBulletinBoard via the TODO comment.
 }
