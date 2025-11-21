@@ -96,6 +96,24 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
+  public List<Room> getAllRooms() {
+    String sql = "SELECT * FROM Rooms";
+    var rooms = new ArrayList<Room>();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql);
+         ResultSet resultSet = statement.executeQuery()) {
+
+      while (resultSet.next()) {
+        rooms.add(mapResultSetToRoom(resultSet));
+      }
+      return rooms;
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
+  @Override
   public void addUserToRoom(Integer roomId, Integer userId, Integer roleId) {
     String sql = "INSERT INTO Rooms_members (room_id, user_id, role_id) " +
       "VALUES (?, ?, ?)";
