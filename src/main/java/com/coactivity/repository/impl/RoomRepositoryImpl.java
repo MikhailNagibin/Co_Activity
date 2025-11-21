@@ -107,6 +107,17 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(2, userId);
       statement.setString(3, role.name());
       statement.executeUpdate();
+  public List<Room> getAllRooms() {
+    String sql = "SELECT * FROM Rooms";
+    var rooms = new ArrayList<Room>();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql);
+         ResultSet resultSet = statement.executeQuery()) {
+
+      while (resultSet.next()) {
+        rooms.add(mapResultSetToRoom(resultSet));
+      }
+      return rooms;
     } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
@@ -119,6 +130,10 @@ public class RoomRepositoryImpl implements RoomRepository {
         VALUES (?, ?)
         ON CONFLICT (user_id, room_id) DO NOTHING
         """;
+  @Override
+  public void addUserToRoom(Integer roomId, Integer userId, Integer roleId) {
+    String sql = "INSERT INTO Rooms_members (room_id, user_id, role_id) " +
+      "VALUES (?, ?, ?)";
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
@@ -267,8 +282,8 @@ public class RoomRepositoryImpl implements RoomRepository {
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, userId);
-      statement.setInt(2, roomId);
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return true;

@@ -3,6 +3,7 @@ package com.coactivity.repository;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import java.util.List;
 
 // TODO: getRooms(RoomFilter filter, RoomSort sortBy)
 public interface RoomRepository {
@@ -23,6 +24,12 @@ public interface RoomRepository {
    * @return
    */
   Room getRoomById(Integer roomId);
+
+  /**
+   *
+   * @return
+   */
+  List<Room> getAllRooms();
 
   /**
    *

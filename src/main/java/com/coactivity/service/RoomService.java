@@ -18,8 +18,10 @@ import com.coactivity.repository.impl.PictureRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 // TODO:
@@ -78,13 +80,34 @@ public class RoomService {
   /**
    * Public room listing with basic filtering and sorting.
    * <p>
-   * NOTE: Repository-level filtering is not implemented yet, so this currently returns an empty
-   * list with a successful status. It is kept to satisfy the API contract and can be extended
-   * later once the corresponding repository methods are available.
+   * If a token is provided, the response annotates whether the current user participates
+   * in each room.
+   * </p>
    */
-  public ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy) {
-    // Placeholder implementation – no backing repository method exists yet.
-    return ApiResponse.success(Collections.emptyList());
+  public ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter,
+      RoomSort sortBy) {
+    try {
+      final Integer currentUserId =
+          (token != null && tokenService.isTokenActive(token))
+              ? tokenService.decodeToken(token).userId()
+              : null;
+
+      List<Room> rooms = roomRepository.getAllRooms();
+      if (rooms.isEmpty()) {
+        return ApiResponse.success(Collections.emptyList());
+      }
+
+      List<RoomSummaryResponse> responses = rooms.stream()
+          .filter(room -> filter == null || matchesFilter(room, filter))
+          .sorted(buildComparator(sortBy))
+          .map(room -> mapRoomToSummaryResponse(room,
+              currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
+          .collect(Collectors.toList());
+
+      return ApiResponse.success(responses);
+    } catch (Exception e) {
+      return ApiResponse.error("500");
+    }
   }
 
   /**
@@ -159,6 +182,50 @@ public class RoomService {
     } else {
       return ApiResponse.error("401");
     }
+  }
+
+  private boolean matchesFilter(Room room, RoomFilter filter) {
+    if (filter == null) {
+      return true;
+    }
+    if (filter.getCategory() != null && room.getCategory() != filter.getCategory()) {
+      return false;
+    }
+    if (filter.getIsPublic() != null && room.isPublic() != filter.getIsPublic()) {
+      return false;
+    }
+    if (filter.getMaxParticipants() != null
+        && room.getMaximumNumberOfPeople() > filter.getMaxParticipants()) {
+      return false;
+    }
+    if (filter.getQuery() != null && !filter.getQuery().trim().isEmpty()) {
+      String query = filter.getQuery().trim().toLowerCase();
+      String name = room.getName() != null ? room.getName().toLowerCase() : "";
+      String description = room.getDescription() != null ? room.getDescription().toLowerCase() : "";
+      if (!name.contains(query) && !description.contains(query)) {
+        return false;
+      }
+    }
+    // Room entity does not contain city/country fields, so these filters are ignored for now.
+    return true;
+  }
+
+  private Comparator<Room> buildComparator(RoomSort sortBy) {
+    RoomSort effectiveSort = sortBy != null ? sortBy : RoomSort.NEWEST;
+    return switch (effectiveSort) {
+      case POPULAR ->
+          Comparator.comparingInt((Room room) -> room.getUsers() != null ? room.getUsers().size() : 0)
+              .reversed();
+      case NAME ->
+          Comparator.comparing(room -> room.getName() != null ? room.getName().toLowerCase() : "",
+              Comparator.naturalOrder());
+      case UPCOMING ->
+          Comparator.comparing(Room::getDateOfStartEvent,
+              Comparator.nullsLast(Comparator.naturalOrder()));
+      case NEWEST ->
+          Comparator.comparing(Room::getId,
+              Comparator.nullsLast(Comparator.reverseOrder()));
+    };
   }
 
   private RoomSummaryResponse mapRoomToSummaryResponse(Room room,
