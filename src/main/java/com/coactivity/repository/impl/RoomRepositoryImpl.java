@@ -248,8 +248,8 @@ public class RoomRepositoryImpl implements RoomRepository {
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, userId);
-      statement.setInt(2, roomId);
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return true;
