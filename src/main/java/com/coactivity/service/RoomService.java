@@ -80,12 +80,18 @@ public class RoomService {
   /**
    * Public room listing with basic filtering and sorting.
    * <p>
-   * NOTE: Repository-level filtering is not implemented yet, so this currently returns an empty
-   * list with a successful status. It is kept to satisfy the API contract and can be extended
-   * later once the corresponding repository methods are available.
+   * If a token is provided, the response annotates whether the current user participates
+   * in each room.
+   * </p>
    */
-  public ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy) {
+  public ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter,
+      RoomSort sortBy) {
     try {
+      final Integer currentUserId =
+          (token != null && tokenService.isTokenActive(token))
+              ? tokenService.decodeToken(token).userId()
+              : null;
+
       List<Room> rooms = roomRepository.getAllRooms();
       if (rooms.isEmpty()) {
         return ApiResponse.success(Collections.emptyList());
@@ -94,7 +100,8 @@ public class RoomService {
       List<RoomSummaryResponse> responses = rooms.stream()
           .filter(room -> filter == null || matchesFilter(room, filter))
           .sorted(buildComparator(sortBy))
-          .map(room -> mapRoomToSummaryResponse(room, null))
+          .map(room -> mapRoomToSummaryResponse(room,
+              currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
           .collect(Collectors.toList());
 
       return ApiResponse.success(responses);
