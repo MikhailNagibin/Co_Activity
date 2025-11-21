@@ -138,7 +138,7 @@ public interface UserController {
    * @throws SecurityException        if the requesting user is not authenticated
    * @throws IllegalArgumentException if the target user doesn't exist
    * @see UserSummaryResponse
-   * @see #getUserProfile(int)
+   * @see #getUserProfile(String)
    */
   ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId);
 
