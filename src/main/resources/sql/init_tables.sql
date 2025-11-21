@@ -63,11 +63,12 @@ CREATE TABLE IF NOT EXISTS  RequestStatuses(
 );
 
 CREATE TABLE IF NOT EXISTS  Rooms_requests(
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     room_id INT NOT NULL,
-    status_id INT NOT NULL,
+    status_id INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, room_id),
+    CONSTRAINT uq_rooms_requests_user_room UNIQUE (user_id, room_id),
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (status_id) REFERENCES RequestStatuses(id)

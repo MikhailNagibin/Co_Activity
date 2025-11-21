@@ -108,12 +108,12 @@ public class UserWithRoomService {
       }
 
       if (room.isPublic()) {
-        // Public room – add immediately as PARTICIPANT (role id 2 assumed)
-        roomRepository.addUserToRoom(roomId, userId, 2);
+        // Public room – add immediately as PARTICIPANT
+        roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
         return ApiResponse.success(null);
       } else {
         // Private room – create join request in CONSIDERATION state
-        roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION.ordinal());
+        roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
         return ApiResponse.success(null);
       }
 
