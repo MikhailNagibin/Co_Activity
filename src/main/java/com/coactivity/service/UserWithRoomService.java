@@ -24,9 +24,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
-// TODO: UserWithRoomService that contains following methods:
-//  getBanRooms, getUserRooms, leaveRoom,
-//  getRoomParticipants
 @Service
 public class UserWithRoomService {
 
@@ -108,6 +105,48 @@ public class UserWithRoomService {
           isMember,
           role,
           mapUserToSummaryResponse(user),
+          room.getName()
+      );
+      return ApiResponse.success(response);
+    } catch (Exception e) {
+      return ApiResponse.error("500");
+    }
+  }
+
+  public ApiResponse<MembershipVerificationResponse> verifyUserMembership(String token,
+      Integer roomId, Integer targetUserId) {
+    if (token == null || !tokenService.isTokenActive(token)) {
+      return ApiResponse.error("401");
+    }
+    if (roomId == null || targetUserId == null) {
+      return ApiResponse.error("400");
+    }
+
+    try {
+      Integer requesterId = tokenService.decodeToken(token).userId();
+      Room room = roomRepository.getRoomById(roomId);
+      if (room == null) {
+        return ApiResponse.error("404");
+      }
+      User targetUser = userRepository.getUserById(targetUserId);
+      if (targetUser == null) {
+        return ApiResponse.error("404");
+      }
+      if (!isUserParticipant(room, requesterId)) {
+        return ApiResponse.error("403");
+      }
+      Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
+      if (requesterRole != Role.OWNER && requesterRole != Role.ADMIN) {
+        return ApiResponse.error("403");
+      }
+
+      boolean isMember = isUserParticipant(room, targetUserId);
+      Role memberRole = isMember ? roomRepository.getUserRoleByRoomId(roomId, targetUserId) : null;
+
+      MembershipVerificationResponse response = new MembershipVerificationResponse(
+          isMember,
+          memberRole,
+          mapUserToSummaryResponse(targetUser),
           room.getName()
       );
       return ApiResponse.success(response);
