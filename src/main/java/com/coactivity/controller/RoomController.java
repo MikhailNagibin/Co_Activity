@@ -148,7 +148,7 @@ public interface RoomController {
    * information including protected content for all rooms where the user has active participation
    * @throws SecurityException if authentication token is invalid or expired
    * @see RoomDetailedResponse
-   * @see #getRooms(RoomFilter, RoomSort)
+   * @see #getRooms(RoomFilter, RoomSort, String)
    * @see #getRoomById(Integer, String)
    */
   ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token);

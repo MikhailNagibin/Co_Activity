@@ -11,6 +11,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class RoomsRequest {
 
+  private Integer id;
   private User user;
   private Room room;
   private Instant createdAt;
