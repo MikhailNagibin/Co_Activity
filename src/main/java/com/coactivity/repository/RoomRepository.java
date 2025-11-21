@@ -1,7 +1,9 @@
 package com.coactivity.repository;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import java.util.List;
 
 public interface RoomRepository {
 
@@ -24,11 +26,17 @@ public interface RoomRepository {
 
   /**
    *
+   * @return
+   */
+  List<Room> getAllRooms();
+
+  /**
+   *
    * @param roomId
    * @param userId
-   * @param roleId
+   * @param role
    */
-  void addUserToRoom(Integer roomId, Integer userId, Integer roleId);
+  void addUserToRoom(Integer roomId, Integer userId, Role role);
 
   /**
    *

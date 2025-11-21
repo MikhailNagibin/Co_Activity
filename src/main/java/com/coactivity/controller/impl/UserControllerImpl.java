@@ -3,6 +3,7 @@ package com.coactivity.controller.impl;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
+import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
@@ -41,8 +42,16 @@ public class UserControllerImpl {
     return !instantToCheck.isBefore(hundredYearsAgo) && !instantToCheck.isAfter(now);
   }
 
+  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
+    if (!tokenService.isTokenActive(token)) {
+      return ApiResponse.error("401");
+    }
+
+    return userWithRoomService.isUserInRoom(token, roomId);
+  }
+
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {
-    return userService.getUserProfile(tokenService.decodeToken(token).userId());
+    return userService.getUserProfile(token);
   }
 
   public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
@@ -71,7 +80,7 @@ public class UserControllerImpl {
     }
 
     try {
-      userService.updateUserProfile(tokenService.decodeToken(token).userId(), request);
+      userService.updateUserProfile(token, request);
       return ApiResponse.success("200");
     } catch (Exception e) {
       return ApiResponse.error("400");
@@ -83,7 +92,7 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
     try {
-      return userService.deleteAccount(tokenService.decodeToken(token).userId());
+      return userService.deleteAccount(token);
     } catch (Exception e) {
       return ApiResponse.error("400");
     }
@@ -95,7 +104,7 @@ public class UserControllerImpl {
       return ApiResponse.error("401");
     }
     try {
-      return userService.configureNotificationSettings(tokenService.decodeToken(token).userId(), request);
+      return userService.configureNotificationSettings(token, request);
     } catch (Exception e) {
       return ApiResponse.error(null);
     }

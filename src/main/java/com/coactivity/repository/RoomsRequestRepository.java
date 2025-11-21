@@ -1,22 +1,20 @@
 package com.coactivity.repository;
 
 import com.coactivity.domain.RequestStatus;
-import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
-import com.coactivity.domain.User;
-
 import java.util.List;
 
 public interface RoomsRequestRepository {
+
   /**
    * Создание запроса на вступление в комнату
    *
    * @param userId
    * @param roomId
-   * @param statusId
+   * @param status
    * @return
    */
-  RoomsRequest createRequest(int userId, int roomId, int statusId);
+  RoomsRequest createRequest(int userId, int roomId, RequestStatus status);
 
   /**
    * Обновление запроса
@@ -35,12 +33,12 @@ public interface RoomsRequestRepository {
   void deleteRequest(int requestId);
 
   /**
-   * запросы в конкретную комнату
+   * Получение запросов в конкретную комнату
    *
    * @param roomId
    * @return
    */
-  List<RoomsRequest> getRoomRequest(int roomId);
+  List<RoomsRequest> getRoomRequests(int roomId);
 
   /**
    * Все запросы для конкретного пользователя
@@ -49,4 +47,12 @@ public interface RoomsRequestRepository {
    * @return
    */
   List<RoomsRequest> getRequestsByUser(int userId);
+
+  /**
+   * Получение конкретного запроса по идентификатору.
+   *
+   * @param requestId уникальный идентификатор запроса
+   * @return запрос или {@code null}, если не найден
+   */
+  RoomsRequest getRequestById(int requestId);
 }

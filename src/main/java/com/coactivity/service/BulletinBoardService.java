@@ -81,7 +81,20 @@ public class BulletinBoardService {
     return ApiResponse.success(responseDto);
   }
 
-  // Other potential methods for BulletinBoardService could be added here later:
-  // e.g., getBulletinBoardByRoomId, createBulletinBoard (if separate), deleteBulletinBoard, etc.
-  // For now, the spec only mentions updateBulletinBoard via the TODO comment.
+  public ApiResponse<Void> deleteBulletinBoard(Integer roomId) {
+    if (roomId == null) {
+      return ApiResponse.error("400");
+    }
+
+    try {
+      if (!bulletinBoardRepository.isBulletinBoardExists(roomId)) {
+        return ApiResponse.error("404");
+      }
+      bulletinBoardRepository.deleteBulletinBoard(roomId);
+      return ApiResponse.success(null);
+    } catch (Exception e) {
+      System.err.println(e.getMessage());
+      return ApiResponse.error("500");
+    }
+  }
 }

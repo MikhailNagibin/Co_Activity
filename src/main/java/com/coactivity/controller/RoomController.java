@@ -93,22 +93,20 @@ public interface RoomController {
   /**
    * Retrieves rooms based on specified filtering and sorting criteria.
    * <p>
-   * <b>Access Control:</b> Public endpoint - no authentication required.
-   * Provides efficient, cache-friendly access to room listings for all users, including
-   * unauthenticated visitors. Room discovery and browsing are designed as public operations to
-   * encourage platform engagement and user acquisition.
+   * <b>Access Control:</b> Token optional. When provided, the response indicates whether
+   * the requesting user already participates in each room.
    * </p>
    *
+   * @param token  optional JWT token of the requesting user
    * @param filter structured filter criteria for searching rooms, or {@code null} to return all
    *               active rooms
    * @param sortBy sorting preference, or {@code null} for default relevance-based sorting
-   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse} with public room
-   * information suitable for display to any user, authenticated or not
+   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse}
    * @see RoomSummaryResponse
    * @see RoomFilter
    * @see RoomSort
    */
-  ApiResponse<List<RoomSummaryResponse>> getRooms(RoomFilter filter, RoomSort sortBy);
+  ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter, RoomSort sortBy);
 
   /**
    * Retrieves detailed information for a specific room with conditional data exposure.
@@ -150,7 +148,7 @@ public interface RoomController {
    * information including protected content for all rooms where the user has active participation
    * @throws SecurityException if authentication token is invalid or expired
    * @see RoomDetailedResponse
-   * @see #getRooms(RoomFilter, RoomSort)
+   * @see #getRooms(RoomFilter, RoomSort, String)
    * @see #getRoomById(Integer, String)
    */
   ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token);
