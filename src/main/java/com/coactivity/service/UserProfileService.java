@@ -35,12 +35,15 @@ public class UserProfileService {
 
   private final UserRepositoryImpl userRepository;
   private final TokenService tokenService;
+  private final NotificationService notificationService;
   private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
   private final SecureRandom secureRandom = new SecureRandom();
 
-  public UserProfileService(UserRepositoryImpl userRepository, TokenService tokenService) {
+  public UserProfileService(UserRepositoryImpl userRepository, TokenService tokenService,
+      NotificationService notificationService) {
     this.userRepository = userRepository;
     this.tokenService = tokenService;
+    this.notificationService = notificationService;
   }
 
   public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
@@ -78,6 +81,7 @@ public class UserProfileService {
           new PendingVerification(user.getId(), verificationCode,
               Instant.now().plus(VERIFICATION_CODE_TTL)));
 
+      notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
       return ApiResponse.success("Verification code sent to email", null);
     } catch (Exception e) {
       return ApiResponse.error("Unable to initiate login");
