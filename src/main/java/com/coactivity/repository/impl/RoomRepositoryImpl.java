@@ -113,6 +113,23 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
   }
 
+  @Override
+  public void removeUserFromRoom(Integer roomId, Integer userId) {
+    String sql = "DELETE FROM Rooms_members WHERE room_id = ? AND user_id = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+      int affectedRows = statement.executeUpdate();
+      if (affectedRows == 0) {
+        throw new RuntimeException();
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
   public void addUserBan(Integer roomId, Integer userId) {
     String sql = """
         INSERT INTO Bans (room_id, user_id)
