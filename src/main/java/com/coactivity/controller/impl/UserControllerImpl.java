@@ -16,31 +16,31 @@ import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
+import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
 import com.coactivity.service.UserWithRoomService;
-import org.springframework.web.bind.annotation.RestController;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class UserControllerImpl implements UserController { // ✅ Implement the interface
+public class UserControllerImpl implements UserController {
 
   private final UserProfileService userService;
   private final TokenService tokenService;
   private final UserWithRoomService userWithRoomService;
+  private final JoinRequestService joinRequestService;
 
   public UserControllerImpl(UserProfileService userService, TokenService tokenService,
-      UserWithRoomService userWithRoomService) {
+      UserWithRoomService userWithRoomService, JoinRequestService joinRequestService) {
     this.userService = userService;
     this.tokenService = tokenService;
     this.userWithRoomService = userWithRoomService;
+    this.joinRequestService = joinRequestService;
   }
-
-  // ===== AUTHENTICATION METHODS =====
 
   private static boolean isWithinLast100Years(Instant instantToCheck) {
     if (instantToCheck == null) {
@@ -71,8 +71,6 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     return userService.verifyLogin(login, verificationCode);
   }
 
-  // ===== PROFILE MANAGEMENT METHODS =====
-
   @Override
   public ApiResponse<Void> logoutUser(String token) {
     return userService.logoutUser(token);
@@ -101,14 +99,12 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
       return ApiResponse.error("Invalid or expired token");
     }
 
-    // Validation logic
     if (!validateProfileUpdateRequest(request)) {
       return ApiResponse.error("Invalid profile data");
     }
 
     try {
       userService.updateUserProfile(token, request);
-      // Return updated profile
       return userService.getUserProfile(token);
     } catch (Exception e) {
       return ApiResponse.error("Failed to update profile");
@@ -131,17 +127,13 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
       return ApiResponse.error("Invalid or expired token");
     }
 
-    // Delegate to service - service should return proper NotificationSettingsResponse
     ApiResponse<Void> result = userService.configureNotificationSettings(token, request);
     if (result.isSuccess()) {
-      // Return a proper response - you might need to enhance your service to return the actual settings
       return ApiResponse.success(new NotificationSettingsResponse(/* populated settings */));
     } else {
       return ApiResponse.error(result.getMessage());
     }
   }
-
-  // ===== ROOM ADMINISTRATION METHODS =====
 
   @Override
   public ApiResponse<Integer> deleteAccount(String token) {
@@ -162,7 +154,6 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
       Integer assigner = tokenService.decodeToken(token).userId();
       ApiResponse<Void> result = userWithRoomService.assignAdminRole(token, roomId, userId);
       if (result.isSuccess()) {
-        // Create proper response - you might need to get the updated role info
         return ApiResponse.success(
             new RoleAssignmentResponse(userId, roomId, Role.PARTICIPANT, Role.ADMIN, assigner));
       } else {
@@ -172,8 +163,6 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
       return ApiResponse.error("Failed to assign admin role");
     }
   }
-
-  // ===== REQUEST MANAGEMENT METHODS =====
 
   @Override
   public ApiResponse<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId,
@@ -185,7 +174,6 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     try {
       ApiResponse<Void> result = userWithRoomService.demoteAdminRole(token, roomId, userId);
       if (result.isSuccess()) {
-        // Create proper response
         Integer assigner = tokenService.decodeToken(token).userId();
         return ApiResponse.success(
             new RoleAssignmentResponse(userId, roomId, Role.PARTICIPANT, Role.ADMIN, assigner));
@@ -202,8 +190,7 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     if (!tokenService.isTokenActive(token)) {
       return ApiResponse.error("Invalid or expired token");
     }
-    // You'll need to implement this in your service layer
-    return ApiResponse.error("Not implemented yet");
+    return joinRequestService.getPendingRequests(tokenService.decodeToken(token).userId());
   }
 
   @Override
@@ -212,8 +199,7 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     if (!tokenService.isTokenActive(token)) {
       return ApiResponse.error("Invalid or expired token");
     }
-    // You'll need to implement this in your service layer
-    return ApiResponse.error("Not implemented yet");
+    return joinRequestService.getPendingRequestsForRoom(tokenService.decodeToken(token).userId(), roomId);
   }
 
   @Override
@@ -222,8 +208,7 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     if (!tokenService.isTokenActive(token)) {
       return ApiResponse.error("Invalid or expired token");
     }
-    // You'll need to implement this in your service layer
-    return ApiResponse.error("Not implemented yet");
+    return joinRequestService.processJoinRequest(tokenService.decodeToken(token).userId(), requestId, action);
   }
 
   @Override
@@ -231,8 +216,7 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     if (!tokenService.isTokenActive(token)) {
       return ApiResponse.error("Invalid or expired token");
     }
-    // You'll need to implement this in your service layer
-    return ApiResponse.error("Not implemented yet");
+    return joinRequestService.getSentRequests(tokenService.decodeToken(token).userId());
   }
 
   @Override
@@ -240,11 +224,8 @@ public class UserControllerImpl implements UserController { // ✅ Implement the
     if (!tokenService.isTokenActive(token)) {
       return ApiResponse.error("Invalid or expired token");
     }
-    // You'll need to implement this in your service layer
-    return ApiResponse.error("Not implemented yet");
+    return joinRequestService.cancelRequest(tokenService.decodeToken(token).userId(), requestId);
   }
-
-  // ===== PRIVATE HELPER METHODS =====
 
   @Override
   public ApiResponse<List<RoomSummaryResponse>> getBanRooms(String token) {
