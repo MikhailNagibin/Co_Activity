@@ -100,4 +100,27 @@ public class NotificationService {
 
     mailService.sendSimpleMessage(adminEmail, subject, message);
   }
+
+  /**
+   * Sends a login verification code to the user.
+   *
+   * @param userEmail        the email of the user attempting to log in
+   * @param verificationCode the one-time verification code
+   */
+  public void sendLoginVerificationCode(String userEmail, String verificationCode) {
+    String subject = "🔐 Your CoActivity verification code";
+    String message = String.format("""
+        Hello!
+
+        Use the verification code below to finish signing in:
+
+        %s
+
+        The code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
+
+        Stay secure,
+        The CoActivity Team
+        """, verificationCode);
+    mailService.sendSimpleMessage(userEmail, subject, message);
+  }
 }

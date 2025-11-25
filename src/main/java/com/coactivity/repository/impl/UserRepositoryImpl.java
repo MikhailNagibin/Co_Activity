@@ -166,14 +166,14 @@ public class UserRepositoryImpl implements UserRepository {
         PreparedStatement statement = connection.prepareStatement(sql)) {
 
       statement.setString(1, login);
-      statement.setString(2, password);
+      statement.setString(2, sha256(password));
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return mapResultSetToUser(resultSet);
         }
       }
 
-    } catch (SQLException e) {
+    } catch (SQLException | NoSuchAlgorithmException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
@@ -211,6 +211,22 @@ public class UserRepositoryImpl implements UserRepository {
       statement.executeUpdate();
 
     } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
+  public void updatePassword(Integer userId, String newPassword) {
+    String sql = "UPDATE Users SET password = ? WHERE id = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, sha256(newPassword));
+      statement.setInt(2, userId);
+      int affectedRows = statement.executeUpdate();
+      if (affectedRows == 0) {
+        throw new RuntimeException();
+      }
+    } catch (SQLException | NoSuchAlgorithmException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }

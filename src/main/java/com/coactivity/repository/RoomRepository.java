@@ -51,4 +51,12 @@ public interface RoomRepository {
    * @return
    */
   boolean isUserInMembers(Integer roomId, Integer userId);
+
+  /**
+   * Removes the specified user from the room membership list.
+   *
+   * @param roomId identifier of the room
+   * @param userId identifier of the user to remove
+   */
+  void removeUserFromRoom(Integer roomId, Integer userId);
 }

@@ -1,8 +1,8 @@
 package com.coactivity;
 
-import java.sql.Connection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
 
 public class TestConnection {
 
