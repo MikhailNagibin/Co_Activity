@@ -79,6 +79,7 @@ public class UserControllerImpl implements UserController {
   @Override
   public ApiResponse<UserProfileResponse> getUserProfile(String token) {
     if (!tokenService.isTokenActive(token)) {
+
       return ApiResponse.error("Invalid or expired token");
     }
     return userService.getUserProfile(token);
