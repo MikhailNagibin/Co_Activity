@@ -156,7 +156,7 @@ public interface UserController {
    * @return {@link ApiResponse} containing the updated {@link UserProfileResponse}, or error
    * details for invalid tokens or validation failures
    */
-  ApiResponse<UserProfileResponse> updateUserProfile(String token,
+  ApiResponse<String> updateUserProfile(String token,
       UserProfileUpdateRequest request);
 
   /**
@@ -204,7 +204,7 @@ public interface UserController {
    * @see NotificationSettingsRequest
    * @see NotificationSettingsResponse
    */
-  ApiResponse<NotificationSettingsResponse> configureNotificationSettings(String token,
+  ApiResponse<Void> configureNotificationSettings(String token,
       NotificationSettingsRequest request);
 
   /**
@@ -247,7 +247,7 @@ public interface UserController {
    * @throws IllegalArgumentException if target user is not a room participant
    * @see RoleAssignmentResponse
    */
-  ApiResponse<RoleAssignmentResponse> assignAdminRole(String token, Integer roomId,
+  ApiResponse<Void> assignAdminRole(String token, Integer roomId,
       Integer userId);
 
   /**
@@ -281,7 +281,7 @@ public interface UserController {
    * @see #assignAdminRole(String, Integer, Integer)
    * @see RoleAssignmentResponse
    */
-  ApiResponse<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId, Integer userId);
+  ApiResponse<Void> demoteAdminRole(String token, Integer roomId, Integer userId);
 
   // ===== REQUEST MANAGEMENT =====
 

@@ -93,21 +93,36 @@ public class UserControllerImpl implements UserController {
   }
 
   @Override
-  public ApiResponse<UserProfileResponse> updateUserProfile(String token,
-      UserProfileUpdateRequest request) {
-    if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
-    }
+  public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
 
-    if (!validateProfileUpdateRequest(request)) {
-      return ApiResponse.error("Invalid profile data");
+    if (!tokenService.isTokenActive(token)) {
+      return ApiResponse.error("401");
+    }
+    if (request.getUsername() != null && (request.getUsername().length() > 50
+      || request.getUsername().length() < 3)) {
+      return ApiResponse.error("400");
+    }
+    if (request.getCity() != null && (request.getCity().length() > 50
+      || request.getCity().length() < 3)) {
+      return ApiResponse.error("400");
+    }
+    if (request.getCountry() != null && (request.getCountry().length() > 50
+      || request.getCountry().length() < 3)) {
+      return ApiResponse.error("400");
+    }
+    if (request.getDescription() != null && (request.getDescription().length() > 5000 ||
+      request.getDescription().length() < 3)) {
+      return ApiResponse.error("400");
+    }
+    if (request.getDateOfBirth() != null && !isWithinLast100Years(request.getDateOfBirth())) {
+      return ApiResponse.error("400");
     }
 
     try {
       userService.updateUserProfile(token, request);
-      return userService.getUserProfile(token);
+      return ApiResponse.success("200");
     } catch (Exception e) {
-      return ApiResponse.error("Failed to update profile");
+      return ApiResponse.error("400");
     }
   }
 
@@ -121,67 +136,55 @@ public class UserControllerImpl implements UserController {
   }
 
   @Override
-  public ApiResponse<NotificationSettingsResponse> configureNotificationSettings(String token,
-      NotificationSettingsRequest request) {
+  public ApiResponse<Void> configureNotificationSettings(String token,
+                                                         NotificationSettingsRequest request) {
     if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
+      return ApiResponse.error("401");
     }
-
-    ApiResponse<Void> result = userService.configureNotificationSettings(token, request);
-    if (result.isSuccess()) {
-      return ApiResponse.success(new NotificationSettingsResponse(/* populated settings */));
-    } else {
-      return ApiResponse.error(result.getMessage());
+    try {
+      return userService.configureNotificationSettings(token, request);
+    } catch (Exception e) {
+      return ApiResponse.error(null);
     }
   }
 
   @Override
   public ApiResponse<Integer> deleteAccount(String token) {
     if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
+      return ApiResponse.error("401");
     }
-    return userService.deleteAccount(token);
-  }
-
-  @Override
-  public ApiResponse<RoleAssignmentResponse> assignAdminRole(String token, Integer roomId,
-      Integer userId) {
-    if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
-    }
-
     try {
-      Integer assigner = tokenService.decodeToken(token).userId();
-      ApiResponse<Void> result = userWithRoomService.assignAdminRole(token, roomId, userId);
-      if (result.isSuccess()) {
-        return ApiResponse.success(
-            new RoleAssignmentResponse(userId, roomId, Role.PARTICIPANT, Role.ADMIN, assigner));
-      } else {
-        return ApiResponse.error(result.getMessage());
-      }
+      return userService.deleteAccount(token);
     } catch (Exception e) {
-      return ApiResponse.error("Failed to assign admin role");
+      return ApiResponse.error("400");
     }
   }
 
   @Override
-  public ApiResponse<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId,
-      Integer userId) {
+  public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
+                                           Integer userId) {
     if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
+      return ApiResponse.error("401");
     }
 
     try {
-      ApiResponse<Void> result = userWithRoomService.demoteAdminRole(token, roomId, userId);
-      if (result.isSuccess()) {
-        Integer assigner = tokenService.decodeToken(token).userId();
-        return ApiResponse.success(
-            new RoleAssignmentResponse(userId, roomId, Role.PARTICIPANT, Role.ADMIN, assigner));
-      } else {
-        return ApiResponse.error(result.getMessage());
-      }
+      return userWithRoomService.assignAdminRole(token, roomId, userId);
     } catch (Exception e) {
-      return ApiResponse.error("Failed to demote admin role");
+      return ApiResponse.error("401");
+    }
+  }
+
+  @Override
+  public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
+                                           Integer userId) {
+    if (!tokenService.isTokenActive(token)) {
+      return ApiResponse.error("401");
+    }
+
+    try {
+      return userWithRoomService.demoteAdminRole(token, roomId, userId);
+    } catch (Exception e) {
+      return ApiResponse.error("401");
     }
   }
 
@@ -233,6 +236,15 @@ public class UserControllerImpl implements UserController {
       return ApiResponse.error("Invalid or expired token");
     }
     return userWithRoomService.getBanRooms(token);
+  }
+
+//  @Override
+  public ApiResponse<Boolean> isUserInRoom(String token, Integer roomId) {
+    if (!tokenService.isTokenActive(token)) {
+      return ApiResponse.error("Invalid or expired token");
+    }
+
+    return userWithRoomService.isUserInRoom(token, roomId);
   }
 
   private boolean validateProfileUpdateRequest(UserProfileUpdateRequest request) {
