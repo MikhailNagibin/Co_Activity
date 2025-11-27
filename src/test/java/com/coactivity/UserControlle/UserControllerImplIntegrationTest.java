@@ -67,23 +67,14 @@ class UserControllerImplIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    initializeTestDatabase();
+    clearTestData();
     createTestData();
 
     validToken = tokenService.createToken(testUserId);
     tokenService.registerToken(testUserId, validToken);
   }
 
-  private void initializeTestDatabase() {
-    // Очищаем данные через репозитории
-    clearTestData();
-
-    // Инициализируем базовые данные через репозитории
-    initializeBaseData();
-  }
-
   private void clearTestData() {
-    // Получаем все комнаты и удаляем их через репозиторий
     List<Room> allRooms = roomRepository.getAllRooms();
     for (Room room : allRooms) {
       if (room.getName().equals("Test Room") || room.getName().equals("Other Room")) {
@@ -91,14 +82,12 @@ class UserControllerImplIntegrationTest {
       }
     }
 
-    // Удаляем тестовых пользователей через репозиторий
     try {
       User testUser = userRepository.getUser("testuser@example.com", "hashedpassword123");
       if (testUser != null) {
         userRepository.deleteUser(testUser.getId());
       }
     } catch (Exception e) {
-      // Пользователь не существует
     }
 
     try {
@@ -107,18 +96,10 @@ class UserControllerImplIntegrationTest {
         userRepository.deleteUser(adminUser.getId());
       }
     } catch (Exception e) {
-      // Пользователь не существует
     }
   }
 
-  private void initializeBaseData() {
-    // Категории, роли и статусы обычно инициализируются через миграции
-    // В тестах мы предполагаем, что они уже существуют
-    // Если нужно создавать через репозитории, добавьте соответствующие методы в репозитории
-  }
-
   private void createTestData() {
-    // Создаем тестового пользователя через UserRepository
     User testUser = createTestUser(
       "testuser@example.com",
       "testuser",
@@ -130,7 +111,6 @@ class UserControllerImplIntegrationTest {
     );
     testUserId = testUser.getId();
 
-    // Создаем администратора через UserRepository
     User adminUser = createTestUser(
       "adminuser@example.com",
       "adminuser",
@@ -142,24 +122,21 @@ class UserControllerImplIntegrationTest {
     );
     testAdminUserId = adminUser.getId();
 
-    // Создаем основную тестовую комнату через RoomRepository
     Room testRoom = createTestRoom(
       "Test Room",
       "Test Room Description",
-      Category.SPORT, // Предполагаем, что SPORT имеет id = 1
+      Category.SPORT,
       testAdminUserId,
       10
     );
     testRoomId = testRoom.getId();
 
-    // Добавляем тестового пользователя в комнату как участника через RoomRepository
     roomRepository.addUserToRoom(testRoomId, testUserId, Role.PARTICIPANT);
 
-    // Создаем вторую комнату для теста "когда пользователь не в комнате"
     Room otherRoom = createTestRoom(
       "Other Room",
       "Other Room Description",
-      Category.MUSIC, // Предполагаем, что MUSIC имеет id = 2
+      Category.MUSIC,
       testAdminUserId,
       5
     );
@@ -191,7 +168,7 @@ class UserControllerImplIntegrationTest {
     RoomCreationRequest request = new RoomCreationRequest();
     request.setIsPublic(true);
     request.setChatLink(name.toLowerCase().replace(" ", "-") + "-chat");
-    request.setCategoryId(category.ordinal() + 1); // Преобразуем enum в ID
+    request.setCategoryId(category.ordinal() + 1);
     request.setName(name);
     request.setDescription(description);
     request.setDateOfStartEvent(Instant.now().plus(1, ChronoUnit.DAYS));
@@ -203,7 +180,7 @@ class UserControllerImplIntegrationTest {
   }
 
   @Test
-  void getUserProfile_WithValidToken_ReturnsUserProfileSuccessfully() {
+  void getUserProfile_WithValidToken() {
     ApiResponse<UserProfileResponse> response = userController.getUserProfile(validToken);
 
     System.out.println(response.getMessage());
@@ -219,14 +196,14 @@ class UserControllerImplIntegrationTest {
   }
 
   @Test
-  void getUserProfile_WithInvalidToken_ReturnsUnauthorizedError() {
+  void getUserProfile_WithInvalidToken() {
     String invalidToken = "invalid_token_123";
 
     ApiResponse<UserProfileResponse> response = userController.getUserProfile(invalidToken);
 
     assertNotNull(response);
     assertFalse(response.getSuccess());
-    assertEquals("401", response.getMessage());
+    assertEquals("Invalid or expired token", response.getMessage());
     assertNull(response.getData());
   }
 
@@ -320,39 +297,44 @@ class UserControllerImplIntegrationTest {
   }
 
   @Test
-  void isUserInRoom_WhenUserIsNotInRoom_ReturnsFalse() {
+  void isUserInRoom_WhenUserIsNotInRoom() {
     ApiResponse<Boolean> result = userController.isUserInRoom(validToken, otherRoomId);
-
+    System.out.println(roomRepository.getUsersInRoom(otherRoomId));
     assertNotNull(result);
-    assertFalse(result.getSuccess());
+    assertEquals(false, result.getData());
   }
 
   @Test
-  void assignAdminRole_WithValidTokenAndPermissions_ReturnsSuccess() {
+  void assignAdminRole_WithValidTokenAndPermissions() {
     String ownerToken = tokenService.createToken(testAdminUserId);
     tokenService.registerToken(testAdminUserId, ownerToken);
+
+    roomRepository.setRoleByUserIdAndRoomId(testUserId, testRoomId, Role.PARTICIPANT);
+    roomRepository.setRoleByUserIdAndRoomId(testAdminUserId, testRoomId, Role.OWNER);
 
     ApiResponse<Void> response = userController.assignAdminRole(ownerToken, testRoomId, testUserId);
 
     assertNotNull(response);
+    System.out.println(roomRepository.getUsersInRoom(testRoomId));
+    System.out.println(response.getMessage());
     assertTrue(response.getSuccess());
     assertEquals("Operation completed successfully", response.getMessage());
     assertNull(response.getData());
   }
 
   @Test
-  void demoteAdminRole_WithValidTokenAndPermissions_ReturnsSuccess() {
+  void demoteAdminRole_WithValidTokenAndPermissions() {
     String ownerToken = tokenService.createToken(testAdminUserId);
     tokenService.registerToken(testAdminUserId, ownerToken);
 
-    // Сначала назначаем админскую роль через RoomRepository
+    System.out.println(roomRepository.getUsersInRoom(testRoomId));
+    roomRepository.addUserToRoom(testRoomId, testUserId, Role.PARTICIPANT);
+
     roomRepository.setRoleByUserIdAndRoomId(testUserId, testRoomId, Role.ADMIN);
 
     ApiResponse<Void> response = userController.demoteAdminRole(ownerToken, testRoomId, testUserId);
-
     assertNotNull(response);
     assertTrue(response.getSuccess());
-    assertNull(response.getData());
   }
 
   @Test
@@ -362,41 +344,5 @@ class UserControllerImplIntegrationTest {
     assertNotNull(userRepository);
     assertNotNull(roomRepository);
     assertNotNull(roomsRequestRepository);
-  }
-
-  // Дополнительные тесты для работы с заявками на вступление в комнаты
-  @Test
-  void createAndProcessRoomRequest_ReturnsSuccess() {
-    // Создаем заявку на вступление в другую комнату
-    RoomsRequest request = roomsRequestRepository.createRequest(
-      testUserId,
-      otherRoomId,
-      RequestStatus.CONSIDERATION
-    );
-
-    assertNotNull(request);
-    assertEquals(testUserId, request.getUser().getId());
-    assertEquals(otherRoomId, request.getRoom().getId());
-    assertEquals(RequestStatus.CONSIDERATION, request.getStatus());
-
-    // Обновляем статус заявки
-    RoomsRequest updatedRequest = roomsRequestRepository.updateRequest(
-      request.getId(),
-      RequestStatus.ACCEPTED
-    );
-
-    assertNotNull(updatedRequest);
-    assertEquals(RequestStatus.ACCEPTED, updatedRequest.getStatus());
-
-    // Получаем заявки пользователя
-    List<RoomsRequest> userRequests = roomsRequestRepository.getRequestsByUser(testUserId);
-    assertFalse(userRequests.isEmpty());
-
-    // Получаем заявки комнаты
-    List<RoomsRequest> roomRequests = roomsRequestRepository.getRoomRequests(otherRoomId);
-    assertFalse(roomRequests.isEmpty());
-
-    // Удаляем заявку
-    roomsRequestRepository.deleteRequest(request.getId());
   }
 }

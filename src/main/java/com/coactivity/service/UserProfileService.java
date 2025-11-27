@@ -201,7 +201,7 @@ public class UserProfileService {
     var response = new UserProfileResponse();
     try {
       User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
-      System.out.println(user);
+      System.out.println(user.getCity() + " " + user.getCountry());
       response.setId(user.getId());
       response.setCity(user.getCity());
       response.setAvatarId(user.getAvatarId());

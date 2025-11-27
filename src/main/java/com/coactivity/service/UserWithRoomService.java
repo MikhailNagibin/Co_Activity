@@ -56,13 +56,15 @@ public class UserWithRoomService {
     Integer roomOwnerId = tokenService.decodeToken(token).userId();
     try {
       if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        return ApiResponse.error(null);
+        roomRepository.getUserRoleByRoomId(roomId, roomOwnerId);
+        return ApiResponse.error("User not owner");
       }
 
       roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
       return ApiResponse.success(null);
 
     } catch (Exception e) {
+      System.out.println(e.getMessage());
       return ApiResponse.error("400");
     }
   }
@@ -80,7 +82,7 @@ public class UserWithRoomService {
       return ApiResponse.success(null);
 
     } catch (Exception e) {
-      return ApiResponse.error("400");
+      return ApiResponse.error(e.getMessage());
     }
   }
 

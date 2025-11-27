@@ -217,11 +217,12 @@ public class RoomRepositoryImpl implements RoomRepository {
       getUsersWithBanInRoom(id));
   }
 
-  private Map<User, Role> getUsersInRoom(Integer roomId) {
+  public Map<User, Role> getUsersInRoom(Integer roomId) {
     String sql = """
-        SELECT u.id, r.id FROM Users AS u INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
-         INNER JOIN Roles AS r ON r.id = rm.role_id
-         where rm.room_id = ?;
+        SELECT u.id, r.role FROM Users AS u
+        INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
+        INNER JOIN Roles AS r ON r.id = rm.role_id
+        WHERE rm.room_id = ?;
         """;
     var usersInRoom = new HashMap<User, Role>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -229,14 +230,14 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-          User user = userRepository.getUserById(resultSet.getInt(1));
-          Role role = Role.getByIndex(resultSet.getInt(2) - 1);
+          User user = userRepository.getUserById(resultSet.getInt("id"));
+          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
           usersInRoom.put(user, role);
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      System.err.println("Error getting users in room: " + e.getMessage());
+      throw new RuntimeException("Failed to get room users", e);
     }
     return usersInRoom;
   }
@@ -266,10 +267,28 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   public boolean isUserInMembers(Integer roomId, Integer userId) {
-    Room room = getRoomById(roomId);
-    Map<User, Role> users = room.getUsers();
+    String sql = """
+        SELECT EXISTS(
+            SELECT 1 FROM Rooms_members
+            WHERE room_id = ? AND user_id = ?
+        )
+        """;
 
-    return users.containsKey(userRepository.getUserById(userId));
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getBoolean(1);
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println("Error checking if user is in room members: " + e.getMessage());
+      throw new RuntimeException("Failed to check room membership", e);
+    }
+    return false;
   }
 
   public boolean isUserOwnerOfRoom(Integer userId, Integer roomId) {
@@ -329,18 +348,18 @@ public class RoomRepositoryImpl implements RoomRepository {
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, userId);
-      statement.setInt(2, roomId);
+      statement.setInt(1, roomId);   // Первый параметр - room_id
+      statement.setInt(2, userId);   // Второй параметр - user_id
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return Role.valueOf(resultSet.getString(1).toUpperCase());
         } else {
-          throw new RuntimeException();
+          throw new RuntimeException("User not found in room members");
         }
       }
     } catch (SQLException | IllegalArgumentException e) {
       System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Error getting user role", e);
     }
   }
 

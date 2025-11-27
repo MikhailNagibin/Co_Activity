@@ -16,8 +16,8 @@ public class User {
   private String userName;
   private String password;
   private Instant dataOfBirth;
-  private String city;
   private String country;
+  private String city;
   private String description;
   private Integer avatarId;
   private List<Room> rooms;
