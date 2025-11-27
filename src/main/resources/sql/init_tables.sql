@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS  Users (
 
 CREATE TABLE IF NOT EXISTS  Categories (
     id SERIAl PRIMARY KEY,
-    name VARCHAR(20) NOT NULL
+    name VARCHAR(20) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS  Rooms (
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS  Rooms_members (
 
 CREATE TABLE IF NOT EXISTS  RequestStatuses(
     id SERIAl PRIMARY KEY,
-    status_info VARCHAR(50) NOT NULL
+    status_info VARCHAR(50) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS  Rooms_requests(
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS  Answers(
 
 create table IF NOT EXISTS  Notifications (
     id serial PRIMARY KEY,
-    notification varchar(50)
+    notification varchar(50) UNIQUE
 );
 
 create table IF NOT EXISTS  usersNotification (

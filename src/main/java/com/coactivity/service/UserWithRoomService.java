@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
+import javax.swing.text.StyledEditorKit;
+
 @Service
 public class UserWithRoomService {
 
@@ -54,13 +56,15 @@ public class UserWithRoomService {
     Integer roomOwnerId = tokenService.decodeToken(token).userId();
     try {
       if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        return ApiResponse.error(null);
+        roomRepository.getUserRoleByRoomId(roomId, roomOwnerId);
+        return ApiResponse.error("User not owner");
       }
 
       roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
       return ApiResponse.success(null);
 
     } catch (Exception e) {
+      System.out.println(e.getMessage());
       return ApiResponse.error("400");
     }
   }
@@ -78,38 +82,15 @@ public class UserWithRoomService {
       return ApiResponse.success(null);
 
     } catch (Exception e) {
-      return ApiResponse.error("400");
+      return ApiResponse.error(e.getMessage());
     }
   }
 
-  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
-    }
-    if (roomId == null) {
-      return ApiResponse.error("400");
-    }
-
+  public ApiResponse<Boolean> isUserInRoom(String token, Integer roomId) {
     try {
-      Integer userId = tokenService.decodeToken(token).userId();
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
-      }
-
-      User user = userRepository.getUserById(userId);
-      boolean isMember = isUserParticipant(room, userId);
-      Role role = isMember ? roomRepository.getUserRoleByRoomId(roomId, userId) : null;
-
-      MembershipVerificationResponse response = new MembershipVerificationResponse(
-          isMember,
-          role,
-          mapUserToSummaryResponse(user),
-          room.getName()
-      );
-      return ApiResponse.success(response);
+      return ApiResponse.success(roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId()));
     } catch (Exception e) {
-      return ApiResponse.error("500");
+      throw new RuntimeException(e);
     }
   }
 

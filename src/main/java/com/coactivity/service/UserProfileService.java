@@ -201,7 +201,7 @@ public class UserProfileService {
     var response = new UserProfileResponse();
     try {
       User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
-
+      System.out.println(user.getCity() + " " + user.getCountry());
       response.setId(user.getId());
       response.setCity(user.getCity());
       response.setAvatarId(user.getAvatarId());
@@ -213,15 +213,16 @@ public class UserProfileService {
 
       return ApiResponse.success(response);
     } catch (Exception e) {
-      return ApiResponse.success(null);
+      System.out.println(e.getMessage());
+      return ApiResponse.error("401");
     }
   }
 
-  public ApiResponse<Void> updateUserProfile(String token, UserProfileUpdateRequest request) {
+  public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
     User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
     try {
       userRepository.updateUser(user.getId(), request);
-      return ApiResponse.success(null);
+      return ApiResponse.success("200");
     } catch (Exception e) {
       return ApiResponse.error(null);
     }
