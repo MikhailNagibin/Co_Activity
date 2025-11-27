@@ -117,7 +117,7 @@ public class RoomControllerImplIntegrationTest {
 
     ApiResponse<RoomCreationResponse> created = controller.createRoom("1", req);
     assertTrue(created.isSuccess());
-    Integer roomId = created.getData().getId();
+    Integer roomId = created.getData().getRoomId();
 
     ApiResponse<List<RoomSummaryResponse>> list = controller.getRooms(null, null, null);
     assertTrue(list.isSuccess());
@@ -136,7 +136,7 @@ public class RoomControllerImplIntegrationTest {
     req.setCategoryId(1);
     req.setIsPublic(true);
     req.setMaximumNumberOfPeople(10);
-    Integer roomId = controller.createRoom("1", req).getData().getId();
+    Integer roomId = controller.createRoom("1", req).getData().getRoomId();
 
     ApiResponse<BulletinBoardResponse> updated = controller.updateBulletinBoard("1", roomId, "Hello");
     assertTrue(updated.isSuccess());
@@ -151,7 +151,7 @@ public class RoomControllerImplIntegrationTest {
     req.setCategoryId(1);
     req.setIsPublic(true);
     req.setMaximumNumberOfPeople(2);
-    Integer roomId = controller.createRoom("1", req).getData().getId();
+    Integer roomId = controller.createRoom("1", req).getData().getRoomId();
 
     ApiResponse<Void> join = controller.joinRoom("2", roomId);
     assertTrue(join.isSuccess());
