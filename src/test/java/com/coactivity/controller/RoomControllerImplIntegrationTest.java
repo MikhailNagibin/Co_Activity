@@ -116,6 +116,7 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room A");
     req.setCategoryId(1);
     req.setIsPublic(true);
+    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(10);
 
     ApiResponse<RoomCreationResponse> created = controller.createRoom("1", req);
@@ -138,6 +139,7 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room B");
     req.setCategoryId(1);
     req.setIsPublic(true);
+    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(10);
     ApiResponse<RoomCreationResponse> created1 = controller.createRoom("1", req);
     assertTrue(created1.isSuccess(), "createRoom failed: " + created1.getMessage());
@@ -155,6 +157,7 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room C");
     req.setCategoryId(1);
     req.setIsPublic(true);
+    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(2);
     ApiResponse<RoomCreationResponse> created2 = controller.createRoom("1", req);
     assertTrue(created2.isSuccess(), "createRoom failed: " + created2.getMessage());
