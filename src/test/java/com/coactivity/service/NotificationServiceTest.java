@@ -9,6 +9,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Unit tests for NotificationService. Uses mocks to test business logic in isolation.
+ * <p>
+ * For real email sending tests, see MailServiceIntegrationTest.
+ */
 @ExtendWith(MockitoExtension.class)
 public class NotificationServiceTest {
 
@@ -19,18 +24,68 @@ public class NotificationServiceTest {
   private NotificationService notificationService;
 
   @Test
-  public void testSendMembershipAccepted() {
-    notificationService.sendMembershipAccepted("test@test.com", "Test Room");
+  void testSendMembershipAccepted() {
+    // Given
+    String email = "test@test.com";
+    String roomName = "Test Room";
+
+    // When
+    notificationService.sendMembershipAccepted(email, roomName);
+
+    // Then
     verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
   }
 
   @Test
-  void sendRealTestEmail() {
-    String actualEmail = "bumaginnicita@yandex.ru";
+  void testSendMembershipRejected() {
+    // Given
+    String email = "test@test.com";
+    String roomName = "Test Room";
 
-    notificationService.sendMembershipAccepted(actualEmail, "CoActivity Test Room");
+    // When
+    notificationService.sendMembershipRejected(email, roomName);
 
-    System.out.println("📧 Test email sent to: " + actualEmail);
-    System.out.println("✅ Check your inbox (and spam folder)!");
+    // Then
+    verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  void testSendActivityClosed() {
+    // Given
+    String email = "test@test.com";
+    String roomName = "Test Room";
+
+    // When
+    notificationService.sendActivityClosed(email, roomName);
+
+    // Then
+    verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  void testSendNewJoinRequest() {
+    // Given
+    String adminEmail = "admin@test.com";
+    String roomName = "Test Room";
+    String requesterUsername = "testuser";
+
+    // When
+    notificationService.sendNewJoinRequest(adminEmail, roomName, requesterUsername);
+
+    // Then
+    verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  void testSendLoginVerificationCode() {
+    // Given
+    String email = "test@test.com";
+    String code = "ABC123";
+
+    // When
+    notificationService.sendLoginVerificationCode(email, code);
+
+    // Then
+    verify(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
   }
 }

@@ -3,8 +3,8 @@ services:
     image: postgres:16.2
     container_name: postgres_container
     environment:
-      POSTGRES_USER: {your_username}
-      POSTGRES_PASSWORD: {your_password}
+      POSTGRES_USER: BomNik
+      POSTGRES_PASSWORD: 828406Ns!
       POSTGRES_DB: postgres_db
     ports:
       - "5430:5432"

@@ -2,7 +2,6 @@ package com.coactivity.service;
 
 import org.springframework.stereotype.Service;
 
-// TODO: make it workable
 @Service
 public class NotificationService {
 
