@@ -114,7 +114,7 @@ public class RoomControllerImplIntegrationTest {
   void roomCreateListGet() {
     RoomCreationRequest req = new RoomCreationRequest();
     req.setName("Room A");
-    req.setCategoryId(0);
+    req.setCategoryId(1);
     req.setIsPublic(true);
     req.setMaximumNumberOfPeople(10);
 
@@ -136,7 +136,7 @@ public class RoomControllerImplIntegrationTest {
   void updateBulletinBoard_success() {
     RoomCreationRequest req = new RoomCreationRequest();
     req.setName("Room B");
-    req.setCategoryId(0);
+    req.setCategoryId(1);
     req.setIsPublic(true);
     req.setMaximumNumberOfPeople(10);
     ApiResponse<RoomCreationResponse> created1 = controller.createRoom("1", req);
@@ -153,7 +153,7 @@ public class RoomControllerImplIntegrationTest {
   void joinRoom_success() {
     RoomCreationRequest req = new RoomCreationRequest();
     req.setName("Room C");
-    req.setCategoryId(0);
+    req.setCategoryId(1);
     req.setIsPublic(true);
     req.setMaximumNumberOfPeople(2);
     ApiResponse<RoomCreationResponse> created2 = controller.createRoom("1", req);
