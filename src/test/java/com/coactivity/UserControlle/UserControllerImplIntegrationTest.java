@@ -2,30 +2,28 @@ package com.coactivity.UserControlle;
 
 import com.coactivity.CoActivityApplication;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
+import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
+import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.impl.UserControllerImpl;
+import com.coactivity.domain.*;
+import com.coactivity.repository.impl.*;
 import com.coactivity.service.TokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.util.StreamUtils;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import javax.sql.DataSource;
-import javax.swing.text.StyledEditorKit;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,17 +51,22 @@ class UserControllerImplIntegrationTest {
   private TokenService tokenService;
 
   @Autowired
-  private DataSource dataSource;
+  private UserRepositoryImpl userRepository;
 
-  private JdbcTemplate jdbcTemplate;
+  @Autowired
+  private RoomRepositoryImpl roomRepository;
+
+  @Autowired
+  private RoomsRequestRepositoryImpl roomsRequestRepository;
+
   private String validToken;
   private Integer testUserId;
   private Integer testRoomId;
   private Integer testAdminUserId;
+  private Integer otherRoomId;
 
   @BeforeEach
   void setUp() {
-    jdbcTemplate = new JdbcTemplate(dataSource);
     initializeTestDatabase();
     createTestData();
 
@@ -72,162 +75,131 @@ class UserControllerImplIntegrationTest {
   }
 
   private void initializeTestDatabase() {
+    // Очищаем данные через репозитории
+    clearTestData();
+
+    // Инициализируем базовые данные через репозитории
+    initializeBaseData();
+  }
+
+  private void clearTestData() {
+    // Получаем все комнаты и удаляем их через репозиторий
+    List<Room> allRooms = roomRepository.getAllRooms();
+    for (Room room : allRooms) {
+      if (room.getName().equals("Test Room") || room.getName().equals("Other Room")) {
+        roomRepository.deleteRoom(room.getId());
+      }
+    }
+
+    // Удаляем тестовых пользователей через репозиторий
     try {
-      clearDatabase();
-
-      ClassPathResource resource = new ClassPathResource("sql/init_tables.sql");
-      String sqlScript = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
-
-      String[] sqlCommands = sqlScript.split(";");
-      for (String command : sqlCommands) {
-        String trimmedCommand = command.trim();
-        if (!trimmedCommand.isEmpty() && !trimmedCommand.startsWith("--")) {
-          try {
-            jdbcTemplate.execute(trimmedCommand + ";");
-          } catch (Exception e) {
-            if (!e.getMessage().contains("already exists")) {
-              throw e;
-            }
-          }
-        }
+      User testUser = userRepository.getUser("testuser@example.com", "hashedpassword123");
+      if (testUser != null) {
+        userRepository.deleteUser(testUser.getId());
       }
+    } catch (Exception e) {
+      // Пользователь не существует
+    }
 
-      insertBaseData();
-
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to read SQL file", e);
+    try {
+      User adminUser = userRepository.getUser("adminuser@example.com", "hashedpassword456");
+      if (adminUser != null) {
+        userRepository.deleteUser(adminUser.getId());
+      }
+    } catch (Exception e) {
+      // Пользователь не существует
     }
   }
 
-  private void clearDatabase() {
-    String[] tablesToClear = {
-      "usersNotification", "BulletinBoard", "Answers", "Questions",
-      "Bans", "Rooms_requests", "Rooms_members", "Pictures",
-      "Rooms", "Categories", "RequestStatuses", "Roles", "Notifications", "Users"
-    };
-
-    for (String table : tablesToClear) {
-      try {
-        jdbcTemplate.execute("DELETE FROM " + table);
-      } catch (Exception e) {
-      }
-    }
-  }
-
-  private void insertBaseData() {
-    jdbcTemplate.execute("""
-            INSERT INTO Roles(role) VALUES
-            ('Admin'),
-            ('Participant'),
-            ('Owner')
-            ON CONFLICT (role) DO NOTHING;
-            """);
-
-    jdbcTemplate.execute("""
-            INSERT INTO Categories(name) VALUES
-            ('Sport'),
-            ('Music'),
-            ('Art'),
-            ('Entertainments'),
-            ('Business'),
-            ('Education'),
-            ('ActiveRecreation'),
-            ('PassiveRecreation'),
-            ('MassEvent'),
-            ('Other'),
-            ('NotSpecified')
-            ON CONFLICT (name) DO NOTHING;
-            """);
-
-    jdbcTemplate.execute("""
-            INSERT INTO RequestStatuses(status_info) VALUES
-            ('Consideration'),
-            ('Accepted'),
-            ('Refused'),
-            ('RefusedWithBan')
-            ON CONFLICT (status_info) DO NOTHING;
-            """);
-
-    jdbcTemplate.execute("""
-            INSERT INTO Notifications(notification) VALUES
-            ('MembershipAccepted'),
-            ('MembershipRejected'),
-            ('ActivityClosed'),
-            ('NewJoinRequest')
-            ON CONFLICT (notification) DO NOTHING;
-            """);
+  private void initializeBaseData() {
+    // Категории, роли и статусы обычно инициализируются через миграции
+    // В тестах мы предполагаем, что они уже существуют
+    // Если нужно создавать через репозитории, добавьте соответствующие методы в репозитории
   }
 
   private void createTestData() {
-    jdbcTemplate.update("DELETE FROM Users WHERE username IN ('testuser', 'adminuser')");
-
-    String userSql = """
-        INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-        """;
-
-    testUserId = jdbcTemplate.queryForObject(
-      userSql,
-      Integer.class,
+    // Создаем тестового пользователя через UserRepository
+    User testUser = createTestUser(
       "testuser@example.com",
       "testuser",
       "hashedpassword123",
-      java.sql.Timestamp.from(Instant.now().minus(25 * 365, ChronoUnit.DAYS)),
+      1,
       "TestCountry",
       "TestCity",
-      "Test description for main user",
-      1
+      "Test description for main user"
     );
+    testUserId = testUser.getId();
 
-    String adminUserSql = """
-        INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-        """;
-
-    testAdminUserId = jdbcTemplate.queryForObject(
-      adminUserSql,
-      Integer.class,
+    // Создаем администратора через UserRepository
+    User adminUser = createTestUser(
       "adminuser@example.com",
       "adminuser",
       "hashedpassword456",
-      java.sql.Timestamp.from(Instant.now().minus(30 * 365, ChronoUnit.DAYS)),
+      2,
       "AdminCountry",
       "AdminCity",
-      "Admin user description",
-      2
+      "Admin user description"
     );
+    testAdminUserId = adminUser.getId();
 
-    jdbcTemplate.update("DELETE FROM Rooms WHERE name = 'Test Room'");
-
-    Integer sportCategoryId = jdbcTemplate.queryForObject(
-      "SELECT id FROM Categories WHERE name = 'Sport'",
-      Integer.class
+    // Создаем основную тестовую комнату через RoomRepository
+    Room testRoom = createTestRoom(
+      "Test Room",
+      "Test Room Description",
+      Category.SPORT, // Предполагаем, что SPORT имеет id = 1
+      testAdminUserId,
+      10
     );
+    testRoomId = testRoom.getId();
 
-    String roomSql = """
-        INSERT INTO Rooms (is_active, is_public, name, description, maximum_number_of_people, category_id) 
-        VALUES (true, true, 'Test Room', 'Test Room Description', 10, ?)
-        RETURNING id
-        """;
+    // Добавляем тестового пользователя в комнату как участника через RoomRepository
+    roomRepository.addUserToRoom(testRoomId, testUserId, Role.PARTICIPANT);
 
-    testRoomId = jdbcTemplate.queryForObject(roomSql, Integer.class, sportCategoryId);
+    // Создаем вторую комнату для теста "когда пользователь не в комнате"
+    Room otherRoom = createTestRoom(
+      "Other Room",
+      "Other Room Description",
+      Category.MUSIC, // Предполагаем, что MUSIC имеет id = 2
+      testAdminUserId,
+      5
+    );
+    otherRoomId = otherRoom.getId();
 
-    jdbcTemplate.update("DELETE FROM Rooms_members WHERE room_id = ? OR user_id IN (?, ?)",
-      testRoomId, testUserId, testAdminUserId);
+    System.out.println("Successfully created test data:");
+    System.out.println(" - Test user ID: " + testUserId);
+    System.out.println(" - Admin user ID: " + testAdminUserId);
+    System.out.println(" - Test room ID: " + testRoomId);
+    System.out.println(" - Other room ID: " + otherRoomId);
+  }
 
-    String memberSql = """
-        INSERT INTO Rooms_members (room_id, user_id, role_id) 
-        VALUES (?, ?, (SELECT id FROM Roles WHERE role = 'Participant'))
-        """;
-    jdbcTemplate.update(memberSql, testRoomId, testUserId);
+  private User createTestUser(String login, String username, String password, Integer avatarId,
+                              String country, String city, String description) {
+    UserRegistrationRequest request = new UserRegistrationRequest();
+    request.setLogin(login);
+    request.setUserName(username);
+    request.setPassword(password);
+    request.setDateOfBirth(Instant.now().minus(25 * 365, ChronoUnit.DAYS));
+    request.setCountry(country);
+    request.setCity(city);
+    request.setDescription(description);
+    request.setAvatarId(avatarId);
 
-    String ownerSql = """
-        INSERT INTO Rooms_members (room_id, user_id, role_id) 
-        VALUES (?, ?, (SELECT id FROM Roles WHERE role = 'Owner'))
-        """;
-    jdbcTemplate.update(ownerSql, testRoomId, testAdminUserId);
+    return userRepository.createUser(request);
+  }
+
+  private Room createTestRoom(String name, String description, Category category, Integer ownerId, Integer maxPeople) {
+    RoomCreationRequest request = new RoomCreationRequest();
+    request.setIsPublic(true);
+    request.setChatLink(name.toLowerCase().replace(" ", "-") + "-chat");
+    request.setCategoryId(category.ordinal() + 1); // Преобразуем enum в ID
+    request.setName(name);
+    request.setDescription(description);
+    request.setDateOfStartEvent(Instant.now().plus(1, ChronoUnit.DAYS));
+    request.setDateOfEndEvent(Instant.now().plus(2, ChronoUnit.DAYS));
+    request.setAgeRating(12);
+    request.setMaximumNumberOfPeople(maxPeople);
+
+    return roomRepository.createRoom(ownerId, request);
   }
 
   @Test
@@ -349,13 +321,6 @@ class UserControllerImplIntegrationTest {
 
   @Test
   void isUserInRoom_WhenUserIsNotInRoom_ReturnsFalse() {
-    String otherRoomSql = """
-            INSERT INTO Rooms (is_active, is_public, name, description, maximum_number_of_people, category_id)
-            VALUES (true, true, 'Other Room', 'Other Room Description', 5, 2)
-            RETURNING id
-            """;
-    Integer otherRoomId = jdbcTemplate.queryForObject(otherRoomSql, Integer.class);
-
     ApiResponse<Boolean> result = userController.isUserInRoom(validToken, otherRoomId);
 
     assertNotNull(result);
@@ -380,10 +345,8 @@ class UserControllerImplIntegrationTest {
     String ownerToken = tokenService.createToken(testAdminUserId);
     tokenService.registerToken(testAdminUserId, ownerToken);
 
-    jdbcTemplate.update(
-      "UPDATE Rooms_members SET role_id = (SELECT id FROM Roles WHERE role = 'Admin') WHERE user_id = ? AND room_id = ?",
-      testUserId, testRoomId
-    );
+    // Сначала назначаем админскую роль через RoomRepository
+    roomRepository.setRoleByUserIdAndRoomId(testUserId, testRoomId, Role.ADMIN);
 
     ApiResponse<Void> response = userController.demoteAdminRole(ownerToken, testRoomId, testUserId);
 
@@ -396,6 +359,44 @@ class UserControllerImplIntegrationTest {
   void contextLoads_AllBeansInjectedSuccessfully() {
     assertNotNull(userController);
     assertNotNull(tokenService);
-    assertNotNull(dataSource);
+    assertNotNull(userRepository);
+    assertNotNull(roomRepository);
+    assertNotNull(roomsRequestRepository);
+  }
+
+  // Дополнительные тесты для работы с заявками на вступление в комнаты
+  @Test
+  void createAndProcessRoomRequest_ReturnsSuccess() {
+    // Создаем заявку на вступление в другую комнату
+    RoomsRequest request = roomsRequestRepository.createRequest(
+      testUserId,
+      otherRoomId,
+      RequestStatus.CONSIDERATION
+    );
+
+    assertNotNull(request);
+    assertEquals(testUserId, request.getUser().getId());
+    assertEquals(otherRoomId, request.getRoom().getId());
+    assertEquals(RequestStatus.CONSIDERATION, request.getStatus());
+
+    // Обновляем статус заявки
+    RoomsRequest updatedRequest = roomsRequestRepository.updateRequest(
+      request.getId(),
+      RequestStatus.ACCEPTED
+    );
+
+    assertNotNull(updatedRequest);
+    assertEquals(RequestStatus.ACCEPTED, updatedRequest.getStatus());
+
+    // Получаем заявки пользователя
+    List<RoomsRequest> userRequests = roomsRequestRepository.getRequestsByUser(testUserId);
+    assertFalse(userRequests.isEmpty());
+
+    // Получаем заявки комнаты
+    List<RoomsRequest> roomRequests = roomsRequestRepository.getRoomRequests(otherRoomId);
+    assertFalse(roomRequests.isEmpty());
+
+    // Удаляем заявку
+    roomsRequestRepository.deleteRequest(request.getId());
   }
 }
