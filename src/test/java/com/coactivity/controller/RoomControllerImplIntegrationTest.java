@@ -98,10 +98,7 @@ public class RoomControllerImplIntegrationTest {
   private static void seedLookupsAndUsers() throws Exception {
     try (Connection c = buildDataRepositoryFromContainer().getDataSource().getConnection(); Statement st = c.createStatement()) {
       st.execute("INSERT INTO Roles(role) VALUES ('OWNER'),('ADMIN'),('PARTICIPANT') ON CONFLICT DO NOTHING");
-      st.execute("INSERT INTO Categories(name) VALUES " +
-          "('Sport'),('Music'),('Art'),('Entertainments'),('Business'),('Education')," +
-          "('ActiveRecreation'),('PassiveRecreation'),('MassEvent'),('Other'),('NotSpecified') " +
-          "ON CONFLICT DO NOTHING");
+      st.execute("INSERT INTO Categories(name) VALUES ('Sport') ON CONFLICT DO NOTHING");
       st.execute("INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) VALUES (" +
           "'u1','user1','p', now(), 'ctry','city','desc',1)," +
           "('u2','user2','p', now(), 'ctry','city','desc',2)");
@@ -116,7 +113,6 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room A");
     req.setCategoryId(1);
     req.setIsPublic(true);
-    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(10);
 
     ApiResponse<RoomCreationResponse> created = controller.createRoom("1", req);
@@ -139,11 +135,8 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room B");
     req.setCategoryId(1);
     req.setIsPublic(true);
-    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(10);
-    ApiResponse<RoomCreationResponse> created1 = controller.createRoom("1", req);
-    assertTrue(created1.isSuccess(), "createRoom failed: " + created1.getMessage());
-    Integer roomId = created1.getData().getRoomId();
+    Integer roomId = controller.createRoom("1", req).getData().getRoomId();
 
     ApiResponse<BulletinBoardResponse> updated = controller.updateBulletinBoard("1", roomId, "Hello");
     assertTrue(updated.isSuccess());
@@ -157,11 +150,8 @@ public class RoomControllerImplIntegrationTest {
     req.setName("Room C");
     req.setCategoryId(1);
     req.setIsPublic(true);
-    req.setAgeRating(0);
     req.setMaximumNumberOfPeople(2);
-    ApiResponse<RoomCreationResponse> created2 = controller.createRoom("1", req);
-    assertTrue(created2.isSuccess(), "createRoom failed: " + created2.getMessage());
-    Integer roomId = created2.getData().getRoomId();
+    Integer roomId = controller.createRoom("1", req).getData().getRoomId();
 
     ApiResponse<Void> join = controller.joinRoom("2", roomId);
     assertTrue(join.isSuccess());
