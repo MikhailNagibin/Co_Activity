@@ -3,21 +3,18 @@ package com.coactivity.controller;
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Core API controller interface for the CoActivity platform.
  * <p>
  * Defines the complete contract for user management, room operations, and activity participation.
- * All methods return standardized {@link ApiResponse} wrappers containing either the requested data
- * or detailed error information. JWT tokens are used for stateless authentication with 30-minute
- * session persistence.
- * <p><b>Error Handling:</b> All methods return {@link ApiResponse} instances where the
- * {@code success} field indicates operation outcome. Clients should always check this field before
- * processing the data payload.</p>
+ * All methods now return {@link ResponseEntity} values so controllers can express HTTP status,
+ * headers, and DTO payloads explicitly. JWT-like bearer tokens are still used for stateless
+ * authentication with 30-minute session persistence.
  *
  * @author CoActivity 13 Development Team
  * </p>
@@ -34,15 +31,15 @@ public interface QAController {
    *
    * @param token   valid JWT token of the user asking the question
    * @param request question details including category and question text
-   * @return {@link ApiResponse} containing the created {@link QuestionResponse} with assigned
-   * question ID and metadata
+   * @return {@link ResponseEntity} containing the created {@link QuestionResponse} with assigned
+   * question ID, metadata, and {@code 201 Created} status
    * @example Ask about music equipment in the Music category QuestionRequest request = new
    * QuestionRequest(); request.setCategoryId(2); // Music category request.setQuestion("What's the
    * best beginner guitar for under $300?");
    * <p>
-   * ApiResponse<QuestionResponse> response = askQuestion(userToken, request);
+   * ResponseEntity<QuestionResponse> response = askQuestion(userToken, request);
    */
-  ApiResponse<QuestionResponse> askQuestion(String token, QuestionRequest request);
+  ResponseEntity<QuestionResponse> askQuestion(String token, QuestionRequest request);
 
   /**
    * Submits an answer to an existing question.
@@ -54,20 +51,20 @@ public interface QAController {
    *
    * @param token   valid JWT token of the user providing the answer
    * @param request answer details including the target question and answer text
-   * @return {@link ApiResponse} containing the created {@link AnswerResponse} with threading
+   * @return {@link ResponseEntity} containing the created {@link AnswerResponse} with threading
    * information and author details
    * @example // Answer a question about beginner guitars AnswerRequest request = new
    * AnswerRequest(); request.setQuestionId(123); request.setAnswer("I recommend the Yamaha FG800
    * for beginners - great value at $250!");
    * <p>
-   * ApiResponse<AnswerResponse> response = answerQuestion(userToken, request);
+   * ResponseEntity<AnswerResponse> response = answerQuestion(userToken, request);
    * @example // Reply to a specific previous answer AnswerRequest replyRequest = new
    * AnswerRequest(); replyRequest.setQuestionId(123); replyRequest.setPreviousAnswerId(456); //
    * Replying to answer #456 replyRequest.setAnswer("I agree, the Yamaha FG800 is excellent!");
    * <p>
-   * ApiResponse<AnswerResponse> replyResponse = answerQuestion(userToken, replyRequest);
+   * ResponseEntity<AnswerResponse> replyResponse = answerQuestion(userToken, replyRequest);
    */
-  ApiResponse<AnswerResponse> answerQuestion(String token, AnswerRequest request);
+  ResponseEntity<AnswerResponse> answerQuestion(String token, AnswerRequest request);
 
   /**
    * Retrieves all questions in the Q&A system with optional category filtering.
@@ -79,10 +76,10 @@ public interface QAController {
    *
    * @param categoryId optional category filter to show only questions from a specific category, or
    *                   {@code null} to return questions from all categories
-   * @return {@link ApiResponse} containing list of {@link QuestionResponse} objects with basic
+   * @return {@link ResponseEntity} containing list of {@link QuestionResponse} objects with basic
    * question information and answer counts
    */
-  ApiResponse<List<QuestionResponse>> getQuestions(Integer categoryId);
+  ResponseEntity<List<QuestionResponse>> getQuestions(Integer categoryId);
 
   /**
    * Retrieves a specific question and its complete answer hierarchy.
@@ -94,8 +91,8 @@ public interface QAController {
    * </p>
    *
    * @param questionId unique identifier of the question to retrieve
-   * @return {@link ApiResponse} containing {@link QuestionWithAnswersResponse} with the question
+   * @return {@link ResponseEntity} containing {@link QuestionWithAnswersResponse} with the question
    * and hierarchical answer structure
    */
-  ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(Integer questionId);
+  ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(Integer questionId);
 }

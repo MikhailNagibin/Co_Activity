@@ -4,17 +4,25 @@ import com.coactivity.controller.QAController;
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.service.QAService;
 import com.coactivity.service.TokenService;
-
 import java.util.List;
-
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/qa")
 public class QAControllerImpl implements QAController {
 
     private final QAService qaService;
@@ -26,58 +34,69 @@ public class QAControllerImpl implements QAController {
     }
 
     @Override
-    public ApiResponse<QuestionResponse> askQuestion(String token, QuestionRequest request) {
-        if (!tokenService.isTokenActive(token)) {
-            return ApiResponse.error("401");
+    @PostMapping("/questions")
+    public ResponseEntity<QuestionResponse> askQuestion(
+        @RequestHeader(name = "Authorization", required = false) String token,
+        @Valid @RequestBody QuestionRequest request) {
+        String authToken = extractToken(token);
+        if (isInvalidToken(authToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
-            Integer userId = tokenService.decodeToken(token).userId();
+            Integer userId = tokenService.decodeToken(authToken).userId();
             QuestionResponse response = qaService.askQuestion(userId, request);
-            return ApiResponse.success(response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            return ApiResponse.error("400");
-        } catch (Exception e) {
-            return ApiResponse.error("500");
+            return ResponseEntity.badRequest().build();
         }
     }
 
     @Override
-    public ApiResponse<AnswerResponse> answerQuestion(String token, AnswerRequest request) {
-        if (!tokenService.isTokenActive(token)) {
-            return ApiResponse.error("401");
+    @PostMapping("/answers")
+    public ResponseEntity<AnswerResponse> answerQuestion(
+        @RequestHeader(name = "Authorization", required = false) String token,
+        @Valid @RequestBody AnswerRequest request) {
+        String authToken = extractToken(token);
+        if (isInvalidToken(authToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
-            Integer userId = tokenService.decodeToken(token).userId();
+            Integer userId = tokenService.decodeToken(authToken).userId();
             AnswerResponse response = qaService.answerQuestion(userId, request);
-            return ApiResponse.success(response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            return ApiResponse.error("400");
-        } catch (Exception e) {
-            return ApiResponse.error("500");
+            return ResponseEntity.badRequest().build();
         }
     }
 
     @Override
-    public ApiResponse<List<QuestionResponse>> getQuestions(Integer categoryId) {
-        // This endpoint is public, no token validation needed
-        try {
-            List<QuestionResponse> responses = qaService.getQuestions(categoryId);
-            return ApiResponse.success(responses);
-        } catch (Exception e) {
-            return ApiResponse.error("500");
-        }
+    @GetMapping("/questions")
+    public ResponseEntity<List<QuestionResponse>> getQuestions(
+        @RequestParam(name = "categoryId", required = false) Integer categoryId) {
+        List<QuestionResponse> responses = qaService.getQuestions(categoryId);
+        return ResponseEntity.ok(responses);
     }
 
     @Override
-    public ApiResponse<QuestionWithAnswersResponse> getQuestionWithAnswers(Integer questionId) {
-        // This endpoint is public, no token validation needed
+    @GetMapping("/questions/{questionId}")
+    public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
+        @PathVariable Integer questionId) {
         try {
             QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
-            return ApiResponse.success(response);
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return ApiResponse.error("404");
-        } catch (Exception e) {
-            return ApiResponse.error("500");
+            return ResponseEntity.notFound().build();
         }
+    }
+
+    private boolean isInvalidToken(String token) {
+        return token == null || token.isBlank() || !tokenService.isTokenActive(token);
+    }
+
+    private String extractToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return null;
+        }
+        return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
     }
 }

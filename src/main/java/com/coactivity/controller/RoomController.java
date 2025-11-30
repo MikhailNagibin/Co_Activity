@@ -3,7 +3,6 @@ package com.coactivity.controller;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
@@ -13,17 +12,15 @@ import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Core API controller interface for the CoActivity platform.
  * <p>
  * Defines the complete contract for user management, room operations, and activity participation.
- * All methods return standardized {@link ApiResponse} wrappers containing either the requested data
- * or detailed error information. JWT tokens are used for stateless authentication with 30-minute
- * session persistence.
- * <p><b>Error Handling:</b> All methods return {@link ApiResponse} instances where the
- * {@code success} field indicates operation outcome. Clients should always check this field before
- * processing the data payload.</p>
+ * All methods now return {@link ResponseEntity} values so controllers can express HTTP status,
+ * headers, and DTO payloads explicitly. Business logic belongs in services; controllers simply map
+ * to HTTP semantics and rely on DTO payloads instead of {@code ApiResponse} wrappers.
  *
  * @author CoActivity 13 Development Team
  * </p>
@@ -41,11 +38,11 @@ public interface RoomController {
    *
    * @param token   valid JWT token of the room creator
    * @param request room creation parameters including visibility, category, and capacity
-   * @return {@link ApiResponse} containing {@link RoomCreationResponse} with the new room ID and
-   * basic information, or error details for validation failures
+   * @return {@link ResponseEntity} containing {@link RoomCreationResponse} with the new room ID and
+   * basic information, or an appropriate HTTP error status for validation failures
    * @throws IllegalArgumentException if required parameters are missing or invalid
    */
-  ApiResponse<RoomCreationResponse> createRoom(String token, RoomCreationRequest request);
+  ResponseEntity<RoomCreationResponse> createRoom(String token, RoomCreationRequest request);
 
   /**
    * Updates or creates if board does not exist the bulletin board content for a specific room.
@@ -62,13 +59,13 @@ public interface RoomController {
    * @param token      valid JWT token of a user with room administration privileges
    * @param roomId     unique identifier of the room to update
    * @param newContent contains the new bulletin board content to display
-   * @return {@link ApiResponse} containing the updated {@link BulletinBoardResponse} with new
+   * @return {@link ResponseEntity} containing the updated {@link BulletinBoardResponse} with new
    * content and updated timestamp
    * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if room doesn't exist or content is invalid
    * @see BulletinBoardResponse
    */
-  ApiResponse<BulletinBoardResponse> updateBulletinBoard(String token, Integer roomId,
+  ResponseEntity<BulletinBoardResponse> updateBulletinBoard(String token, Integer roomId,
       String newContent);
 
   /**
@@ -83,12 +80,11 @@ public interface RoomController {
    *
    * @param token  valid JWT token of a user with room administration privileges
    * @param roomId unique identifier of the room to update
-   * @return {@link ApiResponse} with empty data but success status indicating that board was
-   * deleted
+   * @return {@link ResponseEntity} with {@code 204 No Content} when the board is deleted
    * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if room doesn't exist or content is invalid
    */
-  ApiResponse<Void> deleteBulletinBoard(String token, Integer roomId);
+  ResponseEntity<Void> deleteBulletinBoard(String token, Integer roomId);
 
   /**
    * Retrieves rooms based on specified filtering and sorting criteria.
@@ -101,12 +97,13 @@ public interface RoomController {
    * @param filter structured filter criteria for searching rooms, or {@code null} to return all
    *               active rooms
    * @param sortBy sorting preference, or {@code null} for default relevance-based sorting
-   * @return {@link ApiResponse} containing list of {@link RoomSummaryResponse}
+   * @return {@link ResponseEntity} containing list of {@link RoomSummaryResponse}
    * @see RoomSummaryResponse
    * @see RoomFilter
    * @see RoomSort
    */
-  ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter, RoomSort sortBy);
+  ResponseEntity<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter,
+      RoomSort sortBy);
 
   /**
    * Retrieves detailed information for a specific room with conditional data exposure.
@@ -121,10 +118,10 @@ public interface RoomController {
    * @param token  optional JWT token for access to protected room data (chat links, bulletin
    *               board). Pass {@code null} for unauthorized access to public room information
    *               only.
-   * @return {@link ApiResponse} containing {@link RoomDetailedResponse} with access-appropriate
+   * @return {@link ResponseEntity} containing {@link RoomDetailedResponse} with access-appropriate
    * data exposure based on whether a valid token was provided
    */
-  ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token);
+  ResponseEntity<RoomDetailedResponse> getRoomById(Integer roomId, String token);
 
   /**
    * Retrieves all rooms where the authenticated user is an active participant.
@@ -144,14 +141,14 @@ public interface RoomController {
    * in these rooms.</p>
    *
    * @param token valid JWT token of the authenticated user
-   * @return {@link ApiResponse} containing list of {@link RoomDetailedResponse} with complete room
+   * @return {@link ResponseEntity} containing list of {@link RoomDetailedResponse} with complete room
    * information including protected content for all rooms where the user has active participation
    * @throws SecurityException if authentication token is invalid or expired
    * @see RoomDetailedResponse
    * @see #getRooms(String, RoomFilter, RoomSort)
    * @see #getRoomById(Integer, String)
    */
-  ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token);
+  ResponseEntity<List<RoomDetailedResponse>> getUserRooms(String token);
 
   // ===== ROOM PARTICIPATION =====
 
@@ -165,11 +162,10 @@ public interface RoomController {
    *
    * @param token  valid JWT token of the user requesting to join
    * @param roomId unique identifier of the room to join
-   * @return {@link ApiResponse} with empty data but success status indicating the join request was
-   * processed (immediate join or request submitted), or error details for invalid rooms or capacity
-   * limits
+   * @return {@link ResponseEntity} with {@code 204 No Content} once the join request is processed
+   * (immediate join or request submitted), or an error status for invalid rooms or capacity limits
    */
-  ApiResponse<Void> joinRoom(String token, Integer roomId);
+  ResponseEntity<Void> joinRoom(String token, Integer roomId);
 
   /**
    * Removes the authenticated user from a room.
@@ -181,10 +177,10 @@ public interface RoomController {
    *
    * @param token  valid JWT token of the user leaving the room
    * @param roomId unique identifier of the room to leave
-   * @return {@link ApiResponse} with empty data but success status confirming the user has left the
-   * room, or error details for invalid rooms or ownership restrictions
+   * @return {@link ResponseEntity} with {@code 204 No Content} confirming the user has left the
+   * room, or an error status for invalid rooms or ownership restrictions
    */
-  ApiResponse<Void> leaveRoom(String token, Integer roomId);
+  ResponseEntity<Void> leaveRoom(String token, Integer roomId);
 
   /**
    * Permanently deletes a room and all associated data.
@@ -202,13 +198,13 @@ public interface RoomController {
    *
    * @param token  valid JWT token of the room owner
    * @param roomId unique identifier of the room to delete
-   * @return {@link ApiResponse} with success status confirming room deletion
+   * @return {@link ResponseEntity} with {@code 204 No Content} confirming room deletion
    * @throws SecurityException        if user is not the room owner
    * @throws IllegalArgumentException if room doesn't exist or is already deleted
    * @example
    * @see #createRoom(String, RoomCreationRequest)
    */
-  ApiResponse<Void> deleteRoom(String token, Integer roomId);
+  ResponseEntity<Void> deleteRoom(String token, Integer roomId);
 
   /**
    * Retrieves the list of participants for a specific room with optional role filtering.
@@ -225,12 +221,12 @@ public interface RoomController {
    * @param roomId     unique identifier of the room to retrieve participants for
    * @param roleFilter optional role to filter participants by (e.g., only ADMINs). If null, all
    *                   participants are returned.
-   * @return {@link ApiResponse} containing list of participant information with enhanced user
+   * @return {@link ResponseEntity} containing list of participant information with enhanced user
    * details
    * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if the room doesn't exist
    */
-  ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId,
+  ResponseEntity<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId,
       Role roleFilter);
 
   /**
@@ -248,11 +244,11 @@ public interface RoomController {
    * @param token  valid JWT token of a user with room administration privileges
    * @param roomId unique identifier of the room to check
    * @param userId unique identifier of the user to verify membership for
-   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
+   * @return {@link ResponseEntity} containing {@link MembershipVerificationResponse} with verification
    * results and role information, or indicates the user is not a participant
    * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if the room or target user doesn't exist
    */
-  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
+  ResponseEntity<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
       Integer userId);
 }

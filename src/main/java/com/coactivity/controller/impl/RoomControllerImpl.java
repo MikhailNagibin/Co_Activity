@@ -4,7 +4,6 @@ import com.coactivity.controller.RoomController;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
@@ -16,10 +15,25 @@ import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.RoomService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserWithRoomService;
+import java.net.URI;
 import java.util.List;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/rooms")
 public class RoomControllerImpl implements RoomController {
 
   private final RoomService roomService;
@@ -38,80 +52,168 @@ public class RoomControllerImpl implements RoomController {
   }
 
   @Override
-  public ApiResponse<RoomCreationResponse> createRoom(String token, RoomCreationRequest request) {
-    return roomService.createRoom(token, request);
+  @PostMapping
+  public ResponseEntity<RoomCreationResponse> createRoom(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @Valid @RequestBody RoomCreationRequest request) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    RoomCreationResponse response = roomService.createRoom(authToken, request);
+    URI location = response != null && response.roomId() != null
+        ? URI.create("/api/rooms/" + response.roomId())
+        : URI.create("/api/rooms");
+    return ResponseEntity.created(location).body(response);
   }
 
   @Override
-  public ApiResponse<BulletinBoardResponse> updateBulletinBoard(String token, Integer roomId,
-      String newContent) {
-    if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+  @PutMapping("/{roomId}/bulletin")
+  public ResponseEntity<BulletinBoardResponse> updateBulletinBoard(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId,
+      @RequestBody String newContent) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     if (roomId == null || newContent == null || newContent.trim().isEmpty()) {
-      return ApiResponse.error("400");
+      return ResponseEntity.badRequest().build();
     }
-    Integer authorId = tokenService.decodeToken(token).userId();
-    return bulletinBoardService.updateBulletinBoard(roomId, newContent, authorId);
+    Integer authorId = tokenService.decodeToken(authToken).userId();
+    BulletinBoardResponse response =
+        bulletinBoardService.updateBulletinBoard(roomId, newContent, authorId);
+    return ResponseEntity.ok(response);
   }
 
   @Override
-  public ApiResponse<Void> deleteBulletinBoard(String token, Integer roomId) {
+  @DeleteMapping("/{roomId}/bulletin")
+  public ResponseEntity<Void> deleteBulletinBoard(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId) {
+    String authToken = extractToken(token);
     if (roomId == null) {
-      return ApiResponse.error("400");
+      return ResponseEntity.badRequest().build();
     }
-    if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    return bulletinBoardService.deleteBulletinBoard(roomId);
+    bulletinBoardService.deleteBulletinBoard(roomId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
-  public ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter,
-      RoomSort sortBy) {
-    return roomService.getRooms(token, filter, sortBy);
+  @GetMapping
+  public ResponseEntity<List<RoomSummaryResponse>> getRooms(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @Valid @ModelAttribute RoomFilter filter,
+      @RequestParam(name = "sortBy", required = false) RoomSort sortBy) {
+    String authToken = extractToken(token);
+    List<RoomSummaryResponse> rooms = roomService.getRooms(authToken, filter, sortBy);
+    return ResponseEntity.ok(rooms);
   }
 
   @Override
-  public ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token) {
-    return roomService.getRoomById(roomId, token);
+  @GetMapping("/{roomId}")
+  public ResponseEntity<RoomDetailedResponse> getRoomById(@PathVariable Integer roomId,
+      @RequestHeader(name = "Authorization", required = false) String token) {
+    String authToken = extractToken(token);
+    RoomDetailedResponse response = roomService.getRoomById(roomId, authToken);
+    return ResponseEntity.ok(response);
   }
 
   @Override
-  public ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token) {
-    return userWithRoomService.getUserRooms(token);
+  @GetMapping("/me")
+  public ResponseEntity<List<RoomDetailedResponse>> getUserRooms(
+      @RequestHeader(name = "Authorization", required = false) String token) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    List<RoomDetailedResponse> rooms = userWithRoomService.getUserRooms(authToken);
+    return ResponseEntity.ok(rooms);
   }
 
   @Override
-  public ApiResponse<Void> joinRoom(String token, Integer roomId) {
-    return userWithRoomService.joinRoom(token, roomId);
+  @PostMapping("/{roomId}/join")
+  public ResponseEntity<Void> joinRoom(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    userWithRoomService.joinRoom(authToken, roomId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
-  public ApiResponse<Void> leaveRoom(String token, Integer roomId) {
-    return userWithRoomService.leaveRoom(token, roomId);
+  @PostMapping("/{roomId}/leave")
+  public ResponseEntity<Void> leaveRoom(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    userWithRoomService.leaveRoom(authToken, roomId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
-  public ApiResponse<Void> deleteRoom(String token, Integer roomId) {
+  @DeleteMapping("/{roomId}")
+  public ResponseEntity<Void> deleteRoom(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId) {
+    String authToken = extractToken(token);
     if (roomId == null) {
-      return ApiResponse.error("400");
+      return ResponseEntity.badRequest().build();
     }
-    if (!tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    return roomService.deleteRoom(token, roomId);
+    roomService.deleteRoom(authToken, roomId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
-  public ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token,
-      Integer roomId, Role roleFilter) {
-    return userWithRoomService.getRoomParticipants(token, roomId, roleFilter);
+  @GetMapping("/{roomId}/participants")
+  public ResponseEntity<List<RoomParticipantResponse>> getRoomParticipants(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId,
+      @RequestParam(name = "role", required = false) Role roleFilter) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    List<RoomParticipantResponse> participants =
+        userWithRoomService.getRoomParticipants(authToken, roomId, roleFilter);
+    return ResponseEntity.ok(participants);
   }
 
   @Override
-  public ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
-      Integer userId) {
-    return userWithRoomService.verifyUserMembership(token, roomId, userId);
+  @GetMapping("/{roomId}/participants/{userId}")
+  public ResponseEntity<MembershipVerificationResponse> isUserInRoom(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @PathVariable Integer roomId,
+      @PathVariable Integer userId) {
+    String authToken = extractToken(token);
+    if (isInvalidToken(authToken)) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    MembershipVerificationResponse response =
+        userWithRoomService.verifyUserMembership(authToken, roomId, userId);
+    return ResponseEntity.ok(response);
+  }
+
+  private boolean isInvalidToken(String token) {
+    return token == null || token.isBlank() || !tokenService.isTokenActive(token);
+  }
+
+  private String extractToken(String rawToken) {
+    if (rawToken == null || rawToken.isBlank()) {
+      return null;
+    }
+    return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
   }
 }
