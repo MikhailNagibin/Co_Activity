@@ -1,5 +1,8 @@
 package com.coactivity.controller.dto.request;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +26,9 @@ public class LoginRequest {
    * during verification.
    * </p>
    */
+  @NotBlank
+  @Email
+  @Size(max = 255)
   private String login;
 
   /**
@@ -32,5 +38,7 @@ public class LoginRequest {
    * case-sensitive and verified using secure hashing algorithms.
    * </p>
    */
+  @NotBlank
+  @Size(min = 8, max = 128)
   private String password;
 }

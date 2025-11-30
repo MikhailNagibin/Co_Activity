@@ -1,5 +1,9 @@
 package com.coactivity.controller.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +27,8 @@ public class AnswerRequest {
    * Must reference an existing, active question in the system.
    * </p>
    */
+  @NotNull
+  @Positive
   private Integer questionId;
 
   /**
@@ -33,6 +39,7 @@ public class AnswerRequest {
    * answer to the main question.
    * </p>
    */
+  @Positive
   private Integer previousAnswerId;
 
   /**
@@ -42,5 +49,7 @@ public class AnswerRequest {
    * Maximum length of 2000 characters to maintain discussion quality.
    * </p>
    */
+  @NotBlank
+  @Size(max = 2000)
   private String answer;
 }

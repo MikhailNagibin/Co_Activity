@@ -1,5 +1,7 @@
 package com.coactivity.service.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.Instant;
 
 /**
@@ -8,6 +10,11 @@ import java.time.Instant;
  * @param userId    the user's unique identifier
  * @param expiresAt the token expiration timestamp
  */
-public record TokenPayload(Integer userId, Instant expiresAt) {
+public record TokenPayload(
+    @NotNull
+    @Positive
+    Integer userId,
+    @NotNull
+    Instant expiresAt) {
 
 }

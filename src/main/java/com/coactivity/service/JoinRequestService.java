@@ -10,6 +10,9 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.JoinRequestValidationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,34 +49,28 @@ public class JoinRequestService {
    */
   public ApiResponse<List<JoinRequestResponse>> getPendingRequests(Integer userId) {
     if (userId == null) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("User ID is required");
     }
 
-    try {
-      User admin = userRepository.getUserById(userId);
-      if (admin == null) {
-        return ApiResponse.error("404");
-      }
-
-      List<Room> managedRooms = admin.getRooms();
-      if (managedRooms == null || managedRooms.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<JoinRequestResponse> responses = new ArrayList<>();
-      for (Room room : managedRooms) {
-        if (room == null || room.isPublic() || !hasModerationRights(userId, room.getId())) {
-          continue;
-        }
-        collectPendingForRoom(room.getId(), responses);
-      }
-
-      return ApiResponse.success(responses);
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    User admin = userRepository.getUserById(userId);
+    if (admin == null) {
+      throw new ResourceNotFoundException("Administrator not found");
     }
+
+    List<Room> managedRooms = admin.getRooms();
+    if (managedRooms == null || managedRooms.isEmpty()) {
+      return ApiResponse.success(Collections.emptyList());
+    }
+
+    List<JoinRequestResponse> responses = new ArrayList<>();
+    for (Room room : managedRooms) {
+      if (room == null || room.isPublic() || !hasModerationRights(userId, room.getId())) {
+        continue;
+      }
+      collectPendingForRoom(room.getId(), responses);
+    }
+
+    return ApiResponse.success(responses);
   }
 
   /**
@@ -86,26 +83,20 @@ public class JoinRequestService {
   public ApiResponse<List<JoinRequestResponse>> getPendingRequestsForRoom(Integer userId,
       Integer roomId) {
     if (userId == null || roomId == null) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("User ID and Room ID are required");
     }
 
-    try {
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
-      }
-      if (!hasModerationRights(userId, roomId)) {
-        return ApiResponse.error("403");
-      }
-
-      List<JoinRequestResponse> responses = new ArrayList<>();
-      collectPendingForRoom(roomId, responses);
-      return ApiResponse.success(responses);
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found");
     }
+    if (!hasModerationRights(userId, roomId)) {
+      throw new AuthorizationException("User lacks moderation rights");
+    }
+
+    List<JoinRequestResponse> responses = new ArrayList<>();
+    collectPendingForRoom(roomId, responses);
+    return ApiResponse.success(responses);
   }
 
   /**
@@ -119,44 +110,38 @@ public class JoinRequestService {
   public ApiResponse<Void> processJoinRequest(Integer userId, Integer requestId,
       RequestStatus action) {
     if (userId == null || requestId == null || action == null) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("Missing required parameters");
     }
     if (action == RequestStatus.CONSIDERATION) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("Cannot process consideration status");
     }
 
-    try {
-      RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
-      if (request == null || request.getRoom() == null || request.getUser() == null) {
-        return ApiResponse.error("404");
-      }
-      Integer roomId = request.getRoom().getId();
-      if (!hasModerationRights(userId, roomId)) {
-        return ApiResponse.error("403");
-      }
-      if (request.getStatus() != RequestStatus.CONSIDERATION) {
-        return ApiResponse.error("409");
-      }
-
-      Integer requesterId = request.getUser().getId();
-      if (requesterId == null) {
-        return ApiResponse.error("400");
-      }
-
-      return switch (action) {
-        case ACCEPTED -> acceptRequest(requestId, roomId, requesterId);
-        case REFUSED -> {
-          roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED);
-          yield ApiResponse.success(null);
-        }
-        case REFUSED_WITH_BAN -> refuseWithBan(requestId, roomId, requesterId);
-        default -> ApiResponse.error("400");
-      };
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
+    if (request == null || request.getRoom() == null || request.getUser() == null) {
+      throw new ResourceNotFoundException("Join request not found");
     }
+    Integer roomId = request.getRoom().getId();
+    if (!hasModerationRights(userId, roomId)) {
+      throw new AuthorizationException("User lacks moderation rights");
+    }
+    if (request.getStatus() != RequestStatus.CONSIDERATION) {
+      throw new JoinRequestValidationException("Request already processed");
+    }
+
+    Integer requesterId = request.getUser().getId();
+    if (requesterId == null) {
+      throw new JoinRequestValidationException("Requester ID missing");
+    }
+
+    return switch (action) {
+      case ACCEPTED -> acceptRequest(requestId, roomId, requesterId);
+      case REFUSED -> {
+        roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED);
+        yield ApiResponse.success(null);
+      }
+      case REFUSED_WITH_BAN -> refuseWithBan(requestId, roomId, requesterId);
+      default -> throw new JoinRequestValidationException("Unsupported action");
+    };
   }
 
   /**
@@ -167,32 +152,26 @@ public class JoinRequestService {
    */
   public ApiResponse<List<JoinRequestResponse>> getSentRequests(Integer userId) {
     if (userId == null) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("User ID is required");
     }
 
-    try {
-      User requester = userRepository.getUserById(userId);
-      if (requester == null) {
-        return ApiResponse.error("404");
-      }
-
-      List<RoomsRequest> requests = roomsRequestRepository.getRequestsByUser(userId);
-      if (requests == null || requests.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<JoinRequestResponse> responses = new ArrayList<>();
-      for (RoomsRequest request : requests) {
-        if (request != null) {
-          responses.add(mapToResponse(request));
-        }
-      }
-      return ApiResponse.success(responses);
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    User requester = userRepository.getUserById(userId);
+    if (requester == null) {
+      throw new ResourceNotFoundException("User not found");
     }
+
+    List<RoomsRequest> requests = roomsRequestRepository.getRequestsByUser(userId);
+    if (requests == null || requests.isEmpty()) {
+      return ApiResponse.success(Collections.emptyList());
+    }
+
+    List<JoinRequestResponse> responses = new ArrayList<>();
+    for (RoomsRequest request : requests) {
+      if (request != null) {
+        responses.add(mapToResponse(request));
+      }
+    }
+    return ApiResponse.success(responses);
   }
 
   /**
@@ -204,28 +183,22 @@ public class JoinRequestService {
    */
   public ApiResponse<Void> cancelRequest(Integer userId, Integer requestId) {
     if (userId == null || requestId == null) {
-      return ApiResponse.error("400");
+      throw new JoinRequestValidationException("User ID and Request ID are required");
     }
 
-    try {
-      RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
-      if (request == null || request.getUser() == null) {
-        return ApiResponse.error("404");
-      }
-      if (!Objects.equals(request.getUser().getId(), userId)) {
-        return ApiResponse.error("403");
-      }
-      if (request.getStatus() != RequestStatus.CONSIDERATION) {
-        return ApiResponse.error("409");
-      }
-
-      roomsRequestRepository.deleteRequest(requestId);
-      return ApiResponse.success(null);
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
+    if (request == null || request.getUser() == null) {
+      throw new ResourceNotFoundException("Join request not found");
     }
+    if (!Objects.equals(request.getUser().getId(), userId)) {
+      throw new AuthorizationException("Cannot cancel request created by another user");
+    }
+    if (request.getStatus() != RequestStatus.CONSIDERATION) {
+      throw new JoinRequestValidationException("Only pending requests can be cancelled");
+    }
+
+    roomsRequestRepository.deleteRequest(requestId);
+    return ApiResponse.success(null);
   }
 
   private void collectPendingForRoom(Integer roomId, List<JoinRequestResponse> target) {
@@ -243,12 +216,12 @@ public class JoinRequestService {
   private ApiResponse<Void> acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      return ApiResponse.error("404");
+      throw new ResourceNotFoundException("Room not found");
     }
 
     int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
-      return ApiResponse.error("409");
+      throw new JoinRequestValidationException("Room capacity exceeded");
     }
 
     if (!roomRepository.isUserInMembers(roomId, requesterId)) {
@@ -266,13 +239,13 @@ public class JoinRequestService {
 
   private boolean hasModerationRights(Integer userId, Integer roomId) {
     if (userId == null || roomId == null) {
-      return false;
+      throw new JoinRequestValidationException("User ID and Room ID are required");
     }
     try {
       Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
       return role == Role.OWNER || role == Role.ADMIN;
     } catch (Exception e) {
-      return false;
+      throw new AuthorizationException("Unable to determine user role", e);
     }
   }
 

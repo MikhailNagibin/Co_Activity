@@ -1,6 +1,14 @@
 package com.coactivity.controller.dto.request;
 
 import java.time.Instant;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,6 +33,7 @@ public class RoomCreationRequest {
    * requiring administrator approval for joining.
    * </p>
    */
+  @NotNull
   private Boolean isPublic;
 
   /**
@@ -34,6 +43,8 @@ public class RoomCreationRequest {
    * reference an existing system category.
    * </p>
    */
+  @NotNull
+  @Positive
   private Integer categoryId;
 
   /**
@@ -43,6 +54,8 @@ public class RoomCreationRequest {
    * 100 characters and unique within the system.
    * </p>
    */
+  @NotBlank
+  @Size(min = 3, max = 100)
   private String name;
 
   /**
@@ -52,6 +65,8 @@ public class RoomCreationRequest {
    * engagement is expected. Maximum 2000 characters.
    * </p>
    */
+  @NotBlank
+  @Size(max = 2000)
   private String description;
 
   /**
@@ -61,6 +76,9 @@ public class RoomCreationRequest {
    * creator + one participant) and maximum 100,000 for system performance considerations.
    * </p>
    */
+  @NotNull
+  @Min(2)
+  @Max(100000)
   private Integer maximumNumberOfPeople;
 
   /**
@@ -71,6 +89,7 @@ public class RoomCreationRequest {
    * after joining.
    * </p>
    */
+  @Size(max = 255)
   private String chatLink;
 
   /**
@@ -80,6 +99,7 @@ public class RoomCreationRequest {
    * Can be {@code null} for ongoing rooms without specific start times.
    * </p>
    */
+  @FutureOrPresent
   private Instant dateOfStartEvent;
 
   /**
@@ -89,6 +109,7 @@ public class RoomCreationRequest {
    * Can be {@code null} for ongoing rooms without specific end times.
    * </p>
    */
+  @Future
   private Instant dateOfEndEvent;
 
   /**
@@ -108,5 +129,7 @@ public class RoomCreationRequest {
    * Used to enforce age-appropriate content and comply with platform safety policies.
    * </p>
    */
+  @Min(0)
+  @Max(21)
   private int ageRating;
 }

@@ -1,5 +1,9 @@
 package com.coactivity.controller.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +27,8 @@ public class QuestionRequest {
    * route the question to users interested in that category.
    * </p>
    */
+  @NotNull
+  @Positive
   private Integer categoryId;
 
   /**
@@ -32,5 +38,7 @@ public class QuestionRequest {
    * Maximum length of 2000 characters to ensure readability.
    * </p>
    */
+  @NotBlank
+  @Size(max = 2000)
   private String question;
 }

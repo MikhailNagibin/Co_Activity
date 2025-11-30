@@ -1,6 +1,11 @@
 package com.coactivity.controller.dto.request;
 
 import java.time.Instant;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +29,9 @@ public class UserRegistrationRequest {
    * registration.
    * </p>
    */
+  @NotBlank
+  @Email
+  @Size(max = 255)
   private String login;
 
   /**
@@ -33,6 +41,8 @@ public class UserRegistrationRequest {
    * marks. Usernames must be unique.
    * </p>
    */
+  @NotBlank
+  @Size(min = 2, max = 50)
   private String userName;
 
   /**
@@ -42,6 +52,8 @@ public class UserRegistrationRequest {
    * using secure algorithms before storage.
    * </p>
    */
+  @NotBlank
+  @Size(min = 8, max = 128)
   private String password;
 
   /**
@@ -50,6 +62,8 @@ public class UserRegistrationRequest {
    * Must be a valid past date. Used for age-appropriate content filtering and legal compliance.
    * </p>
    */
+  @NotNull
+  @Past
   private Instant dateOfBirth;
 
   /**
@@ -59,6 +73,7 @@ public class UserRegistrationRequest {
    * Maximum 100 characters.
    * </p>
    */
+  @Size(max = 100)
   private String city;
 
   /**
@@ -68,6 +83,7 @@ public class UserRegistrationRequest {
    * 100 characters.
    * </p>
    */
+  @Size(max = 100)
   private String country;
 
   /**
@@ -77,6 +93,7 @@ public class UserRegistrationRequest {
    * know. Maximum 500 characters.
    * </p>
    */
+  @Size(max = 500)
   private String description;
 
   /**

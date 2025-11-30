@@ -1,6 +1,9 @@
 package com.coactivity.controller.dto.request;
 
 import com.coactivity.domain.Category;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -65,6 +68,7 @@ public class RoomFilter {
    * </ul>
    * </p>
    */
+  @Size(max = 255)
   private String query;
 
   /**
@@ -89,6 +93,8 @@ public class RoomFilter {
    * </p>
    * <p><b>Example:</b> {@code 10} returns rooms that allow 10 or fewer participants</p>
    */
+  @Positive
+  @Max(100000)
   private Integer maxParticipants;
 
   /**
@@ -100,6 +106,7 @@ public class RoomFilter {
    * </p>
    * <p><b>Example:</b> {@code "Moscow"} matches rooms in Moscow, regardless of case</p>
    */
+  @Size(max = 100)
   private String city;
 
   /**
@@ -111,6 +118,7 @@ public class RoomFilter {
    * </p>
    * <p><b>Example:</b> {@code "Russia"} matches rooms located in Russia</p>
    */
+  @Size(max = 100)
   private String country;
 
   // Business logic methods with clear documentation

@@ -1,6 +1,9 @@
 package com.coactivity.controller.dto.request;
 
+import jakarta.validation.constraints.Positive;
 import java.time.Instant;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +27,7 @@ public class UserProfileUpdateRequest {
    * the current username is preserved.
    * </p>
    */
+  @Size(min = 2, max = 50)
   private String username;
 
   /**
@@ -33,6 +37,7 @@ public class UserProfileUpdateRequest {
    * {@code null}, the current date of birth is preserved.
    * </p>
    */
+  @Past
   private Instant dateOfBirth;
 
   /**
@@ -41,6 +46,7 @@ public class UserProfileUpdateRequest {
    * If provided, maximum 100 characters. If {@code null}, the current city is preserved.
    * </p>
    */
+  @Size(max = 100)
   private String city;
 
   /**
@@ -49,6 +55,7 @@ public class UserProfileUpdateRequest {
    * If provided, maximum 100 characters. If {@code null}, the current country is preserved.
    * </p>
    */
+  @Size(max = 100)
   private String country;
 
   /**
@@ -58,6 +65,7 @@ public class UserProfileUpdateRequest {
    * Empty string can be used to clear the description.
    * </p>
    */
+  @Size(max = 500)
   private String description;
 
   /**
