@@ -18,10 +18,13 @@ import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
 import com.coactivity.service.UserWithRoomService;
+import com.coactivity.service.exception.TokenValidationException;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,49 +58,34 @@ public class UserControllerImpl implements UserController {
   @PostMapping
   public ResponseEntity<RegistrationResponse> registerUser(
       @Valid @RequestBody UserRegistrationRequest request) {
-    try {
-      RegistrationResponse response = userService.registerUser(request);
-      URI location = response != null && response.getUserId() != null
-          ? URI.create("/api/users/" + response.getUserId())
-          : URI.create("/api/users");
-      return ResponseEntity.created(location).body(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+    RegistrationResponse response = userService.registerUser(request);
+    URI location = response != null && response.getUserId() != null
+        ? URI.create("/api/users/" + response.getUserId())
+        : URI.create("/api/users");
+    return ResponseEntity.created(location).body(response);
   }
 
   @Override
   @PostMapping("/login")
   public ResponseEntity<Void> loginUser(@Valid @RequestBody LoginRequest request) {
-    try {
-      userService.loginUser(request);
-      return ResponseEntity.ok().build();
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+    userService.loginUser(request);
+    return ResponseEntity.ok().build();
   }
 
   @Override
   @PostMapping("/login/verify")
   public ResponseEntity<LoginResponse> verifyLogin(
-      @RequestParam("login") String login,
-      @RequestParam("code") String verificationCode) {
-    try {
-      LoginResponse response = userService.verifyLogin(login, verificationCode);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+      @RequestParam("login") @NotBlank String login,
+      @RequestParam("code") @NotBlank String verificationCode) {
+    LoginResponse response = userService.verifyLogin(login, verificationCode);
+    return ResponseEntity.ok(response);
   }
 
   @Override
   @PostMapping("/logout")
   public ResponseEntity<Void> logoutUser(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+    String authToken = requireAuthorizedToken(token);
     userService.logoutUser(authToken);
     return ResponseEntity.noContent().build();
   }
@@ -106,10 +94,7 @@ public class UserControllerImpl implements UserController {
   @GetMapping("/me")
   public ResponseEntity<UserProfileResponse> getUserProfile(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+    String authToken = requireAuthorizedToken(token);
     UserProfileResponse response = userService.getUserProfile(authToken);
     return ResponseEntity.ok(response);
   }
@@ -118,17 +103,10 @@ public class UserControllerImpl implements UserController {
   @GetMapping("/{userId}")
   public ResponseEntity<UserSummaryResponse> getPublicUserProfileById(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer userId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      UserSummaryResponse response = userService.getPublicUserProfileById(authToken, userId);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+      @PathVariable @Positive Integer userId) {
+    String authToken = requireAuthorizedToken(token);
+    UserSummaryResponse response = userService.getPublicUserProfileById(authToken, userId);
+    return ResponseEntity.ok(response);
   }
 
   @Override
@@ -136,35 +114,21 @@ public class UserControllerImpl implements UserController {
   public ResponseEntity<UserProfileResponse> updateUserProfile(
       @RequestHeader(name = "Authorization", required = false) String token,
       @Valid @RequestBody UserProfileUpdateRequest request) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      UserProfileResponse response = userService.updateUserProfile(authToken, request);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+    String authToken = requireAuthorizedToken(token);
+    userService.updateUserProfile(authToken, request);
+    UserProfileResponse response = userService.getUserProfile(authToken);
+    return ResponseEntity.ok(response);
   }
 
   @Override
   @PutMapping("/me/password")
   public ResponseEntity<LoginResponse> updatePassword(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @RequestParam String currentPassword,
-      @RequestParam String newPassword) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      LoginResponse response =
-          userService.updatePassword(authToken, currentPassword, newPassword);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+      @RequestParam @NotBlank String currentPassword,
+      @RequestParam @NotBlank String newPassword) {
+    String authToken = requireAuthorizedToken(token);
+    LoginResponse response = userService.updatePassword(authToken, currentPassword, newPassword);
+    return ResponseEntity.ok(response);
   }
 
   @Override
@@ -172,27 +136,17 @@ public class UserControllerImpl implements UserController {
   public ResponseEntity<NotificationSettingsResponse> configureNotificationSettings(
       @RequestHeader(name = "Authorization", required = false) String token,
       @Valid @RequestBody NotificationSettingsRequest request) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      NotificationSettingsResponse response =
-          userService.configureNotificationSettings(authToken, request);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    }
+    String authToken = requireAuthorizedToken(token);
+    NotificationSettingsResponse response = userService.configureNotificationSettings(authToken,
+        request);
+    return ResponseEntity.ok(response);
   }
 
   @Override
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteAccount(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+    String authToken = requireAuthorizedToken(token);
     userService.deleteAccount(authToken);
     return ResponseEntity.noContent().build();
   }
@@ -201,53 +155,31 @@ public class UserControllerImpl implements UserController {
   @PostMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> assignAdminRole(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      RoleAssignmentResponse response =
-          userWithRoomService.assignAdminRole(authToken, roomId, userId);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    } catch (IllegalStateException ex) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).build();
-    }
+      @PathVariable @Positive Integer roomId,
+      @PathVariable @Positive Integer userId) {
+    Integer requesterId = resolveAuthorizedUserId(token);
+    RoleAssignmentResponse response =
+        userWithRoomService.assignAdminRole(requesterId, roomId, userId);
+    return ResponseEntity.ok(response);
   }
 
   @Override
   @DeleteMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> demoteAdminRole(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    try {
-      RoleAssignmentResponse response =
-          userWithRoomService.demoteAdminRole(authToken, roomId, userId);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    } catch (IllegalStateException ex) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).build();
-    }
+      @PathVariable @Positive Integer roomId,
+      @PathVariable @Positive Integer userId) {
+    Integer requesterId = resolveAuthorizedUserId(token);
+    RoleAssignmentResponse response =
+        userWithRoomService.demoteAdminRole(requesterId, roomId, userId);
+    return ResponseEntity.ok(response);
   }
 
   @Override
   @GetMapping("/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequests(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Integer userId = tokenService.decodeToken(authToken).userId();
+    Integer userId = resolveAuthorizedUserId(token);
     List<JoinRequestResponse> responses = joinRequestService.getPendingRequests(userId);
     return ResponseEntity.ok(responses);
   }
@@ -256,53 +188,29 @@ public class UserControllerImpl implements UserController {
   @GetMapping("/rooms/{roomId}/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequestsForRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Integer userId = tokenService.decodeToken(authToken).userId();
-    try {
-      List<JoinRequestResponse> responses = joinRequestService.getPendingRequestsForRoom(userId,
-          roomId);
-      return ResponseEntity.ok(responses);
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    } catch (SecurityException ex) {
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
+      @PathVariable @Positive Integer roomId) {
+    Integer userId = resolveAuthorizedUserId(token);
+    List<JoinRequestResponse> responses = joinRequestService.getPendingRequestsForRoom(userId,
+        roomId);
+    return ResponseEntity.ok(responses);
   }
 
   @Override
   @PostMapping("/requests/{requestId}")
   public ResponseEntity<Void> processJoinRequest(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer requestId,
-      @RequestParam("action") RequestStatus action) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Integer userId = tokenService.decodeToken(authToken).userId();
-    try {
-      joinRequestService.processJoinRequest(userId, requestId, action);
-      return ResponseEntity.noContent().build();
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    } catch (IllegalStateException ex) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).build();
-    }
+      @PathVariable @Positive Integer requestId,
+      @RequestParam("action") @NotNull RequestStatus action) {
+    Integer userId = resolveAuthorizedUserId(token);
+    joinRequestService.processJoinRequest(userId, requestId, action);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
   @GetMapping("/requests/sent")
   public ResponseEntity<List<JoinRequestResponse>> getSentRequests(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Integer userId = tokenService.decodeToken(authToken).userId();
+    Integer userId = resolveAuthorizedUserId(token);
     List<JoinRequestResponse> responses = joinRequestService.getSentRequests(userId);
     return ResponseEntity.ok(responses);
   }
@@ -311,31 +219,18 @@ public class UserControllerImpl implements UserController {
   @DeleteMapping("/requests/{requestId}")
   public ResponseEntity<Void> cancelRequest(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer requestId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Integer userId = tokenService.decodeToken(authToken).userId();
-    try {
-      joinRequestService.cancelRequest(userId, requestId);
-      return ResponseEntity.noContent().build();
-    } catch (IllegalArgumentException ex) {
-      return ResponseEntity.badRequest().build();
-    } catch (IllegalStateException ex) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).build();
-    }
+      @PathVariable @Positive Integer requestId) {
+    Integer userId = resolveAuthorizedUserId(token);
+    joinRequestService.cancelRequest(userId, requestId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
   @GetMapping("/banned-rooms")
   public ResponseEntity<List<RoomSummaryResponse>> getBanRooms(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    List<RoomSummaryResponse> rooms = userWithRoomService.getBanRooms(authToken);
+    Integer userId = resolveAuthorizedUserId(token);
+    List<RoomSummaryResponse> rooms = userWithRoomService.getBanRooms(userId);
     return ResponseEntity.ok(rooms);
   }
 
@@ -343,17 +238,26 @@ public class UserControllerImpl implements UserController {
   @GetMapping("/rooms/{roomId}/membership")
   public ResponseEntity<Boolean> isUserInRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Boolean result = userWithRoomService.isUserInRoom(authToken, roomId);
+      @PathVariable @Positive Integer roomId) {
+    Integer userId = resolveAuthorizedUserId(token);
+    Boolean result = userWithRoomService.isUserInRoom(userId, roomId);
     return ResponseEntity.ok(result);
   }
 
-  private boolean isInvalidToken(String token) {
-    return token == null || token.isBlank() || !tokenService.isTokenActive(token);
+  private String requireAuthorizedToken(String rawToken) {
+    String token = extractToken(rawToken);
+    if (token == null || token.isBlank()) {
+      throw new TokenValidationException("Authorization token is required");
+    }
+    if (!tokenService.isTokenActive(token)) {
+      throw new TokenValidationException("Token is inactive or expired");
+    }
+    return token;
+  }
+
+  private Integer resolveAuthorizedUserId(String tokenHeader) {
+    String token = requireAuthorizedToken(tokenHeader);
+    return tokenService.decodeToken(token).userId();
   }
 
   private String extractToken(String rawToken) {

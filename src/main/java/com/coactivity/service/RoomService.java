@@ -3,19 +3,21 @@ package com.coactivity.service;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
-import com.coactivity.domain.Room;
 import com.coactivity.domain.Role;
+import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.PictureRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,158 +30,137 @@ import org.springframework.stereotype.Service;
 public class RoomService {
 
   private final RoomRepositoryImpl roomRepository;
-  private final TokenService tokenService;
   private final PictureRepositoryImpl pictureRepository;
   private final BulletinBoardRepositoryImpl bulletinBoardRepository;
 
   public RoomService(RoomRepositoryImpl roomRepository,
-      TokenService tokenService,
       PictureRepositoryImpl pictureRepository,
       BulletinBoardRepositoryImpl bulletinBoardRepository) {
     this.roomRepository = roomRepository;
-    this.tokenService = tokenService;
     this.pictureRepository = pictureRepository;
     this.bulletinBoardRepository = bulletinBoardRepository;
   }
 
   /**
-   * Creates a new room and assigns the token owner as the room OWNER.
+   * Creates a new room and assigns the provided user as the room OWNER.
    */
-  public ApiResponse<RoomCreationResponse> createRoom(String token, RoomCreationRequest request) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+  public RoomCreationResponse createRoom(Integer ownerId, RoomCreationRequest request) {
+    if (ownerId == null) {
+      throw new ValidationException("Owner id is required");
+    }
+    validateRoomCreationRequest(request);
+
+    Room createdRoom = roomRepository.createRoom(ownerId, request);
+    if (createdRoom == null) {
+      throw new ResourceNotFoundException("Room could not be created");
     }
 
-    if (request == null
-        || request.getName() == null || request.getName().trim().isEmpty()
-        || request.getCategoryId() == null
-        || request.getMaximumNumberOfPeople() == null) {
-      return ApiResponse.error("400");
-    }
-
-    try {
-      Integer ownerId = tokenService.decodeToken(token).userId();
-      Room createdRoom = roomRepository.createRoom(ownerId, request);
-      if (createdRoom == null) {
-        return ApiResponse.error("500");
-      }
-
-      RoomCreationResponse response =
-          new RoomCreationResponse(createdRoom.getId(), createdRoom.getName(),
-              createdRoom.getCategory());
-      return ApiResponse.success(response);
-    } catch (IllegalArgumentException e) {
-      return ApiResponse.error("400");
-    } catch (Exception e) {
-      return ApiResponse.error("500");
-    }
+    return new RoomCreationResponse(createdRoom.getId(), createdRoom.getName(),
+        createdRoom.getCategory());
   }
 
   /**
    * Public room listing with basic filtering and sorting.
    * <p>
-   * If a token is provided, the response annotates whether the current user participates
-   * in each room.
+   * If a token is provided, the response annotates whether the current user participates in each
+   * room.
    * </p>
    */
-  public ApiResponse<List<RoomSummaryResponse>> getRooms(String token, RoomFilter filter,
+  public List<RoomSummaryResponse> getRooms(Integer currentUserId, RoomFilter filter,
       RoomSort sortBy) {
-    try {
-      final Integer currentUserId =
-          (token != null && tokenService.isTokenActive(token))
-              ? tokenService.decodeToken(token).userId()
-              : null;
-
-      List<Room> rooms = roomRepository.getAllRooms();
-      if (rooms.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<RoomSummaryResponse> responses = rooms.stream()
-          .filter(room -> filter == null || matchesFilter(room, filter))
-          .sorted(buildComparator(sortBy))
-          .map(room -> mapRoomToSummaryResponse(room,
-              currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
-          .collect(Collectors.toList());
-
-      return ApiResponse.success(responses);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    List<Room> rooms = roomRepository.getAllRooms();
+    if (rooms.isEmpty()) {
+      return Collections.emptyList();
     }
+
+    return rooms.stream()
+        .filter(room -> filter == null || matchesFilter(room, filter))
+        .sorted(buildComparator(sortBy))
+        .map(room -> mapRoomToSummaryResponse(room,
+            currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
+        .collect(Collectors.toList());
   }
 
   /**
    * Returns detailed information about a room. Protected fields (chat link, bulletin board) are
    * only included when the user is an authenticated participant of the room.
    */
-  public ApiResponse<RoomDetailedResponse> getRoomById(Integer roomId, String token) {
+  public RoomDetailedResponse getRoomById(Integer roomId, Integer currentUserId) {
     if (roomId == null) {
-      return ApiResponse.error("400");
+      throw new ValidationException("Room id is required");
     }
 
-    try {
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
+    Room room = getExistingRoom(roomId);
+    boolean hasProtectedAccess = currentUserId != null &&
+        roomRepository.isUserInMembers(roomId, currentUserId);
+
+    RoomSummaryResponse summary =
+        mapRoomToSummaryResponse(room, hasProtectedAccess ? Boolean.TRUE : null);
+
+    BulletinBoardResponse bulletinDto = null;
+    if (hasProtectedAccess) {
+      BulletinBoard board = bulletinBoardRepository.getBulletinBoard(roomId);
+      if (board != null) {
+        bulletinDto = mapBulletinBoardToResponse(board);
       }
+    }
 
-      Integer currentUserId = null;
-      boolean hasProtectedAccess = false;
-      Boolean isCurrentUserParticipant = null;
+    RoomDetailedResponse detailed = new RoomDetailedResponse();
+    detailed.setId(summary.getId());
+    detailed.setActive(summary.isActive());
+    detailed.setIsPublic(summary.getIsPublic());
+    detailed.setCategory(summary.getCategory());
+    detailed.setName(summary.getName());
+    detailed.setDescription(summary.getDescription());
+    detailed.setDateOfStartEvent(summary.getDateOfStartEvent());
+    detailed.setDateOfEndEvent(summary.getDateOfEndEvent());
+    detailed.setAgeRating(summary.getAgeRating());
+    detailed.setFrequency(summary.getFrequency());
+    detailed.setParticipantCount(summary.getParticipantCount());
+    detailed.setMaximumParticipants(summary.getMaximumParticipants());
+    detailed.setCreator(summary.getCreator());
+    detailed.setIsCurrentUserParticipant(summary.getIsCurrentUserParticipant());
+    detailed.setImageIds(summary.getImageIds());
+    detailed.setHasProtectedAccess(hasProtectedAccess);
+    detailed.setChatLink(hasProtectedAccess ? room.getChatLink() : null);
+    detailed.setBulletinBoard(bulletinDto);
+    return detailed;
+  }
 
-      if (token != null && tokenService.isTokenActive(token)) {
-        currentUserId = tokenService.decodeToken(token).userId();
-        hasProtectedAccess = roomRepository.isUserInMembers(roomId, currentUserId);
-        isCurrentUserParticipant = hasProtectedAccess;
-      }
+  public void deleteRoom(Integer requesterId, Integer roomId) {
+    if (requesterId == null || roomId == null) {
+      throw new ValidationException("Requester id and room id are required");
+    }
+    getExistingRoom(roomId);
 
-      RoomSummaryResponse summary =
-          mapRoomToSummaryResponse(room, isCurrentUserParticipant);
+    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
+    if (requesterRole != Role.OWNER) {
+      throw new AuthorizationException("Only owners can delete rooms");
+    }
+    roomRepository.deleteRoom(roomId);
+  }
 
-      BulletinBoardResponse bulletinDto = null;
-      if (hasProtectedAccess) {
-        BulletinBoard board = bulletinBoardRepository.getBulletinBoard(roomId);
-        if (board != null) {
-          bulletinDto = mapBulletinBoardToResponse(board);
-        }
-      }
-
-      RoomDetailedResponse detailed = new RoomDetailedResponse();
-      detailed.setId(summary.getId());
-      detailed.setActive(summary.isActive());
-      detailed.setIsPublic(summary.getIsPublic());
-      detailed.setCategory(summary.getCategory());
-      detailed.setName(summary.getName());
-      detailed.setDescription(summary.getDescription());
-      detailed.setDateOfStartEvent(summary.getDateOfStartEvent());
-      detailed.setDateOfEndEvent(summary.getDateOfEndEvent());
-      detailed.setAgeRating(summary.getAgeRating());
-      detailed.setFrequency(summary.getFrequency());
-      detailed.setParticipantCount(summary.getParticipantCount());
-      detailed.setMaximumParticipants(summary.getMaximumParticipants());
-      detailed.setCreator(summary.getCreator());
-      detailed.setIsCurrentUserParticipant(summary.getIsCurrentUserParticipant());
-      detailed.setImageIds(summary.getImageIds());
-
-      detailed.setHasProtectedAccess(hasProtectedAccess);
-      detailed.setChatLink(hasProtectedAccess ? room.getChatLink() : null);
-      detailed.setBulletinBoard(bulletinDto);
-
-      return ApiResponse.success(detailed);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+  private void validateRoomCreationRequest(RoomCreationRequest request) {
+    if (request == null) {
+      throw new ValidationException("Room creation request is required");
+    }
+    if (request.getName() == null || request.getName().trim().isEmpty()) {
+      throw new ValidationException("Room name cannot be empty");
+    }
+    if (request.getCategoryId() == null) {
+      throw new ValidationException("Category id is required");
+    }
+    if (request.getMaximumNumberOfPeople() == null) {
+      throw new ValidationException("Maximum number of people is required");
     }
   }
 
-  public ApiResponse<Void> deleteRoom(String token, Integer roomId) {
-    if (roomRepository.getUserRoleByRoomId(roomId, tokenService.decodeToken(token).userId())
-        .equals(
-            Role.OWNER)) {
-      roomRepository.deleteRoom(roomId);
-      return ApiResponse.success(null);
-    } else {
-      return ApiResponse.error("401");
+  private Room getExistingRoom(Integer roomId) {
+    Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found: " + roomId);
     }
+    return room;
   }
 
   private boolean matchesFilter(Room room, RoomFilter filter) {
@@ -200,9 +181,7 @@ public class RoomService {
       String query = filter.getQuery().trim().toLowerCase();
       String name = room.getName() != null ? room.getName().toLowerCase() : "";
       String description = room.getDescription() != null ? room.getDescription().toLowerCase() : "";
-      if (!name.contains(query) && !description.contains(query)) {
-        return false;
-      }
+      return name.contains(query) || description.contains(query);
     }
     // Room entity does not contain city/country fields, so these filters are ignored for now.
     return true;
@@ -211,18 +190,16 @@ public class RoomService {
   private Comparator<Room> buildComparator(RoomSort sortBy) {
     RoomSort effectiveSort = sortBy != null ? sortBy : RoomSort.NEWEST;
     return switch (effectiveSort) {
-      case POPULAR ->
-          Comparator.comparingInt((Room room) -> room.getUsers() != null ? room.getUsers().size() : 0)
-              .reversed();
+      case POPULAR -> Comparator.comparingInt(
+              (Room room) -> room.getUsers() != null ? room.getUsers().size() : 0)
+          .reversed();
       case NAME ->
           Comparator.comparing(room -> room.getName() != null ? room.getName().toLowerCase() : "",
               Comparator.naturalOrder());
-      case UPCOMING ->
-          Comparator.comparing(Room::getDateOfStartEvent,
-              Comparator.nullsLast(Comparator.naturalOrder()));
-      case NEWEST ->
-          Comparator.comparing(Room::getId,
-              Comparator.nullsLast(Comparator.reverseOrder()));
+      case UPCOMING -> Comparator.comparing(Room::getDateOfStartEvent,
+          Comparator.nullsLast(Comparator.naturalOrder()));
+      case NEWEST -> Comparator.comparing(Room::getId,
+          Comparator.nullsLast(Comparator.reverseOrder()));
     };
   }
 
@@ -252,13 +229,12 @@ public class RoomService {
 
     response.setIsCurrentUserParticipant(isCurrentUserParticipant);
 
-    // Map picture IDs
     List<Integer> imageIds = new ArrayList<>();
     try {
       pictureRepository.getRoomPictures(room.getId())
           .forEach(p -> imageIds.add(p.getPhotoId()));
     } catch (Exception e) {
-      // If pictures cannot be loaded, we simply leave the list empty
+      // If pictures cannot be loaded, leave empty list
     }
     response.setImageIds(imageIds);
 

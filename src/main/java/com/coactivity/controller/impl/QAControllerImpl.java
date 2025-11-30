@@ -8,8 +8,10 @@ import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.service.QAService;
 import com.coactivity.service.TokenService;
-import java.util.List;
+import com.coactivity.service.exception.TokenValidationException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,78 +27,65 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/qa")
 public class QAControllerImpl implements QAController {
 
-    private final QAService qaService;
-    private final TokenService tokenService;
+  private final QAService qaService;
+  private final TokenService tokenService;
 
-    public QAControllerImpl(QAService qaService, TokenService tokenService) {
-        this.qaService = qaService;
-        this.tokenService = tokenService;
-    }
+  public QAControllerImpl(QAService qaService, TokenService tokenService) {
+    this.qaService = qaService;
+    this.tokenService = tokenService;
+  }
 
-    @Override
-    @PostMapping("/questions")
-    public ResponseEntity<QuestionResponse> askQuestion(
-        @RequestHeader(name = "Authorization", required = false) String token,
-        @Valid @RequestBody QuestionRequest request) {
-        String authToken = extractToken(token);
-        if (isInvalidToken(authToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        try {
-            Integer userId = tokenService.decodeToken(authToken).userId();
-            QuestionResponse response = qaService.askQuestion(userId, request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+  @Override
+  @PostMapping("/questions")
+  public ResponseEntity<QuestionResponse> askQuestion(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @Valid @RequestBody QuestionRequest request) {
+    Integer userId = resolveAuthorizedUserId(token);
+    QuestionResponse response = qaService.askQuestion(userId, request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
 
-    @Override
-    @PostMapping("/answers")
-    public ResponseEntity<AnswerResponse> answerQuestion(
-        @RequestHeader(name = "Authorization", required = false) String token,
-        @Valid @RequestBody AnswerRequest request) {
-        String authToken = extractToken(token);
-        if (isInvalidToken(authToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        try {
-            Integer userId = tokenService.decodeToken(authToken).userId();
-            AnswerResponse response = qaService.answerQuestion(userId, request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+  @Override
+  @PostMapping("/answers")
+  public ResponseEntity<AnswerResponse> answerQuestion(
+      @RequestHeader(name = "Authorization", required = false) String token,
+      @Valid @RequestBody AnswerRequest request) {
+    Integer userId = resolveAuthorizedUserId(token);
+    AnswerResponse response = qaService.answerQuestion(userId, request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
 
-    @Override
-    @GetMapping("/questions")
-    public ResponseEntity<List<QuestionResponse>> getQuestions(
-        @RequestParam(name = "categoryId", required = false) Integer categoryId) {
-        List<QuestionResponse> responses = qaService.getQuestions(categoryId);
-        return ResponseEntity.ok(responses);
-    }
+  @Override
+  @GetMapping("/questions/category")
+  public ResponseEntity<List<QuestionResponse>> getQuestions(
+            @RequestParam(name = "categoryId", required = false) Integer categoryId) {
+    List<QuestionResponse> responses = qaService.getQuestions(categoryId);
+    return ResponseEntity.ok(responses);
+  }
 
-    @Override
-    @GetMapping("/questions/{questionId}")
-    public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
-        @PathVariable Integer questionId) {
-        try {
-            QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
+  @Override
+  @GetMapping("/questions/{questionId}")
+  public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
+      @PathVariable @Positive Integer questionId) {
+    QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
+    return ResponseEntity.ok(response);
+  }
 
-    private boolean isInvalidToken(String token) {
-        return token == null || token.isBlank() || !tokenService.isTokenActive(token);
+  private Integer resolveAuthorizedUserId(String tokenHeader) {
+    String authToken = extractToken(tokenHeader);
+    if (authToken == null || authToken.isBlank()) {
+      throw new TokenValidationException("Authorization token is required");
     }
+    if (!tokenService.isTokenActive(authToken)) {
+      throw new TokenValidationException("Token is inactive or expired");
+    }
+    return tokenService.decodeToken(authToken).userId();
+  }
 
-    private String extractToken(String rawToken) {
-        if (rawToken == null || rawToken.isBlank()) {
-            return null;
-        }
-        return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
+  private String extractToken(String rawToken) {
+    if (rawToken == null || rawToken.isBlank()) {
+      return null;
     }
+    return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
+  }
 }

@@ -141,8 +141,9 @@ public interface RoomController {
    * in these rooms.</p>
    *
    * @param token valid JWT token of the authenticated user
-   * @return {@link ResponseEntity} containing list of {@link RoomDetailedResponse} with complete room
-   * information including protected content for all rooms where the user has active participation
+   * @return {@link ResponseEntity} containing list of {@link RoomDetailedResponse} with complete
+   * room information including protected content for all rooms where the user has active
+   * participation
    * @throws SecurityException if authentication token is invalid or expired
    * @see RoomDetailedResponse
    * @see #getRooms(String, RoomFilter, RoomSort)
@@ -244,8 +245,8 @@ public interface RoomController {
    * @param token  valid JWT token of a user with room administration privileges
    * @param roomId unique identifier of the room to check
    * @param userId unique identifier of the user to verify membership for
-   * @return {@link ResponseEntity} containing {@link MembershipVerificationResponse} with verification
-   * results and role information, or indicates the user is not a participant
+   * @return {@link ResponseEntity} containing {@link MembershipVerificationResponse} with
+   * verification results and role information, or indicates the user is not a participant
    * @throws SecurityException        if user lacks administrative privileges for the room
    * @throws IllegalArgumentException if the room or target user doesn't exist
    */

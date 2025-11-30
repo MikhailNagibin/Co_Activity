@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
@@ -9,6 +8,8 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,43 +30,73 @@ public class BulletinBoardService {
   /**
    * Updates the bulletin board content for a specific room.
    * <p>
-   * This method retrieves the room and user based on the provided IDs, creates a new BulletinBoard
-   * entity with the updated content, persists it via the repository, and returns a response DTO.
+   * Validates the inputs, ensures both room and author exist, persists the new content, and returns
+   * a DTO representation. Domain errors propagate as custom exceptions handled by the global
+   * exception handler.
    * </p>
    *
-   * @param roomId   The unique identifier of the room whose bulletin board is to be updated.
-   * @param content  The new content for the bulletin board.
-   * @param authorId The unique identifier of the user updating the bulletin board.
-   * @return ApiResponse containing the updated BulletinBoardResponse DTO, or an error response if
-   * the room/user does not exist or update fails.
+   * @param roomId   unique identifier of the room whose bulletin board is updated
+   * @param content  the new bulletin text
+   * @param authorId identifier of the user performing the update
+   * @return {@link BulletinBoardResponse} describing the updated bulletin board
    */
-  public ApiResponse<BulletinBoardResponse> updateBulletinBoard(Integer roomId, String content,
+  public BulletinBoardResponse updateBulletinBoard(Integer roomId, String content,
       Integer authorId) {
-    // Validate input parameters
-    if (roomId == null || content == null || authorId == null) {
-      return ApiResponse.error("400"); // Bad request if any required parameter is missing
+    if (roomId == null) {
+      throw new ValidationException("Room id is required");
+    }
+    if (authorId == null) {
+      throw new ValidationException("Author id is required");
+    }
+    if (content == null || content.trim().isEmpty()) {
+      throw new ValidationException("Bulletin content cannot be empty");
     }
 
-    Room room = roomRepository.getRoomById(roomId);
-    User author = userRepository.getUserById(authorId);
+    User author = getExistingUser(authorId);
 
-    // Check if room and user exist
-    if (room == null || author == null) {
-      return ApiResponse.error("404"); // Not found if room or user doesn't exist
-    }
 
-    BulletinBoard updatedDomainBoard = bulletinBoardRepository.updateBulletinBoard(roomId, content,
+    // Validate room existence before proceeding
+    getExistingRoom(roomId);    BulletinBoard updatedDomainBoard = bulletinBoardRepository.updateBulletinBoard(roomId, content,
         authorId);
-
-    // Check if the repository operation was successful (it should return a non-null entity on success)
     if (updatedDomainBoard == null) {
-      return ApiResponse.error("500"); // Internal server error if update failed internally
+      throw new ResourceNotFoundException("Failed to update bulletin board for room " + roomId);
     }
 
     BulletinBoardResponse responseDto = new BulletinBoardResponse();
     responseDto.setId(updatedDomainBoard.getId());
     responseDto.setContent(updatedDomainBoard.getContent());
+    responseDto.setAuthor(mapUserToSummaryResponse(author));
+    responseDto.setUpdatedAt(updatedDomainBoard.getUpdatedAt());
+    return responseDto;
+  }
 
+  public void deleteBulletinBoard(Integer roomId) {
+    if (roomId == null) {
+      throw new ValidationException("Room id is required");
+    }
+    if (!bulletinBoardRepository.isBulletinBoardExists(roomId)) {
+      throw new ResourceNotFoundException("Bulletin board not found for room " + roomId);
+    }
+    bulletinBoardRepository.deleteBulletinBoard(roomId);
+  }
+
+  private Room getExistingRoom(Integer roomId) {
+    Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found: " + roomId);
+    }
+    return room;
+  }
+
+  private User getExistingUser(Integer userId) {
+    User user = userRepository.getUserById(userId);
+    if (user == null) {
+      throw new ResourceNotFoundException("User not found: " + userId);
+    }
+    return user;
+  }
+
+  private UserSummaryResponse mapUserToSummaryResponse(User author) {
     UserSummaryResponse authorSummary = new UserSummaryResponse();
     authorSummary.setId(author.getId());
     authorSummary.setUserName(author.getUserName());
@@ -74,27 +105,6 @@ public class BulletinBoardService {
     authorSummary.setCountry(author.getCountry());
     authorSummary.setDescription(author.getDescription());
     authorSummary.setAvatarId(author.getAvatarId());
-
-    responseDto.setAuthor(authorSummary);
-    responseDto.setUpdatedAt(updatedDomainBoard.getUpdatedAt());
-
-    return ApiResponse.success(responseDto);
-  }
-
-  public ApiResponse<Void> deleteBulletinBoard(Integer roomId) {
-    if (roomId == null) {
-      return ApiResponse.error("400");
-    }
-
-    try {
-      if (!bulletinBoardRepository.isBulletinBoardExists(roomId)) {
-        return ApiResponse.error("404");
-      }
-      bulletinBoardRepository.deleteBulletinBoard(roomId);
-      return ApiResponse.success(null);
-    } catch (Exception e) {
-      System.err.println(e.getMessage());
-      return ApiResponse.error("500");
-    }
+    return authorSummary;
   }
 }

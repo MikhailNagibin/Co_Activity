@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
@@ -11,8 +10,8 @@ import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.exception.AuthorizationException;
-import com.coactivity.service.exception.JoinRequestValidationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,32 +44,29 @@ public class JoinRequestService {
    * Lists pending join requests across every private room moderated by the given user.
    *
    * @param userId administrator identifier
-   * @return {@link ApiResponse} containing pending requests or an error status
+   * @return pending requests for all moderated rooms
    */
-  public ApiResponse<List<JoinRequestResponse>> getPendingRequests(Integer userId) {
-    if (userId == null) {
-      throw new JoinRequestValidationException("User ID is required");
-    }
-
-    User admin = userRepository.getUserById(userId);
-    if (admin == null) {
-      throw new ResourceNotFoundException("Administrator not found");
-    }
+  public List<JoinRequestResponse> getPendingRequests(Integer userId) {
+    Integer adminId = requireUserId(userId);
+    User admin = getExistingUser(adminId);
 
     List<Room> managedRooms = admin.getRooms();
     if (managedRooms == null || managedRooms.isEmpty()) {
-      return ApiResponse.success(Collections.emptyList());
+      return Collections.emptyList();
     }
 
     List<JoinRequestResponse> responses = new ArrayList<>();
     for (Room room : managedRooms) {
-      if (room == null || room.isPublic() || !hasModerationRights(userId, room.getId())) {
+      if (room == null || room.isPublic()) {
+        continue;
+      }
+      if (!hasModerationRights(adminId, room.getId())) {
         continue;
       }
       collectPendingForRoom(room.getId(), responses);
     }
 
-    return ApiResponse.success(responses);
+    return responses;
   }
 
   /**
@@ -78,25 +74,17 @@ public class JoinRequestService {
    *
    * @param userId moderator identifier
    * @param roomId room identifier
-   * @return {@link ApiResponse} with pending requests or an error status
+   * @return pending requests for the room
    */
-  public ApiResponse<List<JoinRequestResponse>> getPendingRequestsForRoom(Integer userId,
+  public List<JoinRequestResponse> getPendingRequestsForRoom(Integer userId,
       Integer roomId) {
-    if (userId == null || roomId == null) {
-      throw new JoinRequestValidationException("User ID and Room ID are required");
-    }
-
-    Room room = roomRepository.getRoomById(roomId);
-    if (room == null) {
-      throw new ResourceNotFoundException("Room not found");
-    }
-    if (!hasModerationRights(userId, roomId)) {
-      throw new AuthorizationException("User lacks moderation rights");
-    }
+    Integer moderatorId = requireUserId(userId);
+    Room room = getExistingRoom(roomId);
+    ensureModerationRights(moderatorId, room.getId());
 
     List<JoinRequestResponse> responses = new ArrayList<>();
-    collectPendingForRoom(roomId, responses);
-    return ApiResponse.success(responses);
+    collectPendingForRoom(room.getId(), responses);
+    return responses;
   }
 
   /**
@@ -105,64 +93,43 @@ public class JoinRequestService {
    * @param userId    moderator identifier
    * @param requestId join request identifier
    * @param action    desired outcome
-   * @return empty {@link ApiResponse} confirming success or failure
    */
-  public ApiResponse<Void> processJoinRequest(Integer userId, Integer requestId,
+  public void processJoinRequest(Integer userId, Integer requestId,
       RequestStatus action) {
-    if (userId == null || requestId == null || action == null) {
-      throw new JoinRequestValidationException("Missing required parameters");
-    }
-    if (action == RequestStatus.CONSIDERATION) {
-      throw new JoinRequestValidationException("Cannot process consideration status");
-    }
+    Integer moderatorId = requireUserId(userId);
+    Integer effectiveRequestId = requireRequestId(requestId);
+    RequestStatus effectiveAction = requireAction(action);
 
-    RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
-    if (request == null || request.getRoom() == null || request.getUser() == null) {
-      throw new ResourceNotFoundException("Join request not found");
-    }
+    RoomsRequest request = getExistingRequest(effectiveRequestId);
+    ensurePending(request);
+
     Integer roomId = request.getRoom().getId();
-    if (!hasModerationRights(userId, roomId)) {
-      throw new AuthorizationException("User lacks moderation rights");
-    }
-    if (request.getStatus() != RequestStatus.CONSIDERATION) {
-      throw new JoinRequestValidationException("Request already processed");
-    }
+    ensureModerationRights(moderatorId, roomId);
 
     Integer requesterId = request.getUser().getId();
-    if (requesterId == null) {
-      throw new JoinRequestValidationException("Requester ID missing");
-    }
 
-    return switch (action) {
-      case ACCEPTED -> acceptRequest(requestId, roomId, requesterId);
-      case REFUSED -> {
-        roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED);
-        yield ApiResponse.success(null);
-      }
-      case REFUSED_WITH_BAN -> refuseWithBan(requestId, roomId, requesterId);
-      default -> throw new JoinRequestValidationException("Unsupported action");
-    };
+    switch (effectiveAction) {
+      case ACCEPTED -> acceptRequest(effectiveRequestId, roomId, requesterId);
+      case REFUSED -> roomsRequestRepository.updateRequest(effectiveRequestId,
+          RequestStatus.REFUSED);
+      case REFUSED_WITH_BAN -> refuseWithBan(effectiveRequestId, roomId, requesterId);
+      default -> throw new ValidationException("Unsupported join request action");
+    }
   }
 
   /**
    * Returns all join requests created by the specified user.
    *
    * @param userId requester identifier
-   * @return {@link ApiResponse} with the request history
+   * @return request history for the user
    */
-  public ApiResponse<List<JoinRequestResponse>> getSentRequests(Integer userId) {
-    if (userId == null) {
-      throw new JoinRequestValidationException("User ID is required");
-    }
+  public List<JoinRequestResponse> getSentRequests(Integer userId) {
+    Integer requesterId = requireUserId(userId);
+    getExistingUser(requesterId);
 
-    User requester = userRepository.getUserById(userId);
-    if (requester == null) {
-      throw new ResourceNotFoundException("User not found");
-    }
-
-    List<RoomsRequest> requests = roomsRequestRepository.getRequestsByUser(userId);
+    List<RoomsRequest> requests = roomsRequestRepository.getRequestsByUser(requesterId);
     if (requests == null || requests.isEmpty()) {
-      return ApiResponse.success(Collections.emptyList());
+      return Collections.emptyList();
     }
 
     List<JoinRequestResponse> responses = new ArrayList<>();
@@ -171,7 +138,7 @@ public class JoinRequestService {
         responses.add(mapToResponse(request));
       }
     }
-    return ApiResponse.success(responses);
+    return responses;
   }
 
   /**
@@ -179,26 +146,18 @@ public class JoinRequestService {
    *
    * @param userId    requester identifier
    * @param requestId join request identifier
-   * @return empty {@link ApiResponse} indicating the outcome
    */
-  public ApiResponse<Void> cancelRequest(Integer userId, Integer requestId) {
-    if (userId == null || requestId == null) {
-      throw new JoinRequestValidationException("User ID and Request ID are required");
-    }
+  public void cancelRequest(Integer userId, Integer requestId) {
+    Integer requesterId = requireUserId(userId);
+    Integer effectiveRequestId = requireRequestId(requestId);
 
-    RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
-    if (request == null || request.getUser() == null) {
-      throw new ResourceNotFoundException("Join request not found");
-    }
-    if (!Objects.equals(request.getUser().getId(), userId)) {
+    RoomsRequest request = getExistingRequest(effectiveRequestId);
+    if (!Objects.equals(request.getUser().getId(), requesterId)) {
       throw new AuthorizationException("Cannot cancel request created by another user");
     }
-    if (request.getStatus() != RequestStatus.CONSIDERATION) {
-      throw new JoinRequestValidationException("Only pending requests can be cancelled");
-    }
+    ensurePending(request);
 
-    roomsRequestRepository.deleteRequest(requestId);
-    return ApiResponse.success(null);
+    roomsRequestRepository.deleteRequest(effectiveRequestId);
   }
 
   private void collectPendingForRoom(Integer roomId, List<JoinRequestResponse> target) {
@@ -213,39 +172,98 @@ public class JoinRequestService {
     }
   }
 
-  private ApiResponse<Void> acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
-    Room room = roomRepository.getRoomById(roomId);
-    if (room == null) {
-      throw new ResourceNotFoundException("Room not found");
-    }
+  private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
+    Room room = getExistingRoom(roomId);
 
     int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
-      throw new JoinRequestValidationException("Room capacity exceeded");
+      throw new ValidationException("Room capacity exceeded");
     }
 
     if (!roomRepository.isUserInMembers(roomId, requesterId)) {
       roomRepository.addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
     }
     roomsRequestRepository.updateRequest(requestId, RequestStatus.ACCEPTED);
-    return ApiResponse.success(null);
   }
 
-  private ApiResponse<Void> refuseWithBan(Integer requestId, Integer roomId, Integer requesterId) {
+  private void refuseWithBan(Integer requestId, Integer roomId, Integer requesterId) {
     roomRepository.addUserBan(roomId, requesterId);
     roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
-    return ApiResponse.success(null);
   }
 
+  /**
+   * Returns true if the user has moderation rights (OWNER or ADMIN) in the room. Never throws;
+   * returns false if the role cannot be determined.
+   */
   private boolean hasModerationRights(Integer userId, Integer roomId) {
-    if (userId == null || roomId == null) {
-      throw new JoinRequestValidationException("User ID and Room ID are required");
-    }
     try {
       Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
       return role == Role.OWNER || role == Role.ADMIN;
     } catch (Exception e) {
-      throw new AuthorizationException("Unable to determine user role", e);
+      return false;
+    }
+  }
+
+  private void ensureModerationRights(Integer userId, Integer roomId) {
+    if (!hasModerationRights(userId, roomId)) {
+      throw new AuthorizationException("User lacks moderation rights");
+    }
+  }
+
+  private Integer requireUserId(Integer userId) {
+    if (userId == null) {
+      throw new ValidationException("User ID is required");
+    }
+    return userId;
+  }
+
+  private Integer requireRequestId(Integer requestId) {
+    if (requestId == null) {
+      throw new ValidationException("Request ID is required");
+    }
+    return requestId;
+  }
+
+  private RequestStatus requireAction(RequestStatus action) {
+    if (action == null) {
+      throw new ValidationException("Action is required");
+    }
+    if (action == RequestStatus.CONSIDERATION) {
+      throw new ValidationException("Cannot process consideration status");
+    }
+    return action;
+  }
+
+  private User getExistingUser(Integer userId) {
+    User user = userRepository.getUserById(userId);
+    if (user == null) {
+      throw new ResourceNotFoundException("User not found");
+    }
+    return user;
+  }
+
+  private Room getExistingRoom(Integer roomId) {
+    if (roomId == null) {
+      throw new ValidationException("Room ID is required");
+    }
+    Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found");
+    }
+    return room;
+  }
+
+  private RoomsRequest getExistingRequest(Integer requestId) {
+    RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
+    if (request == null || request.getRoom() == null || request.getUser() == null) {
+      throw new ResourceNotFoundException("Join request not found");
+    }
+    return request;
+  }
+
+  private void ensurePending(RoomsRequest request) {
+    if (request.getStatus() != RequestStatus.CONSIDERATION) {
+      throw new ValidationException("Join request already processed");
     }
   }
 

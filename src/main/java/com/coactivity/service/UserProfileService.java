@@ -4,8 +4,8 @@ import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
+import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
@@ -13,6 +13,10 @@ import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.dto.PendingVerification;
+import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.TokenValidationException;
+import com.coactivity.service.exception.ValidationException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,9 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
-
-// TODO: странные возвращаемые значение. Надо больше смысла. Касается всех методов.
-//  Имею ввиду ApiResponse.success(null)
 
 /**
  * Handles user profile operations including registration, profile management, and account
@@ -46,34 +47,36 @@ public class UserProfileService {
     this.notificationService = notificationService;
   }
 
-  public ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request) {
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
+  }
+
+  public RegistrationResponse registerUser(UserRegistrationRequest request) {
     if (request == null
         || isBlank(request.getLogin())
         || isBlank(request.getUserName())
         || isBlank(request.getPassword())
         || request.getDateOfBirth() == null) {
-      return ApiResponse.error("Invalid registration data");
+      throw new ValidationException("Invalid registration data");
     }
 
     try {
       User createdUser = userRepository.createUser(request);
-      RegistrationResponse response =
-          new RegistrationResponse(createdUser.getId(), createdUser.getUserName());
-      return ApiResponse.success("User registered successfully", response);
+      return new RegistrationResponse(createdUser.getId(), createdUser.getUserName());
     } catch (Exception e) {
-      return ApiResponse.error("Unable to register user");
+      throw new ValidationException("Unable to register user", e);
     }
   }
 
-  public ApiResponse<Void> loginUser(LoginRequest request) {
+  public void loginUser(LoginRequest request) {
     if (request == null || isBlank(request.getLogin()) || isBlank(request.getPassword())) {
-      return ApiResponse.error("Invalid credentials");
+      throw new ValidationException("Invalid credentials");
     }
 
     try {
       User user = userRepository.getUser(request.getLogin(), request.getPassword());
       if (user == null) {
-        return ApiResponse.error("Invalid login or password");
+        throw new AuthorizationException("Invalid login or password");
       }
 
       String verificationCode = generateVerificationCode();
@@ -82,84 +85,75 @@ public class UserProfileService {
               Instant.now().plus(VERIFICATION_CODE_TTL)));
 
       notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
-      return ApiResponse.success("Verification code sent to email", null);
+    } catch (AuthorizationException e) {
+      throw e;
     } catch (Exception e) {
-      return ApiResponse.error("Unable to initiate login");
+      throw new ValidationException("Unable to initiate login", e);
     }
   }
 
-  public ApiResponse<LoginResponse> verifyLogin(String login, String verificationCode) {
+  public LoginResponse verifyLogin(String login, String verificationCode) {
     if (isBlank(login) || isBlank(verificationCode)) {
-      return ApiResponse.error("Invalid verification request");
+      throw new ValidationException("Invalid verification request");
     }
 
     String normalizedLogin = normalizeLogin(login);
     PendingVerification pending = pendingVerifications.get(normalizedLogin);
 
     if (pending == null) {
-      return ApiResponse.error("No pending verification found");
+      throw new ResourceNotFoundException("No pending verification found");
     }
 
     if (pending.expiresAt().isBefore(Instant.now())) {
       pendingVerifications.remove(normalizedLogin);
-      return ApiResponse.error("Verification code expired");
+      throw new ValidationException("Verification code expired");
     }
 
     if (!pending.code().equals(verificationCode)) {
-      return ApiResponse.error("Invalid verification code");
+      throw new AuthorizationException("Invalid verification code");
     }
 
     try {
       User user = userRepository.getUserById(pending.userId());
       if (user == null) {
         pendingVerifications.remove(normalizedLogin);
-        return ApiResponse.error("User not found");
+        throw new ResourceNotFoundException("User not found");
       }
 
       String token = tokenService.createToken(user.getId());
       tokenService.registerToken(user.getId(), token);
       pendingVerifications.remove(normalizedLogin);
 
-      LoginResponse response = new LoginResponse(token, user.getId(), user.getUserName());
-      return ApiResponse.success("Login verified successfully", response);
+      return new LoginResponse(token, user.getId(), user.getUserName());
     } catch (Exception e) {
-      return ApiResponse.error("Unable to verify login");
+      throw new ValidationException("Unable to verify login", e);
     }
   }
 
-  public ApiResponse<Void> logoutUser(String token) {
+  public void logoutUser(String token) {
     if (isBlank(token) || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("Invalid or expired token");
+      throw new TokenValidationException("Invalid or expired token");
     }
 
     tokenService.invalidateToken(token);
-    return ApiResponse.success("Logged out successfully", null);
   }
 
-  public ApiResponse<LoginResponse> updatePassword(String token, String currentPassword,
+  public LoginResponse updatePassword(String token, String currentPassword,
       String newPassword) {
-    if (isBlank(token) || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
-    }
-
+    Integer userId = requireAuthenticatedUser(token);
     if (isBlank(currentPassword) || isBlank(newPassword)) {
-      return ApiResponse.error("Password values must not be empty");
+      throw new ValidationException("Password values must not be empty");
     }
-
     if (currentPassword.equals(newPassword)) {
-      return ApiResponse.error("New password must be different from current password");
+                  throw new ValidationException("New password must be different from current password");
     }
 
     try {
-      Integer userId = tokenService.decodeToken(token).userId();
-      User user = userRepository.getUserById(userId);
-      if (user == null) {
-        return ApiResponse.error("User not found");
-      }
+      User user = getExistingUser(userId);
 
       User verifiedUser = userRepository.getUser(user.getLogin(), currentPassword);
       if (verifiedUser == null) {
-        return ApiResponse.error("Current password is incorrect");
+        throw new AuthorizationException("Current password is incorrect");
       }
 
       userRepository.updatePassword(userId, newPassword);
@@ -168,40 +162,38 @@ public class UserProfileService {
       String newToken = tokenService.createToken(userId);
       tokenService.registerToken(userId, newToken);
 
-      LoginResponse response = new LoginResponse(newToken, userId, user.getUserName());
-      return ApiResponse.success("Password updated successfully", response);
+      return new LoginResponse(newToken, userId, user.getUserName());
+    } catch (AuthorizationException | ResourceNotFoundException e) {
+      throw e;
     } catch (Exception e) {
-      return ApiResponse.error("Unable to update password");
+      throw new ValidationException("Unable to update password", e);
     }
   }
 
-  public ApiResponse<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId) {
-    if (isBlank(token) || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
-    }
-
+  public UserSummaryResponse getPublicUserProfileById(String token, Integer userId) {
+    requireAuthenticatedUser(token);
     if (userId == null) {
-      return ApiResponse.error("400");
+      throw new ValidationException("User id is required");
     }
 
     try {
       User user = userRepository.getUserById(userId);
       if (user == null) {
-        return ApiResponse.error("404");
+        throw new ResourceNotFoundException("User not found");
       }
-
-      UserSummaryResponse response = mapToUserSummary(user);
-      return ApiResponse.success(response);
+      return mapToUserSummary(user);
+    } catch (ResourceNotFoundException e) {
+      throw e;
     } catch (Exception e) {
-      return ApiResponse.error("500");
+      throw new ValidationException("Unable to load profile", e);
     }
   }
 
-  public ApiResponse<UserProfileResponse> getUserProfile(String token) {
-    var response = new UserProfileResponse();
+  public UserProfileResponse getUserProfile(String token) {
+    Integer userId = requireAuthenticatedUser(token);
     try {
-      User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
-      System.out.println(user.getCity() + " " + user.getCountry());
+      User user = getExistingUser(userId);
+      UserProfileResponse response = new UserProfileResponse();
       response.setId(user.getId());
       response.setCity(user.getCity());
       response.setAvatarId(user.getAvatarId());
@@ -210,38 +202,47 @@ public class UserProfileService {
       response.setLogin(user.getLogin());
       response.setUsername(user.getUserName());
       response.setDateOfBirth(user.getDataOfBirth());
-
-      return ApiResponse.success(response);
+      return response;
+    } catch (ResourceNotFoundException e) {
+      throw e;
     } catch (Exception e) {
-      System.out.println(e.getMessage());
-      return ApiResponse.error("401");
+      throw new ValidationException("Unable to load profile", e);
     }
   }
 
-  public ApiResponse<String> updateUserProfile(String token, UserProfileUpdateRequest request) {
-    User user = userRepository.getUserById(tokenService.decodeToken(token).userId());
+  public void updateUserProfile(String token, UserProfileUpdateRequest request) {
+    Integer userId = requireAuthenticatedUser(token);
+    if (request == null) {
+      throw new ValidationException("Update request is required");
+    }
+
     try {
+      User user = getExistingUser(userId);
       userRepository.updateUser(user.getId(), request);
-      return ApiResponse.success("200");
+    } catch (ResourceNotFoundException e) {
+      throw e;
     } catch (Exception e) {
-      return ApiResponse.error(null);
+      throw new ValidationException("Unable to update profile", e);
     }
   }
 
-  public ApiResponse<Integer> deleteAccount(String token) {
+  public void deleteAccount(String token) {
+    Integer userId = requireAuthenticatedUser(token);
     try {
-      userRepository.deleteUser(tokenService.decodeToken(token).userId());
-      return ApiResponse.success(200);
+      userRepository.deleteUser(userId);
     } catch (Exception e) {
-      return ApiResponse.error(null);
+      throw new ValidationException("Unable to delete account", e);
     }
   }
 
-  public ApiResponse<Void> configureNotificationSettings(String token,
+  public NotificationSettingsResponse configureNotificationSettings(String token,
       NotificationSettingsRequest request) {
-    try {
-      Integer userId = tokenService.decodeToken(token).userId();
+    Integer userId = requireAuthenticatedUser(token);
+    if (request == null) {
+      throw new ValidationException("Notification settings are required");
+    }
 
+    try {
       if (request.getActivityClosed()) {
         userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
       }
@@ -254,10 +255,14 @@ public class UserProfileService {
       if (request.getMembershipRejected()) {
         userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
       }
-      return ApiResponse.success(null);
+      return new NotificationSettingsResponse(
+          request.getMembershipAccepted(),
+          request.getMembershipRejected(),
+          request.getActivityClosed(),
+          request.getNewJoinRequest(),
+          Instant.now());
     } catch (Exception e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new ValidationException("Unable to update notification settings", e);
     }
   }
 
@@ -273,13 +278,24 @@ public class UserProfileService {
     return response;
   }
 
+  private Integer requireAuthenticatedUser(String token) {
+    if (isBlank(token) || !tokenService.isTokenActive(token)) {
+      throw new TokenValidationException("Invalid token");
+    }
+    return tokenService.decodeToken(token).userId();
+  }
+
+  private User getExistingUser(Integer userId) {
+    User user = userRepository.getUserById(userId);
+    if (user == null) {
+      throw new ResourceNotFoundException("User not found");
+    }
+    return user;
+  }
+
   private String generateVerificationCode() {
     int code = secureRandom.nextInt(90000) + 10000;
     return Integer.toString(code);
-  }
-
-  private static boolean isBlank(String value) {
-    return value == null || value.isBlank();
   }
 
   private String normalizeLogin(String login) {

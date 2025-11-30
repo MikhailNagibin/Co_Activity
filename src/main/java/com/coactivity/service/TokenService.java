@@ -1,6 +1,7 @@
 package com.coactivity.service;
 
 import com.coactivity.service.dto.TokenPayload;
+import com.coactivity.service.exception.TokenValidationException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -52,20 +53,22 @@ public class TokenService {
    *
    * @param token the authentication token to decode
    * @return TokenPayload containing userId and expiresAt
-   * @throws IllegalArgumentException if token format is invalid
+   * @throws TokenValidationException if the token cannot be decoded
    */
   public TokenPayload decodeToken(String token) {
     try {
       String payload = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
       String[] parts = payload.split(":", 2);
       if (parts.length != 2) {
-        throw new IllegalArgumentException("Invalid token format");
+        throw new TokenValidationException("Invalid token format");
       }
       Integer userId = Integer.parseInt(parts[0]);
       Instant expiresAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
       return new TokenPayload(userId, expiresAt);
+    } catch (TokenValidationException e) {
+      throw e;
     } catch (Exception e) {
-      throw new IllegalArgumentException("Invalid token", e);
+      throw new TokenValidationException("Invalid token", e);
     }
   }
 
@@ -107,7 +110,7 @@ public class TokenService {
       
       // Check if token is registered and matches the active token for this user
       return token.equals(activeTokens.get(payload.userId()));
-    } catch (Exception e) {
+    } catch (TokenValidationException e) {
       return false;
     }
   }
@@ -124,7 +127,7 @@ public class TokenService {
     try {
       TokenPayload payload = decodeToken(token);
       activeTokens.remove(payload.userId(), token);
-    } catch (Exception e) {
+    } catch (TokenValidationException e) {
       // Token was invalid anyway - no action needed
     }
   }

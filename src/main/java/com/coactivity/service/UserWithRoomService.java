@@ -1,8 +1,8 @@
 package com.coactivity.service;
 
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
+import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
@@ -13,18 +13,19 @@ import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
+import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
+import com.coactivity.repository.impl.PictureRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
-import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
-import com.coactivity.repository.impl.PictureRepositoryImpl;
+import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
-
-import javax.swing.text.StyledEditorKit;
 
 @Service
 public class UserWithRoomService {
@@ -32,284 +33,210 @@ public class UserWithRoomService {
   private final UserRepositoryImpl userRepository;
   private final RoomRepositoryImpl roomRepository;
   private final RoomsRequestRepositoryImpl roomsRequestRepository;
-  private final TokenService tokenService;
   private final PictureRepositoryImpl pictureRepository;
   private final BulletinBoardRepositoryImpl bulletinBoardRepository;
 
   public UserWithRoomService(UserRepositoryImpl userRepository,
       RoomRepositoryImpl roomRepository,
       RoomsRequestRepositoryImpl roomsRequestRepository,
-      TokenService tokenService,
       PictureRepositoryImpl pictureRepository,
       BulletinBoardRepositoryImpl bulletinBoardRepository) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
-    this.tokenService = tokenService;
     this.pictureRepository = pictureRepository;
     this.bulletinBoardRepository = bulletinBoardRepository;
   }
 
-  public ApiResponse<Void> assignAdminRole(String token, Integer roomId,
-                                           Integer userId) {
+  public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
+      Integer targetUserId) {
+    Integer ownerId = requireOwner(requesterId, roomId);
+    User targetUser = getExistingUser(targetUserId);
 
-    Integer roomOwnerId = tokenService.decodeToken(token).userId();
-    try {
-      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        roomRepository.getUserRoleByRoomId(roomId, roomOwnerId);
-        return ApiResponse.error("User not owner");
-      }
-
-      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.ADMIN);
-      return ApiResponse.success(null);
-
-    } catch (Exception e) {
-      System.out.println(e.getMessage());
-      return ApiResponse.error("400");
+    // Validate that the target user is a member of the room before assigning admin role
+    if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
+      throw new ValidationException("Target user is not a member of the room and cannot be assigned admin role.");
     }
+    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+    roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.ADMIN);
+    return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, previousRole, ownerId);
   }
 
-  public ApiResponse<Void> demoteAdminRole(String token, Integer roomId,
-                                           Integer userId) {
+  public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
+      Integer targetUserId) {
+    Integer ownerId = requireOwner(requesterId, roomId);
+    User targetUser = getExistingUser(targetUserId);
 
-    Integer roomOwnerId = tokenService.decodeToken(token).userId();
-    try {
-      if (!roomRepository.isUserOwnerOfRoom(roomOwnerId, roomId)) {
-        return ApiResponse.error(null);
-      }
-
-      roomRepository.setRoleByUserIdAndRoomId(userId, roomId, Role.PARTICIPANT);
-      return ApiResponse.success(null);
-
-    } catch (Exception e) {
-      return ApiResponse.error(e.getMessage());
-    }
+    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+    roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.PARTICIPANT);
+    return new RoleAssignmentResponse(targetUserId, roomId, Role.PARTICIPANT, previousRole, ownerId);
   }
 
-  public ApiResponse<Boolean> isUserInRoom(String token, Integer roomId) {
-    try {
-      return ApiResponse.success(roomRepository.isUserInMembers(roomId, tokenService.decodeToken(token).userId()));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  public boolean isUserInRoom(Integer requesterId, Integer roomId) {
+    validateRoomId(roomId);
+    getExistingRoom(roomId);
+    return roomRepository.isUserInMembers(roomId, requesterId);
   }
 
-  public ApiResponse<MembershipVerificationResponse> verifyUserMembership(String token,
+  public MembershipVerificationResponse verifyUserMembership(Integer requesterId,
       Integer roomId, Integer targetUserId) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+    validateRoomId(roomId);
+    Integer adminId = requireRoomParticipant(requesterId, roomId);
+    enforceAdminPrivileges(roomId, adminId);
+
+    User targetUser = getExistingUser(targetUserId);
+    boolean isMember = roomRepository.isUserInMembers(roomId, targetUserId);
+    Role memberRole = isMember ? roomRepository.getUserRoleByRoomId(roomId, targetUserId) : null;
+
+    Room room = getExistingRoom(roomId);
+    return new MembershipVerificationResponse(isMember, memberRole,
+        mapUserToSummaryResponse(targetUser), room.getName());
+  }
+
+  public void joinRoom(Integer userId, Integer roomId) {
+    validateRoomId(roomId);
+    User user = getExistingUser(userId);
+    Room room = getExistingRoom(roomId);
+
+    enforceJoinEligibility(user, room);
+
+    if (roomRepository.isUserInMembers(roomId, userId)) {
+      return;
     }
-    if (roomId == null || targetUserId == null) {
-      return ApiResponse.error("400");
-    }
 
-    try {
-      Integer requesterId = tokenService.decodeToken(token).userId();
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
-      }
-      User targetUser = userRepository.getUserById(targetUserId);
-      if (targetUser == null) {
-        return ApiResponse.error("404");
-      }
-      if (!isUserParticipant(room, requesterId)) {
-        return ApiResponse.error("403");
-      }
-      Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
-      if (requesterRole != Role.OWNER && requesterRole != Role.ADMIN) {
-        return ApiResponse.error("403");
-      }
-
-      boolean isMember = isUserParticipant(room, targetUserId);
-      Role memberRole = isMember ? roomRepository.getUserRoleByRoomId(roomId, targetUserId) : null;
-
-      MembershipVerificationResponse response = new MembershipVerificationResponse(
-          isMember,
-          memberRole,
-          mapUserToSummaryResponse(targetUser),
-          room.getName()
-      );
-      return ApiResponse.success(response);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+    if (room.isPublic()) {
+      roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
+    } else {
+      roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
     }
   }
 
-  /**
-   * Handles room join logic for both public and private rooms.
-   * <p>
-   * - For public rooms: user is added immediately as PARTICIPANT (if not banned and capacity not exceeded).<br>
-   * - For private rooms: a join request with status {@link RequestStatus#CONSIDERATION} is created.
-   * </p>
-   */
-  public ApiResponse<Void> joinRoom(String token, Integer roomId) {
-    if (token == null || roomId == null) {
-      return ApiResponse.error("400");
+  public List<RoomSummaryResponse> getBanRooms(Integer userId) {
+    Integer requesterId = requireUserId(userId);
+    List<Room> rooms = roomRepository.getAllRooms();
+    if (rooms == null || rooms.isEmpty()) {
+      return Collections.emptyList();
     }
 
-    try {
-      if (!tokenService.isTokenActive(token)) {
-        return ApiResponse.error("401");
-      }
-
-      Integer userId = tokenService.decodeToken(token).userId();
-      User user = userRepository.getUserById(userId);
-      Room room = roomRepository.getRoomById(roomId);
-
-      if (user == null || room == null) {
-        return ApiResponse.error("404");
-      }
-
-      // Check if user is banned in this room
-      if (room.getBans() != null && room.getBans().contains(user)) {
-        return ApiResponse.error("403");
-      }
-
-      // Check if user is already a member
-      if (roomRepository.isUserInMembers(roomId, userId)) {
-        return ApiResponse.success(null);
-      }
-
-      // Capacity check
-      int currentParticipants =
-          room.getUsers() != null ? room.getUsers().size() : 0;
-      if (currentParticipants >= room.getMaximumNumberOfPeople()) {
-        return ApiResponse.error("409"); // capacity exceeded
-      }
-
-      if (room.isPublic()) {
-        // Public room – add immediately as PARTICIPANT
-        roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
-        return ApiResponse.success(null);
-      } else {
-        // Private room – create join request in CONSIDERATION state
-        roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
-        return ApiResponse.success(null);
-      }
-
-    } catch (Exception e) {
-      return ApiResponse.error("500");
-    }
+    return rooms.stream()
+        .filter(room -> room.getBans() != null
+            && room.getBans().stream().anyMatch(banned -> banned.getId().equals(requesterId)))
+        .map(room -> mapRoomToSummaryResponse(room, requesterId))
+        .collect(Collectors.toList());
   }
 
-  public ApiResponse<List<RoomSummaryResponse>> getBanRooms(String token) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+  public List<RoomDetailedResponse> getUserRooms(Integer userId) {
+    User user = getExistingUser(userId);
+    List<Room> rooms = user.getRooms();
+    if (rooms == null || rooms.isEmpty()) {
+      return Collections.emptyList();
     }
 
-    try {
-      Integer userId = tokenService.decodeToken(token).userId();
-      List<Room> rooms = roomRepository.getAllRooms();
-      if (rooms == null || rooms.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<RoomSummaryResponse> bannedRooms = rooms.stream()
-          .filter(room -> room.getBans() != null
-              && room.getBans().stream().anyMatch(banned -> banned.getId().equals(userId)))
-          .map(room -> mapRoomToSummaryResponse(room, userId))
-          .collect(Collectors.toList());
-
-      return ApiResponse.success(bannedRooms);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
-    }
+    return rooms.stream()
+        .map(room -> mapRoomToDetailedResponse(room, userId, true))
+        .collect(Collectors.toList());
   }
 
-  public ApiResponse<List<RoomDetailedResponse>> getUserRooms(String token) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+  public void leaveRoom(Integer userId, Integer roomId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoom(roomId);
+    ensureParticipant(room, userId);
+
+    Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
+    if (role == Role.OWNER) {
+      throw new AuthorizationException("Room owner cannot leave the room");
     }
 
-    try {
-      Integer userId = tokenService.decodeToken(token).userId();
-      User user = userRepository.getUserById(userId);
-      if (user == null) {
-        return ApiResponse.error("404");
-      }
-
-      List<Room> rooms = user.getRooms();
-      if (rooms == null || rooms.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<RoomDetailedResponse> responses = rooms.stream()
-          .map(room -> mapRoomToDetailedResponse(room, userId, true))
-          .collect(Collectors.toList());
-
-      return ApiResponse.success(responses);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
-    }
+    roomRepository.removeUserFromRoom(roomId, userId);
   }
 
-  public ApiResponse<Void> leaveRoom(String token, Integer roomId) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
-    }
-    if (roomId == null) {
-      return ApiResponse.error("400");
-    }
-
-    try {
-      Integer userId = tokenService.decodeToken(token).userId();
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
-      }
-
-      if (!isUserParticipant(room, userId)) {
-        return ApiResponse.error("404");
-      }
-
-      Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
-      if (role == Role.OWNER) {
-        return ApiResponse.error("403");
-      }
-
-      roomRepository.removeUserFromRoom(roomId, userId);
-      return ApiResponse.success(null);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
-    }
-  }
-
-  public ApiResponse<List<RoomParticipantResponse>> getRoomParticipants(String token, Integer roomId,
+  public List<RoomParticipantResponse> getRoomParticipants(Integer requesterId, Integer roomId,
       Role roleFilter) {
-    if (token == null || !tokenService.isTokenActive(token)) {
-      return ApiResponse.error("401");
+    validateRoomId(roomId);
+    Integer adminId = requireRoomParticipant(requesterId, roomId);
+    enforceAdminPrivileges(roomId, adminId);
+
+    Room room = getExistingRoom(roomId);
+    Map<User, Role> users = room.getUsers();
+    if (users == null || users.isEmpty()) {
+      return Collections.emptyList();
     }
+
+    return users.entrySet().stream()
+        .filter(entry -> roleFilter == null || entry.getValue() == roleFilter)
+        .map(entry -> mapParticipant(entry.getKey(), entry.getValue()))
+        .collect(Collectors.toList());
+  }
+
+  private Integer requireOwner(Integer requesterId, Integer roomId) {
+    Integer ownerId = requireRoomParticipant(requesterId, roomId);
+    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, ownerId);
+    if (requesterRole != Role.OWNER) {
+      throw new AuthorizationException("Only room owner can perform this action");
+    }
+    return ownerId;
+  }
+
+  private Integer requireRoomParticipant(Integer requesterId, Integer roomId) {
+    validateRoomId(roomId);
+    Integer userId = requireUserId(requesterId);
+    if (!roomRepository.isUserInMembers(roomId, userId)) {
+      throw new AuthorizationException("User is not a participant of room " + roomId);
+    }
+    return userId;
+  }
+
+  private void enforceAdminPrivileges(Integer roomId, Integer participantId) {
+    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, participantId);
+    if (requesterRole != Role.OWNER && requesterRole != Role.ADMIN) {
+      throw new AuthorizationException("Insufficient privileges for room " + roomId);
+    }
+  }
+
+  private void enforceJoinEligibility(User user, Room room) {
+    if (room.getBans() != null && room.getBans().contains(user)) {
+      throw new AuthorizationException("User is banned from this room");
+    }
+
+    int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
+    if (currentParticipants >= room.getMaximumNumberOfPeople()) {
+      throw new ValidationException("Room capacity exceeded");
+    }
+  }
+
+  private void ensureParticipant(Room room, Integer userId) {
+    if (!isUserParticipant(room, userId)) {
+      throw new ResourceNotFoundException("User " + userId + " is not in room " + room.getId());
+    }
+  }
+
+  private void validateRoomId(Integer roomId) {
     if (roomId == null) {
-      return ApiResponse.error("400");
+      throw new ValidationException("Room id is required");
     }
+  }
 
-    try {
-      Integer requesterId = tokenService.decodeToken(token).userId();
-      Room room = roomRepository.getRoomById(roomId);
-      if (room == null) {
-        return ApiResponse.error("404");
-      }
-
-      Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
-      if (requesterRole != Role.OWNER && requesterRole != Role.ADMIN) {
-        return ApiResponse.error("403");
-      }
-
-      Map<User, Role> users = room.getUsers();
-      if (users == null || users.isEmpty()) {
-        return ApiResponse.success(Collections.emptyList());
-      }
-
-      List<RoomParticipantResponse> participants = users.entrySet().stream()
-          .filter(entry -> roleFilter == null || entry.getValue() == roleFilter)
-          .map(entry -> mapParticipant(entry.getKey(), entry.getValue()))
-          .collect(Collectors.toList());
-
-      return ApiResponse.success(participants);
-    } catch (Exception e) {
-      return ApiResponse.error("500");
+  private Integer requireUserId(Integer userId) {
+    if (userId == null) {
+      throw new ValidationException("User id is required");
     }
+    return userId;
+  }
+
+  private Room getExistingRoom(Integer roomId) {
+    Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found: " + roomId);
+    }
+    return room;
+  }
+
+  private User getExistingUser(Integer userId) {
+    User user = userRepository.getUserById(userId);
+    if (user == null) {
+      throw new ResourceNotFoundException("User not found: " + userId);
+    }
+    return user;
   }
 
   private RoomParticipantResponse mapParticipant(User user, Role role) {

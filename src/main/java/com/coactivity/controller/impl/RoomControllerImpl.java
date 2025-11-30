@@ -15,10 +15,12 @@ import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.RoomService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserWithRoomService;
+import com.coactivity.service.exception.TokenValidationException;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,13 +58,10 @@ public class RoomControllerImpl implements RoomController {
   public ResponseEntity<RoomCreationResponse> createRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
       @Valid @RequestBody RoomCreationRequest request) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    RoomCreationResponse response = roomService.createRoom(authToken, request);
-    URI location = response != null && response.roomId() != null
-        ? URI.create("/api/rooms/" + response.roomId())
+    Integer ownerId = resolveAuthorizedUserId(token);
+    RoomCreationResponse response = roomService.createRoom(ownerId, request);
+        URI location = response.getRoomId() != null
+        ? URI.create("/api/rooms/" + response.getRoomId())
         : URI.create("/api/rooms");
     return ResponseEntity.created(location).body(response);
   }
@@ -71,16 +70,9 @@ public class RoomControllerImpl implements RoomController {
   @PutMapping("/{roomId}/bulletin")
   public ResponseEntity<BulletinBoardResponse> updateBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @RequestBody String newContent) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    if (roomId == null || newContent == null || newContent.trim().isEmpty()) {
-      return ResponseEntity.badRequest().build();
-    }
-    Integer authorId = tokenService.decodeToken(authToken).userId();
+      @PathVariable @Positive Integer roomId,
+      @RequestBody @NotBlank String newContent) {
+    Integer authorId = resolveAuthorizedUserId(token);
     BulletinBoardResponse response =
         bulletinBoardService.updateBulletinBoard(roomId, newContent, authorId);
     return ResponseEntity.ok(response);
@@ -90,14 +82,8 @@ public class RoomControllerImpl implements RoomController {
   @DeleteMapping("/{roomId}/bulletin")
   public ResponseEntity<Void> deleteBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (roomId == null) {
-      return ResponseEntity.badRequest().build();
-    }
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+      @PathVariable @Positive Integer roomId) {
+    resolveAuthorizedUserId(token);
     bulletinBoardService.deleteBulletinBoard(roomId);
     return ResponseEntity.noContent().build();
   }
@@ -108,17 +94,17 @@ public class RoomControllerImpl implements RoomController {
       @RequestHeader(name = "Authorization", required = false) String token,
       @Valid @ModelAttribute RoomFilter filter,
       @RequestParam(name = "sortBy", required = false) RoomSort sortBy) {
-    String authToken = extractToken(token);
-    List<RoomSummaryResponse> rooms = roomService.getRooms(authToken, filter, sortBy);
+    Integer currentUserId = resolveOptionalUserId(token);
+    List<RoomSummaryResponse> rooms = roomService.getRooms(currentUserId, filter, sortBy);
     return ResponseEntity.ok(rooms);
   }
 
   @Override
   @GetMapping("/{roomId}")
-  public ResponseEntity<RoomDetailedResponse> getRoomById(@PathVariable Integer roomId,
+  public ResponseEntity<RoomDetailedResponse> getRoomById(@PathVariable @Positive Integer roomId,
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    RoomDetailedResponse response = roomService.getRoomById(roomId, authToken);
+    Integer currentUserId = resolveOptionalUserId(token);
+    RoomDetailedResponse response = roomService.getRoomById(roomId, currentUserId);
     return ResponseEntity.ok(response);
   }
 
@@ -126,11 +112,8 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping("/me")
   public ResponseEntity<List<RoomDetailedResponse>> getUserRooms(
       @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    List<RoomDetailedResponse> rooms = userWithRoomService.getUserRooms(authToken);
+    Integer currentUserId = resolveAuthorizedUserId(token);
+    List<RoomDetailedResponse> rooms = userWithRoomService.getUserRooms(currentUserId);
     return ResponseEntity.ok(rooms);
   }
 
@@ -138,12 +121,9 @@ public class RoomControllerImpl implements RoomController {
   @PostMapping("/{roomId}/join")
   public ResponseEntity<Void> joinRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    userWithRoomService.joinRoom(authToken, roomId);
+      @PathVariable @Positive Integer roomId) {
+    Integer currentUserId = resolveAuthorizedUserId(token);
+    userWithRoomService.joinRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
@@ -151,12 +131,9 @@ public class RoomControllerImpl implements RoomController {
   @PostMapping("/{roomId}/leave")
   public ResponseEntity<Void> leaveRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    userWithRoomService.leaveRoom(authToken, roomId);
+      @PathVariable @Positive Integer roomId) {
+    Integer currentUserId = resolveAuthorizedUserId(token);
+    userWithRoomService.leaveRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
@@ -164,15 +141,9 @@ public class RoomControllerImpl implements RoomController {
   @DeleteMapping("/{roomId}")
   public ResponseEntity<Void> deleteRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
-    String authToken = extractToken(token);
-    if (roomId == null) {
-      return ResponseEntity.badRequest().build();
-    }
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    roomService.deleteRoom(authToken, roomId);
+      @PathVariable @Positive Integer roomId) {
+    Integer currentUserId = resolveAuthorizedUserId(token);
+    roomService.deleteRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
@@ -180,14 +151,11 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping("/{roomId}/participants")
   public ResponseEntity<List<RoomParticipantResponse>> getRoomParticipants(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
+      @PathVariable @Positive Integer roomId,
       @RequestParam(name = "role", required = false) Role roleFilter) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+    Integer currentUserId = resolveAuthorizedUserId(token);
     List<RoomParticipantResponse> participants =
-        userWithRoomService.getRoomParticipants(authToken, roomId, roleFilter);
+        userWithRoomService.getRoomParticipants(currentUserId, roomId, roleFilter);
     return ResponseEntity.ok(participants);
   }
 
@@ -195,19 +163,34 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping("/{roomId}/participants/{userId}")
   public ResponseEntity<MembershipVerificationResponse> isUserInRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
-    String authToken = extractToken(token);
-    if (isInvalidToken(authToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+      @PathVariable @Positive Integer roomId,
+      @PathVariable @Positive Integer userId) {
+    Integer currentUserId = resolveAuthorizedUserId(token);
     MembershipVerificationResponse response =
-        userWithRoomService.verifyUserMembership(authToken, roomId, userId);
+        userWithRoomService.verifyUserMembership(currentUserId, roomId, userId);
     return ResponseEntity.ok(response);
   }
 
-  private boolean isInvalidToken(String token) {
-    return token == null || token.isBlank() || !tokenService.isTokenActive(token);
+  private Integer resolveAuthorizedUserId(String tokenHeader) {
+    String authToken = extractToken(tokenHeader);
+    if (authToken == null || authToken.isBlank()) {
+      throw new TokenValidationException("Authorization token is required");
+    }
+    if (!tokenService.isTokenActive(authToken)) {
+      throw new TokenValidationException("Token is inactive or expired");
+    }
+    return tokenService.decodeToken(authToken).userId();
+  }
+
+  private Integer resolveOptionalUserId(String tokenHeader) {
+    String authToken = extractToken(tokenHeader);
+    if (authToken == null || authToken.isBlank()) {
+      return null;
+    }
+    if (!tokenService.isTokenActive(authToken)) {
+      return null;
+    }
+    return tokenService.decodeToken(authToken).userId();
   }
 
   private String extractToken(String rawToken) {
