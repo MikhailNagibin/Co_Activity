@@ -12,7 +12,7 @@ public interface QuestionRepository {
    * @param categoryId
    * @return
    */
-  Question createQuestion(Integer userId, String question, Integer categoryId);
+  Question createQuestion(Integer userId, String question, String categoryId);
 
   /**
    *

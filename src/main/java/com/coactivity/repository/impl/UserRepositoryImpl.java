@@ -148,7 +148,7 @@ public class UserRepositoryImpl implements UserRepository {
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("No user did not delete");
       }
 
     } catch (SQLException e) {
@@ -284,5 +284,22 @@ public class UserRepositoryImpl implements UserRepository {
       throw new RuntimeException();
     }
     return notifications;
+  }
+
+  public List<Integer> getAllUsers() {
+    String sql = "SELECT id FROM Users";
+    var rooms = new ArrayList<Integer>();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql);
+         ResultSet resultSet = statement.executeQuery()) {
+
+      while (resultSet.next()) {
+        rooms.add(resultSet.getInt("id"));
+      }
+      return rooms;
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
   }
 }

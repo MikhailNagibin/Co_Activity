@@ -6,6 +6,7 @@ import com.coactivity.domain.Category;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
+import com.coactivity.repository.QuestionRepository;
 import com.coactivity.repository.RoomRepository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,6 +18,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.InflaterInputStream;
+
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
@@ -25,10 +28,13 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private final DataRepository dataRepository;
   private final UserRepositoryImpl userRepository;
+  private final QuestionRepositoryImpl qaRepository;
 
-  public RoomRepositoryImpl(DataRepository dataRepository, @Lazy UserRepositoryImpl userRepository) {
+  public RoomRepositoryImpl(DataRepository dataRepository, @Lazy UserRepositoryImpl userRepository,
+                            QuestionRepositoryImpl qaRepository) {
     this.dataRepository = dataRepository;
     this.userRepository = userRepository;
+    this.qaRepository = qaRepository;
   }
 
   @Override
@@ -97,20 +103,79 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Role role) {
+    // Сначала проверяем, не забанен ли пользователь в этой комнате
+    if (isUserBannedInRoom(roomId, userId)) {
+      throw new IllegalStateException("User is banned from this room");
+    }
+
+    // Проверяем, не состоит ли пользователь уже в комнате
+    if (isUserInMembers(roomId, userId)) {
+      throw new IllegalStateException("User is already a member of this room");
+    }
+
+    // Проверяем, существует ли комната
+    Room room = getRoomById(roomId);
+    if (room == null) {
+      throw new IllegalArgumentException("Room with id " + roomId + " does not exist");
+    }
+
     String sql = """
-        INSERT INTO Rooms_members (room_id, user_id, role_id)
-        VALUES (?, ?, (SELECT id FROM Roles WHERE role = ?))
-        """;
+    INSERT INTO Rooms_members (room_id, user_id, role_id)
+    VALUES (?, ?, (SELECT id FROM Roles WHERE LOWER(role) = LOWER(?)))
+    """;
+
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
+
       statement.setInt(1, roomId);
       statement.setInt(2, userId);
       statement.setString(3, role.name());
-      statement.executeUpdate();
+
+      int affectedRows = statement.executeUpdate();
+//      connection.commit();
+      if (affectedRows == 0) {
+        throw new RuntimeException("Failed to add user to room line 131");
+      }
+
+      // Логирование успешного добавления - оставляем, но НЕ кидаем исключение!
+      System.out.println("User " + userId + " added to room " + roomId + " with role " + role);
+
+      // Для отладки можно добавить (без throw):
+      System.out.println("Current users in room: " + getUsersInRoom(roomId));
+
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      System.err.println("Error adding user to room: " + e.getMessage());
+      // Более специфичное исключение в зависимости от ошибки
+      if (e.getMessage().contains("foreign key constraint")) {
+        throw new IllegalArgumentException("User or room does not exist", e);
+      } else if (e.getMessage().contains("unique constraint") ||
+        e.getMessage().contains("duplicate key")) {
+        throw new IllegalStateException("User is already a member of this room", e);
+      }
+      throw new RuntimeException("Failed to add user to room", e);
     }
+  }
+
+  // Дополнительный метод для проверки бана
+  private boolean isUserBannedInRoom(Integer roomId, Integer userId) {
+    String sql = "SELECT EXISTS(SELECT 1 FROM Bans WHERE room_id = ? AND user_id = ?)";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getBoolean(1);
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println("Error checking user ban: " + e.getMessage());
+      throw new RuntimeException("Failed to check user ban status", e);
+    }
+    return false;
   }
 
   @Override
@@ -210,29 +275,30 @@ public class RoomRepositoryImpl implements RoomRepository {
     Instant frequency = resultSet.getTimestamp("frequency") != null ?
       resultSet.getTimestamp("frequency").toInstant() : null;
     int maxPeople = resultSet.getInt("maximum_number_of_people");
-    Category category = Category.getByIndex(categoryId);
+    Category category = qaRepository.getCategoryById(categoryId);
 
     return new Room(id, isActive, isPublic, chatLink, category, name, description,
-      startDate, endDate, ageRating, frequency, maxPeople, getUsersInRoom(id),
-      getUsersWithBanInRoom(id));
+      startDate, endDate, ageRating, frequency, maxPeople, null,
+      null);
   }
 
-  public Map<User, Role> getUsersInRoom(Integer roomId) {
+  public Map<Integer, String> getUsersInRoom(Integer roomId) {
     String sql = """
-        SELECT u.id, r.role FROM Users AS u
-        INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
-        INNER JOIN Roles AS r ON r.id = rm.role_id
-        WHERE rm.room_id = ?;
+      SELECT DISTINCT u.id, r.role
+      FROM Users AS u
+      INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
+      INNER JOIN Roles AS r ON r.id = rm.role_id
+      WHERE rm.room_id = ?;
         """;
-    var usersInRoom = new HashMap<User, Role>();
+    var usersInRoom = new HashMap<Integer, String>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-          User user = userRepository.getUserById(resultSet.getInt("id"));
-          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
-          usersInRoom.put(user, role);
+//          User user = userRepository.getUserById();
+//          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
+          usersInRoom.put(resultSet.getInt("id"), resultSet.getString("role").toUpperCase());
         }
       }
     } catch (SQLException e) {
@@ -248,15 +314,15 @@ public class RoomRepositoryImpl implements RoomRepository {
    * @param roomId
    * @return
    */
-  private List<User> getUsersWithBanInRoom(Integer roomId) {
+  private List<Integer> getUsersWithBanInRoom(Integer roomId) {
     String sql = "select user_id from Bans where room_id = ?";
-    var bans = new ArrayList<User>();
+    var bans = new ArrayList<Integer>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-          bans.add(userRepository.getUserById(resultSet.getInt(1)));
+          bans.add(resultSet.getInt(1));
         }
       }
     } catch (SQLException e) {

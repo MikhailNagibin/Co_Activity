@@ -71,6 +71,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
           answers.add(answer);
         }
       }
+
     } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();

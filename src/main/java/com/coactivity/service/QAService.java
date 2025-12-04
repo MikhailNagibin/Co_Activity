@@ -15,10 +15,8 @@ import com.coactivity.repository.impl.QuestionRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -40,7 +38,7 @@ public class QAService {
     validateQuestionRequest(request);
 
     Question domainQuestion = questionRepository.createQuestion(userId, request.getQuestion(),
-        request.getCategoryId());
+        request.getCategory());
 
     User author = getExistingUser(userId);
     UserSummaryResponse authorProfile = mapUserSummaryResponse(author);
@@ -54,9 +52,9 @@ public class QAService {
     if (request.getPreviousAnswerId() != null) {
       ensurePreviousAnswerExists(request.getQuestionId(), request.getPreviousAnswerId());
     }
-
+    int prevAnsId = request.getPreviousAnswerId() != null ? request.getPreviousAnswerId() : 0;
     Answer domainAnswer = answerRepository.createAnswer(request.getQuestionId(),
-        request.getPreviousAnswerId(), request.getAnswer(), userId);
+        prevAnsId, request.getAnswer(), userId);
 
     User author = getExistingUser(userId);
     UserSummaryResponse authorProfile = mapUserSummaryResponse(author);
@@ -103,30 +101,16 @@ public class QAService {
     questionResponse.setAuthor(authorProfile);
 
     List<Answer> allAnswers = answerRepository.getAnswers(questionId);
-
-    Map<Integer, AnswerResponse> answerResponseMap = new HashMap<>();
+    ArrayList<AnswerResponse> answerResponse = new ArrayList<>();
     for (Answer a : allAnswers) {
       User answerAuthor = getExistingUser(a.getOwnerId().getId());
       UserSummaryResponse answerAuthorProfile = mapUserSummaryResponse(answerAuthor);
       AnswerResponse answerResp = mapAnswerResponse(a, answerAuthorProfile);
 
-      answerResponseMap.put(answerResp.getId(), answerResp);
+      answerResponse.add(answerResp);
     }
 
-    List<AnswerResponse> topLevelAnswers = new ArrayList<>();
-    for (AnswerResponse answerResp : answerResponseMap.values()) {
-      Integer parentId = answerResp.getPreviousAnswerId();
-      if (parentId == null) {
-        topLevelAnswers.add(answerResp);
-      } else {
-        AnswerResponse parent = answerResponseMap.get(parentId);
-        if (parent != null) {
-          parent.getReplies().add(answerResp);
-        }
-      }
-    }
-
-    return new QuestionWithAnswersResponse(questionResponse, topLevelAnswers);
+    return new QuestionWithAnswersResponse(questionResponse, answerResponse);
   }
 
   private User getExistingUser(Integer userId) {
@@ -159,7 +143,7 @@ public class QAService {
       return null;
     }
     try {
-      return Category.getByIndex(categoryId);
+      return questionRepository.getCategoryById(categoryId);
     } catch (IllegalArgumentException e) {
       throw new ValidationException("Invalid category id: " + categoryId, e);
     }
@@ -172,7 +156,7 @@ public class QAService {
     if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
       throw new ValidationException("Question text cannot be empty");
     }
-    if (request.getCategoryId() == null) {
+    if (request.getCategory() == null) {
       throw new ValidationException("Category ID is required");
     }
   }

@@ -180,6 +180,7 @@ public class UserControllerImpl implements UserController {
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequests(
       @RequestHeader(name = "Authorization", required = false) String token) {
     Integer userId = resolveAuthorizedUserId(token);
+
     List<JoinRequestResponse> responses = joinRequestService.getPendingRequests(userId);
     return ResponseEntity.ok(responses);
   }

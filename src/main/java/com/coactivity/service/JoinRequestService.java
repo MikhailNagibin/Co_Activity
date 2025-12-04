@@ -51,8 +51,10 @@ public class JoinRequestService {
     User admin = getExistingUser(adminId);
 
     List<Room> managedRooms = admin.getRooms();
+
     if (managedRooms == null || managedRooms.isEmpty()) {
-      return Collections.emptyList();
+//      return Collections.emptyList();
+      throw new RuntimeException();
     }
 
     List<JoinRequestResponse> responses = new ArrayList<>();

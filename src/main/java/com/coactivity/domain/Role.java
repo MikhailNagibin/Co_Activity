@@ -2,9 +2,9 @@ package com.coactivity.domain;
 
 
 public enum Role {
-  OWNER("owner"),
-  ADMIN("admin"),
-  PARTICIPANT("participant");
+  OWNER("Owner"),
+  ADMIN("Admin"),
+  PARTICIPANT("Participant");
 
   private final String roleName;
 

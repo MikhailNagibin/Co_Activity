@@ -29,7 +29,7 @@ public class QuestionRequest {
    */
   @NotNull
   @Positive
-  private Integer categoryId;
+  private String category;
 
   /**
    * The question text being asked.

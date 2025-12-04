@@ -38,8 +38,8 @@ public class QAControllerImpl implements QAController {
   @Override
   @PostMapping("/questions")
   public ResponseEntity<QuestionResponse> askQuestion(
-      @RequestHeader(name = "Authorization", required = false) String token,
-      @Valid @RequestBody QuestionRequest request) {
+    @RequestHeader(name = "Authorization", required = false) String token,
+    @Valid @RequestBody QuestionRequest request) {
     Integer userId = resolveAuthorizedUserId(token);
     QuestionResponse response = qaService.askQuestion(userId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -48,8 +48,8 @@ public class QAControllerImpl implements QAController {
   @Override
   @PostMapping("/answers")
   public ResponseEntity<AnswerResponse> answerQuestion(
-      @RequestHeader(name = "Authorization", required = false) String token,
-      @Valid @RequestBody AnswerRequest request) {
+    @RequestHeader(name = "Authorization", required = false) String token,
+    @Valid @RequestBody AnswerRequest request) {
     Integer userId = resolveAuthorizedUserId(token);
     AnswerResponse response = qaService.answerQuestion(userId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -58,7 +58,7 @@ public class QAControllerImpl implements QAController {
   @Override
   @GetMapping("/questions/category")
   public ResponseEntity<List<QuestionResponse>> getQuestions(
-            @RequestParam(name = "categoryId", required = false) Integer categoryId) {
+    @RequestParam(name = "categoryId", required = false) Integer categoryId) {
     List<QuestionResponse> responses = qaService.getQuestions(categoryId);
     return ResponseEntity.ok(responses);
   }
@@ -66,9 +66,20 @@ public class QAControllerImpl implements QAController {
   @Override
   @GetMapping("/questions/{questionId}")
   public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
-      @PathVariable @Positive Integer questionId) {
+    @PathVariable @Positive Integer questionId) {
     QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
     return ResponseEntity.ok(response);
+  }
+
+  /**
+   * Получает все вопросы без фильтрации по категории.
+   *
+   * @return список всех вопросов в системе
+   */
+  @GetMapping("/questions")
+  public ResponseEntity<List<QuestionResponse>> getAllQuestions() {
+    List<QuestionResponse> responses = qaService.getQuestions(null);
+    return ResponseEntity.ok(responses);
   }
 
   private Integer resolveAuthorizedUserId(String tokenHeader) {
