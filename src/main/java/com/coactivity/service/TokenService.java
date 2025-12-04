@@ -6,7 +6,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import com.coactivity.service.dto.PendingVerification;
+import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 
 /**
@@ -31,6 +34,11 @@ public class TokenService {
    * TokenService is singleton, so this field is shared across all service instances.
    */
   private final Map<Integer, String> activeTokens = new ConcurrentHashMap<>();
+
+  /**
+   * Map of pending verifications consisting of pairs (login : PendingVerification).
+   */
+  private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
 
   /**
    * Creates a new authentication token for the specified user.
@@ -83,6 +91,35 @@ public class TokenService {
    */
   public void registerToken(Integer userId, String token) {
     activeTokens.put(userId, token);
+  }
+
+  /**
+   * Adds a pending verification for a given login.
+   *
+   * @param login the login for which verification is pending
+   * @param pendingVerification the pending verification object
+   */
+  public void addPendingVerification(String login, PendingVerification pendingVerification) {
+    pendingVerifications.put(login, pendingVerification);
+  }
+
+  /**
+   * Retrieves a pending verification for a given login.
+   *
+   * @param login the login for which verification is pending
+   * @return an Optional containing the PendingVerification object if found, otherwise empty
+   */
+  public Optional<PendingVerification> getPendingVerification(String login) {
+    return Optional.ofNullable(pendingVerifications.get(login));
+  }
+
+  /**
+   * Removes a pending verification for a given login.
+   *
+   * @param login the login for which verification is to be removed
+   */
+  public void removePendingVerification(String login) {
+    pendingVerifications.remove(login);
   }
 
   /**
