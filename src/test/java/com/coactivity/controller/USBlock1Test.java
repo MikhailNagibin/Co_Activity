@@ -31,6 +31,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,7 +40,7 @@ import static org.mockito.Mockito.doNothing;
 
 @Testcontainers
 @SpringBootTest(classes = CoActivityApplication.class)
-public class AuthenticationTest {
+public class USBlock1Test {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2")
@@ -77,7 +78,9 @@ public class AuthenticationTest {
         try (Connection conn = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
         }
-        userRepository.deleteAll();
+        for (Integer userId : userRepository.getAllUsers()) {
+            userRepository.deleteUser(userId);
+        }
         User testUser = createTestUser(
                 "testuser@example.com",
                 "testuser",
@@ -88,7 +91,7 @@ public class AuthenticationTest {
         validToken = tokenService.createToken(testUserId);
         tokenService.registerToken(testUserId, validToken);
 
-        doNothing().when(mailService).sendVerificationCode(anyString(), anyString());
+        doNothing().when(mailService).sendSimpleMessage(anyString(), anyString(), anyString());
     }
 
     private User createTestUser(String login, String username, String password) {
@@ -112,7 +115,7 @@ public class AuthenticationTest {
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("newuser@example.com", response.getBody().getLogin());
+        assertEquals("newuser", response.getBody().getUserName());
     }
 
     @Test
@@ -130,7 +133,7 @@ public class AuthenticationTest {
     void US103_verifyLogin() {
         String login = "testuser@example.com";
         String verificationCode = "123456";
-        tokenService.addPendingVerification(login, new PendingVerification(verificationCode, Objects.requireNonNull(userRepository.getUserByLogin(login).orElse(null)).getId()));
+        tokenService.addPendingVerification(login, new PendingVerification(Objects.requireNonNull(userRepository.getUserByLogin(login).orElse(null)).getId(), verificationCode, Instant.now().plus(10, ChronoUnit.MINUTES)));
 
         ResponseEntity<LoginResponse> response = userController.verifyLogin(login, verificationCode);
 

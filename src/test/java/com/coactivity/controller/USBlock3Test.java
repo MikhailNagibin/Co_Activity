@@ -6,10 +6,12 @@ import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.impl.RoomControllerImpl;
+import com.coactivity.controller.impl.UserControllerImpl;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
+import com.coactivity.domain.Room;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.TokenService;
@@ -39,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(classes = CoActivityApplication.class)
-public class RoomDiscoveryTest {
+public class USBlock3Test {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2")
@@ -56,6 +58,9 @@ public class RoomDiscoveryTest {
 
     @Autowired
     private RoomControllerImpl roomController;
+
+    @Autowired
+    private UserControllerImpl userController;
 
     @Autowired
     private TokenService tokenService;
@@ -79,8 +84,12 @@ public class RoomDiscoveryTest {
         try (Connection conn = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
         }
-        userRepository.deleteAll();
-        roomRepository.deleteAll();
+        for (Integer userId : userRepository.getAllUsers()) {
+            userRepository.deleteUser(userId);
+        }
+        for (Room room : roomRepository.getAllRooms()) {
+            roomRepository.deleteRoom(room.getId());
+        }
 
         User testUser = createTestUser("testuser@example.com", "testuser", "password");
         testUserId = testUser.getId();
@@ -146,8 +155,8 @@ public class RoomDiscoveryTest {
 
     @Test
     void US304_getBanRooms() {
-        roomRepository.banUserInRoom(room1Id, testUserId);
-        ResponseEntity<List<RoomSummaryResponse>> response = roomController.getBanRooms(validToken);
+        roomRepository.addUserBan(room1Id, testUserId);
+        ResponseEntity<List<RoomSummaryResponse>> response = userController.getBanRooms(validToken);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());

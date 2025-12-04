@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(classes = CoActivityApplication.class)
-public class UserProfileManagementTest {
+public class USBlock2Test {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2")
@@ -72,7 +72,9 @@ public class UserProfileManagementTest {
         try (Connection conn = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
         }
-        userRepository.deleteAll();
+        for (Integer userId : userRepository.getAllUsers()) {
+            userRepository.deleteUser(userId);
+        }
         User testUser = createTestUser(
                 "testuser@example.com",
                 "testuser",
@@ -117,7 +119,7 @@ public class UserProfileManagementTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(anotherUserId, response.getBody().getId());
-        assertEquals("anotheruser", response.getBody().getUsername());
+        assertEquals("updatedusername", Objects.requireNonNull(response.getBody()).getUserName());
     }
 
     @Test
@@ -130,8 +132,8 @@ public class UserProfileManagementTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
-        User updatedUser = userRepository.find(testUserId);
-        assertEquals("updateduser", updatedUser.getUsername());
+        User updatedUser = userRepository.getUserById(testUserId);
+        assertEquals("updatedusername", updatedUser.getUserName());
         assertEquals("Updated City", updatedUser.getCity());
     }
 

@@ -8,6 +8,7 @@ import com.coactivity.controller.impl.RoomControllerImpl;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
+import com.coactivity.domain.Room;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.TokenService;
@@ -36,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(classes = CoActivityApplication.class)
-public class RoomCreationAndManagementTest {
+public class USBlock4Test {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2")
@@ -75,8 +76,12 @@ public class RoomCreationAndManagementTest {
         try (Connection conn = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
         }
-        userRepository.deleteAll();
-        roomRepository.deleteAll();
+        for (Integer userId : userRepository.getAllUsers()) {
+            userRepository.deleteUser(userId);
+        }
+        for (Room room : roomRepository.getAllRooms()) {
+            roomRepository.deleteRoom(room.getId());
+        }
 
         User testUser = createTestUser("testuser@example.com", "testuser", "password");
         testUserId = testUser.getId();
@@ -119,7 +124,7 @@ public class RoomCreationAndManagementTest {
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("New Room", roomRepository.getRoom(response.getBody().getRoomId()).getName());
+        assertEquals("New Room", roomRepository.getRoomById(response.getBody().getRoomId()).getName());
     }
 
     @Test
@@ -143,6 +148,6 @@ public class RoomCreationAndManagementTest {
         ResponseEntity<Void> response = roomController.deleteRoom(validToken, roomToDelete.getId());
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        assertNull(roomRepository.getRoom(roomToDelete.getId()));
+        assertNull(roomRepository.getRoomById(roomToDelete.getId()));
     }
 }
