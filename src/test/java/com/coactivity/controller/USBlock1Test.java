@@ -133,7 +133,7 @@ public class USBlock1Test {
     void US103_verifyLogin() {
         String login = "testuser@example.com";
         String verificationCode = "123456";
-        tokenService.addPendingVerification(login, new PendingVerification(Objects.requireNonNull(userRepository.getUserByLogin(login).orElse(null)).getId(), verificationCode, Instant.now().plus(10, ChronoUnit.MINUTES)));
+        tokenService.addPendingVerification(login, new PendingVerification(Objects.requireNonNull(userRepository.getUserByLogin(login)).getId(), verificationCode, Instant.now().plus(10, ChronoUnit.MINUTES)));
 
         ResponseEntity<LoginResponse> response = userController.verifyLogin(login, verificationCode);
 

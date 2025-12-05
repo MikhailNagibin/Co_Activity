@@ -182,7 +182,7 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
 
-  public Optional<User> getUserByLogin(String login) {
+  public User getUserByLogin(String login) {
     String sql = "SELECT * FROM Users WHERE login = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -190,7 +190,7 @@ public class UserRepositoryImpl implements UserRepository {
       statement.setString(1, login);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          return Optional.of(mapResultSetToUser(resultSet));
+          return mapResultSetToUser(resultSet);
         }
       }
 
@@ -198,7 +198,7 @@ public class UserRepositoryImpl implements UserRepository {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
-    return Optional.empty();
+    return null;
   }
 
   @Override

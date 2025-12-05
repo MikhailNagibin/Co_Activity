@@ -50,5 +50,5 @@ public interface UserRepository {
    */
   User getUserById(Integer userId);
 
-  Optional<User> getUserByLogin(String login);
+  User getUserByLogin(String login);
 }
