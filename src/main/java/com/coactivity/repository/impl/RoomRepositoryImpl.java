@@ -282,23 +282,24 @@ public class RoomRepositoryImpl implements RoomRepository {
       null);
   }
 
-  public Map<Integer, String> getUsersInRoom(Integer roomId) {
+  public Map<User, Role> getUsersInRoom(Integer roomId) {
     String sql = """
-      SELECT DISTINCT u.id, r.role
+      SELECT u.id, r.role
       FROM Users AS u
       INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
       INNER JOIN Roles AS r ON r.id = rm.role_id
       WHERE rm.room_id = ?;
         """;
-    var usersInRoom = new HashMap<Integer, String>();
+
+    var usersInRoom = new HashMap<User, Role>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, roomId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-//          User user = userRepository.getUserById();
-//          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
-          usersInRoom.put(resultSet.getInt("id"), resultSet.getString("role").toUpperCase());
+          User user = userRepository.getUserById(resultSet.getInt("id"));
+          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
+          usersInRoom.put(user, role);
         }
       }
     } catch (SQLException e) {
@@ -386,7 +387,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   public void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role) {
     String sql = """
         UPDATE Rooms_members
-        SET role_id = (select id from Roles where role = ?)
+        SET role_id = (select id from Roles where LOWER(role) = LOWER(?))
         where room_id = ? and user_id = ?""";
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -409,16 +410,28 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   public Role getUserRoleByRoomId(Integer roomId, Integer userId) {
     String sql = """
-        select r.role from Rooms_members as rm inner join Roles as r on r.id = rm.role_id
-         where rm.room_id = ? and rm.user_id = ?""";
+        SELECT r.role, rm.role_id
+        FROM Rooms_members AS rm 
+        LEFT JOIN Roles AS r ON r.id = rm.role_id
+        WHERE rm.room_id = ? AND rm.user_id = ?""";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);   // Первый параметр - room_id
-      statement.setInt(2, userId);   // Второй параметр - user_id
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
-          return Role.valueOf(resultSet.getString(1).toUpperCase());
+          String roleFromDb = resultSet.getString("role");
+          Integer roleId = resultSet.getInt("role_id");
+
+          if (resultSet.wasNull() || roleFromDb == null) {
+            System.err.println("WARNING: role_id = " + roleId + " but no matching role in Roles table");
+            // Возвращаем роль по умолчанию
+            return Role.PARTICIPANT;
+          }
+
+          return Role.valueOf(roleFromDb.toUpperCase());
         } else {
           throw new RuntimeException("User not found in room members");
         }

@@ -22,6 +22,7 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,15 +52,14 @@ public class UserWithRoomService {
   public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
-    User targetUser = getExistingUser(targetUserId);
 
     // Validate that the target user is a member of the room before assigning admin role
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
       throw new ValidationException("Target user is not a member of the room and cannot be assigned admin role.");
     }
-    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.ADMIN);
-    return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, previousRole, ownerId);
+    return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, Role.PARTICIPANT, ownerId);
   }
 
   public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
@@ -157,7 +157,8 @@ public class UserWithRoomService {
     enforceAdminPrivileges(roomId, adminId);
 
     Room room = getExistingRoom(roomId);
-    Map<User, Role> users = room.getUsers();
+    System.out.println(room);
+    Map<User, Role> users = roomRepository.getUsersInRoom(roomId);
     if (users == null || users.isEmpty()) {
       return Collections.emptyList();
     }

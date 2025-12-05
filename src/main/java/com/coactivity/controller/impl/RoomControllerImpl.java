@@ -72,6 +72,7 @@ public class RoomControllerImpl implements RoomController {
       @RequestHeader(name = "Authorization", required = false) String token,
       @PathVariable @Positive Integer roomId,
       @RequestBody @NotBlank String newContent) {
+
     Integer authorId = resolveAuthorizedUserId(token);
     BulletinBoardResponse response =
         bulletinBoardService.updateBulletinBoard(roomId, newContent, authorId);
@@ -153,9 +154,11 @@ public class RoomControllerImpl implements RoomController {
       @RequestHeader(name = "Authorization", required = false) String token,
       @PathVariable @Positive Integer roomId,
       @RequestParam(name = "role", required = false) Role roleFilter) {
+
     Integer currentUserId = resolveAuthorizedUserId(token);
     List<RoomParticipantResponse> participants =
         userWithRoomService.getRoomParticipants(currentUserId, roomId, roleFilter);
+
     return ResponseEntity.ok(participants);
   }
 

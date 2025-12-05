@@ -534,4 +534,129 @@ class QAControllerImplIntegrationTest {
       assertTrue(thread.getAnswers().isEmpty());
     }
   }
+
+  @Test
+  @DisplayName("Полный сценарий пользователя на сайте: просмотр вопросов, чтение и ответы")
+  void testFullUserScenario() {
+    // Шаг 1: Создаем тестовые данные - воспроизводим сценарий из AnswerQuestionsTest
+    TestQuestionData testData = createTestQuestionsForUserScenario();
+
+    // Шаг 2: Пользователь получает список всех вопросов
+    ResponseEntity<List<QuestionResponse>> allQuestionsResponse = qaController.getAllQuestions();
+    assertEquals(HttpStatus.OK, allQuestionsResponse.getStatusCode());
+    List<QuestionResponse> questions = allQuestionsResponse.getBody();
+
+    // Проверяем, что вопросы создались
+    assertNotNull(questions);
+
+    // Шаг 3: Читаем вопрос, на который уже дали ответ (вопрос про арт с вложенным ответом)
+    ResponseEntity<QuestionWithAnswersResponse> artQuestionResponse =
+      qaController.getQuestionWithAnswers(testData.getArtQuestionId());
+
+    assertEquals(HttpStatus.OK, artQuestionResponse.getStatusCode());
+    QuestionWithAnswersResponse artThread = artQuestionResponse.getBody();
+    assertNotNull(artThread);
+
+    // В этом вопросе должны быть 2 ответа (основной и вложенный)
+    assertEquals(2, artThread.getAnswers().size());
+
+    // Проверяем первый ответ
+    assertEquals("Winsor & Newton Cotman sets are excellent for beginners.",
+      artThread.getAnswers().get(0).getAnswer());
+    assertEquals(testUserId2, artThread.getAnswers().get(0).getAuthor().getId());
+
+    // Проверяем вложенный ответ
+    assertEquals("I agree! Also check out Van Gogh student grade watercolors.",
+      artThread.getAnswers().get(1).getAnswer());
+    assertEquals(testUserId1, artThread.getAnswers().get(1).getAuthor().getId());
+    assertEquals(artThread.getAnswers().get(0).getId(), artThread.getAnswers().get(1).getPreviousAnswerId());
+
+    // Шаг 4: Снова получаем список всех вопросов
+    ResponseEntity<List<QuestionResponse>> updatedQuestionsResponse = qaController.getAllQuestions();
+    assertEquals(HttpStatus.OK, updatedQuestionsResponse.getStatusCode());
+
+    // Шаг 5: Читаем вопрос без ответа (музыкальный вопрос изначально без ответа)
+    ResponseEntity<QuestionWithAnswersResponse> musicQuestionResponse =
+      qaController.getQuestionWithAnswers(testData.getMusicQuestionId());
+
+    assertEquals(HttpStatus.OK, musicQuestionResponse.getStatusCode());
+    QuestionWithAnswersResponse musicThread = musicQuestionResponse.getBody();
+    assertNotNull(musicThread);
+    assertTrue(musicThread.getAnswers().isEmpty());
+
+    // Шаг 6: Пользователь отвечает на вопрос без ответа
+    AnswerRequest newAnswerRequest = new AnswerRequest();
+    newAnswerRequest.setQuestionId(testData.getMusicQuestionId());
+    newAnswerRequest.setAnswer("I recommend starting with a Yamaha F310 acoustic guitar.");
+
+    ResponseEntity<AnswerResponse> newAnswerResponse = qaController.answerQuestion(validToken1, newAnswerRequest);
+    assertEquals(HttpStatus.CREATED, newAnswerResponse.getStatusCode());
+
+    // Шаг 7: Проверяем, что ответ добавился
+    ResponseEntity<QuestionWithAnswersResponse> updatedMusicResponse =
+      qaController.getQuestionWithAnswers(testData.getMusicQuestionId());
+
+    assertEquals(HttpStatus.OK, updatedMusicResponse.getStatusCode());
+    assertEquals(1, updatedMusicResponse.getBody().getAnswers().size());
+
+    // Шаг 8: Финальная проверка
+    ResponseEntity<List<QuestionResponse>> finalCheckResponse = qaController.getAllQuestions();
+    assertEquals(HttpStatus.OK, finalCheckResponse.getStatusCode());
+    assertEquals(3, finalCheckResponse.getBody().size());
+  }
+
+  private TestQuestionData createTestQuestionsForUserScenario() {
+    // Создаем 3 вопроса как в изначальном тесте
+    // 1. Business вопрос (без ответа в тестах)
+    QuestionRequest businessQuestion = new QuestionRequest();
+    businessQuestion.setCategory("Business");
+    businessQuestion.setQuestion("What are good sports for kids?");
+    ResponseEntity<QuestionResponse> businessResponse = qaController.askQuestion(validToken1, businessQuestion);
+    Integer businessQuestionId = businessResponse.getBody().getId();
+
+    // 2. Music вопрос (в изначальном тесте на него отвечают)
+    QuestionRequest musicQuestion = new QuestionRequest();
+    musicQuestion.setCategory("Music");
+    musicQuestion.setQuestion("What is the best guitar for beginners?");
+    ResponseEntity<QuestionResponse> musicResponse = qaController.askQuestion(validToken1, musicQuestion);
+    Integer musicQuestionId = musicResponse.getBody().getId();
+
+    // 3. Art вопрос (в изначальном тесте есть вложенные ответы)
+    QuestionRequest artQuestion = new QuestionRequest();
+    artQuestion.setCategory("Art");
+    artQuestion.setQuestion("What are good watercolor brands for beginners?");
+    ResponseEntity<QuestionResponse> artResponse = qaController.askQuestion(validToken1, artQuestion);
+    Integer artQuestionId = artResponse.getBody().getId();
+
+    // Для art вопроса создаем вложенные ответы как в тесте AnswerQuestionsTest
+    AnswerRequest firstAnswer = new AnswerRequest();
+    firstAnswer.setQuestionId(artQuestionId);
+    firstAnswer.setAnswer("Winsor & Newton Cotman sets are excellent for beginners.");
+    ResponseEntity<AnswerResponse> firstAnswerResponse = qaController.answerQuestion(validToken2, firstAnswer);
+    Integer firstAnswerId = firstAnswerResponse.getBody().getId();
+
+    AnswerRequest replyAnswer = new AnswerRequest();
+    replyAnswer.setQuestionId(artQuestionId);
+    replyAnswer.setPreviousAnswerId(firstAnswerId);
+    replyAnswer.setAnswer("I agree! Also check out Van Gogh student grade watercolors.");
+    qaController.answerQuestion(validToken1, replyAnswer);
+
+    return new TestQuestionData(businessQuestionId, musicQuestionId, artQuestionId);
+  }
+
+  private static class TestQuestionData {
+    private final Integer businessQuestionId;
+    private final Integer musicQuestionId;
+    private final Integer artQuestionId;
+
+    public TestQuestionData(Integer businessQuestionId, Integer musicQuestionId, Integer artQuestionId) {
+      this.businessQuestionId = businessQuestionId;
+      this.musicQuestionId = musicQuestionId;
+      this.artQuestionId = artQuestionId;
+    }
+
+    public Integer getBusinessQuestionId() { return businessQuestionId; }
+    public Integer getMusicQuestionId() { return musicQuestionId; }
+    public Integer getArtQuestionId() { return artQuestionId; }
+  }
 }

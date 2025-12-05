@@ -157,6 +157,7 @@ public class UserControllerImpl implements UserController {
       @RequestHeader(name = "Authorization", required = false) String token,
       @PathVariable @Positive Integer roomId,
       @PathVariable @Positive Integer userId) {
+
     Integer requesterId = resolveAuthorizedUserId(token);
     RoleAssignmentResponse response =
         userWithRoomService.assignAdminRole(requesterId, roomId, userId);

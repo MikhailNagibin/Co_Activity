@@ -56,6 +56,12 @@ public class BulletinBoardService {
 
 
     // Validate room existence before proceeding
+    var board = bulletinBoardRepository.getBulletinBoard(roomId);
+
+    if (board == null) {
+      bulletinBoardRepository.createBulletinBoard(roomId, "temp content", authorId);
+    }
+
     getExistingRoom(roomId);    BulletinBoard updatedDomainBoard = bulletinBoardRepository.updateBulletinBoard(roomId, content,
         authorId);
     if (updatedDomainBoard == null) {
