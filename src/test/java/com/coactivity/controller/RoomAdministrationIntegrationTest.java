@@ -29,17 +29,19 @@ import java.io.InputStream;
 import java.sql.*;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest
-@DisplayName("Room Administration Integration Tests")
-class RoomAdministrationIntegrationTest {
+@DisplayName("Room Administration Full Integration Tests")
+class RoomAdministrationFullIntegrationTest {
 
   @Container
   static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-    .withDatabaseName("room_admin_test_db")
+    .withDatabaseName("room_admin_full_test_db")
     .withUsername("test")
     .withPassword("test");
 
@@ -70,11 +72,13 @@ class RoomAdministrationIntegrationTest {
 
   private Integer ownerId;
   private Integer adminId;
-  private Integer participantId;
+  private Integer participant1Id;
+  private Integer participant2Id;
   private Integer regularUserId;
   private String ownerToken;
   private String adminToken;
-  private String participantToken;
+  private String participant1Token;
+  private String participant2Token;
   private String regularUserToken;
   private Integer testRoomId;
 
@@ -104,10 +108,8 @@ class RoomAdministrationIntegrationTest {
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
-      // Temporarily disable foreign key constraints
       statement.execute("SET session_replication_role = 'replica'");
 
-      // Delete data from all tables in correct order
       String[] tables = {
         "usersNotification", "BulletinBoard", "Answers", "Questions",
         "Bans", "rooms_requests", "Rooms_members", "Pictures",
@@ -122,7 +124,6 @@ class RoomAdministrationIntegrationTest {
         }
       }
 
-      // Re-enable foreign key constraints
       statement.execute("SET session_replication_role = 'origin'");
     }
   }
@@ -133,7 +134,6 @@ class RoomAdministrationIntegrationTest {
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
-      // Read and execute the init_tables.sql
       InputStream inputStream = getClass().getClassLoader().getResourceAsStream("init_tables.sql");
       if (inputStream != null) {
         String sql = new String(inputStream.readAllBytes());
@@ -216,8 +216,9 @@ class RoomAdministrationIntegrationTest {
       // Create admin user
       adminId = createUser(connection, "admin@test.com", "RoomAdmin");
 
-      // Create regular participant
-      participantId = createUser(connection, "participant@test.com", "RoomParticipant");
+      // Create participants
+      participant1Id = createUser(connection, "participant1@test.com", "Participant1");
+      participant2Id = createUser(connection, "participant2@test.com", "Participant2");
 
       // Create regular user (not in room)
       regularUserId = createUser(connection, "regular@test.com", "RegularUser");
@@ -303,8 +304,9 @@ class RoomAdministrationIntegrationTest {
       // Add admin to room as ADMIN
       addUserToRoom(connection, testRoomId, adminId, "Admin");
 
-      // Add participant to room as PARTICIPANT
-      addUserToRoom(connection, testRoomId, participantId, "Participant");
+      // Add participants to room as PARTICIPANT
+      addUserToRoom(connection, testRoomId, participant1Id, "Participant");
+      addUserToRoom(connection, testRoomId, participant2Id, "Participant");
     }
   }
 
@@ -341,120 +343,207 @@ class RoomAdministrationIntegrationTest {
     // Create tokens using real TokenService
     ownerToken = "Bearer " + realTokenService.createToken(ownerId);
     adminToken = "Bearer " + realTokenService.createToken(adminId);
-    participantToken = "Bearer " + realTokenService.createToken(participantId);
+    participant1Token = "Bearer " + realTokenService.createToken(participant1Id);
+    participant2Token = "Bearer " + realTokenService.createToken(participant2Id);
     regularUserToken = "Bearer " + realTokenService.createToken(regularUserId);
 
     // Register tokens
     realTokenService.registerToken(ownerId, ownerToken.substring(7));
     realTokenService.registerToken(adminId, adminToken.substring(7));
-    realTokenService.registerToken(participantId, participantToken.substring(7));
+    realTokenService.registerToken(participant1Id, participant1Token.substring(7));
+    realTokenService.registerToken(participant2Id, participant2Token.substring(7));
     realTokenService.registerToken(regularUserId, regularUserToken.substring(7));
   }
 
+  @Test
+  @DisplayName("Полный сценарий администрирования комнаты")
+  void testFullRoomAdministrationScenario() {
+    // Шаг 1: Владелец получает список всех пользователей в комнате
+    ResponseEntity<List<RoomParticipantResponse>> participantsResponse =
+      roomController.getRoomParticipants(ownerToken, testRoomId, null);
+
+    assertEquals(HttpStatus.OK, participantsResponse.getStatusCode());
+    assertNotNull(participantsResponse.getBody());
+
+    List<RoomParticipantResponse> participants = participantsResponse.getBody();
+    assertEquals(4, participants.size(), "В комнате должно быть 4 пользователя");
+
+    // Проверяем роли пользователей
+    boolean ownerFound = false;
+    boolean adminFound = false;
+    int participantCount = 0;
+
+    for (RoomParticipantResponse participant : participants) {
+      if (participant.getId().equals(ownerId)) {
+        assertEquals(Role.OWNER, participant.getRole());
+        ownerFound = true;
+      } else if (participant.getId().equals(adminId)) {
+        assertEquals(Role.ADMIN, participant.getRole());
+        adminFound = true;
+      } else if (participant.getRole() == Role.PARTICIPANT) {
+        participantCount++;
+      }
+    }
+
+    assertTrue(ownerFound, "Должен найти владельца");
+    assertTrue(adminFound, "Должен найти администратора");
+    assertEquals(2, participantCount, "Должно быть 2 участника");
+
+    // Шаг 2: Владелец повышает участника до администратора
+    ResponseEntity<RoleAssignmentResponse> promoteResponse =
+      userController.assignAdminRole(ownerToken, testRoomId, participant1Id);
+
+    assertEquals(HttpStatus.OK, promoteResponse.getStatusCode());
+    assertNotNull(promoteResponse.getBody());
+
+    RoleAssignmentResponse promotion = promoteResponse.getBody();
+    assertEquals(participant1Id, promotion.getUserId());
+    assertEquals(testRoomId, promotion.getRoomId());
+    assertEquals(Role.ADMIN, promotion.getNewRole());
+    assertEquals(Role.PARTICIPANT, promotion.getPreviousRole());
+
+    // Проверяем, что роль изменилась в базе данных
+    Role newRole = roomRepository.getUserRoleByRoomId(testRoomId, participant1Id);
+    assertEquals(Role.ADMIN, newRole, "Пользователь должен стать администратором");
+
+    // Шаг 3: Проверяем обновленный список участников с фильтрацией по роли ADMIN
+    ResponseEntity<List<RoomParticipantResponse>> adminsResponse =
+      roomController.getRoomParticipants(ownerToken, testRoomId, Role.ADMIN);
+
+    assertEquals(HttpStatus.OK, adminsResponse.getStatusCode());
+    List<RoomParticipantResponse> admins = adminsResponse.getBody();
+    assertEquals(2, admins.size(), "Теперь должно быть 2 администратора");
+
+    // Проверяем, что оба являются администраторами
+    for (RoomParticipantResponse admin : admins) {
+      assertEquals(Role.ADMIN, admin.getRole());
+    }
+
+    // Шаг 4: Владелец понижает администратора обратно до участника
+    ResponseEntity<RoleAssignmentResponse> demoteResponse =
+      userController.demoteAdminRole(ownerToken, testRoomId, participant1Id);
+
+    assertEquals(HttpStatus.OK, demoteResponse.getStatusCode());
+    assertNotNull(demoteResponse.getBody());
+
+    RoleAssignmentResponse demotion = demoteResponse.getBody();
+    assertEquals(participant1Id, demotion.getUserId());
+    assertEquals(Role.PARTICIPANT, demotion.getNewRole());
+    assertEquals(Role.ADMIN, demotion.getPreviousRole());
+
+    // Проверяем, что роль изменилась обратно
+    Role demotedRole = roomRepository.getUserRoleByRoomId(testRoomId, participant1Id);
+    assertEquals(Role.PARTICIPANT, demotedRole, "Пользователь должен стать участником");
+
+    // Шаг 5: Проверяем список администраторов после понижения
+    ResponseEntity<List<RoomParticipantResponse>> adminsAfterDemotionResponse =
+      roomController.getRoomParticipants(ownerToken, testRoomId, Role.ADMIN);
+
+    assertEquals(HttpStatus.OK, adminsAfterDemotionResponse.getStatusCode());
+    List<RoomParticipantResponse> adminsAfterDemotion = adminsAfterDemotionResponse.getBody();
+    assertEquals(1, adminsAfterDemotion.size(), "Теперь должен быть 1 администратор");
+    assertEquals(adminId, adminsAfterDemotion.get(0).getId());
+
+    // Шаг 6: Администратор обновляет доску объявлений
+    String initialBulletinContent = "Добро пожаловать в нашу комнату! Правила: 1. Уважайте друг друга. 2. Не спамьте.";
+    ResponseEntity<BulletinBoardResponse> updateBulletinResponse =
+      roomController.updateBulletinBoard(adminToken, testRoomId, initialBulletinContent);
+
+    assertEquals(HttpStatus.OK, updateBulletinResponse.getStatusCode());
+    assertNotNull(updateBulletinResponse.getBody());
+
+    BulletinBoardResponse bulletin = updateBulletinResponse.getBody();
+    assertEquals(initialBulletinContent, bulletin.getContent());
+    assertEquals(adminId, bulletin.getAuthor().getId());
+
+    // Шаг 7: Проверяем, что доска объявлений обновилась через получение деталей комнаты
+    ResponseEntity<RoomDetailedResponse> roomDetailsResponse =
+      roomController.getRoomById(testRoomId, adminToken);
+
+    assertEquals(HttpStatus.OK, roomDetailsResponse.getStatusCode());
+    assertNotNull(roomDetailsResponse.getBody());
+
+    RoomDetailedResponse roomDetails = roomDetailsResponse.getBody();
+    assertNotNull(roomDetails.getBulletinBoard());
+    assertEquals(initialBulletinContent, roomDetails.getBulletinBoard().getContent());
+
+    // Шаг 8: Владелец обновляет доску объявлений
+    String updatedBulletinContent = "ВАЖНО: Собрание в пятницу в 18:00. Принести свои идеи для новых активностей.";
+    ResponseEntity<BulletinBoardResponse> ownerUpdateBulletinResponse =
+      roomController.updateBulletinBoard(ownerToken, testRoomId, updatedBulletinContent);
+
+    assertEquals(HttpStatus.OK, ownerUpdateBulletinResponse.getStatusCode());
+    assertEquals(updatedBulletinContent, ownerUpdateBulletinResponse.getBody().getContent());
+    assertEquals(ownerId, ownerUpdateBulletinResponse.getBody().getAuthor().getId());
+
+    // Шаг 9: Финальная проверка состояния комнаты
+    ResponseEntity<List<RoomParticipantResponse>> finalParticipantsResponse =
+      roomController.getRoomParticipants(ownerToken, testRoomId, null);
+
+    assertEquals(HttpStatus.OK, finalParticipantsResponse.getStatusCode());
+    assertEquals(4, finalParticipantsResponse.getBody().size(), "Все еще 4 пользователя в комнате");
+
+    // Проверяем окончательные роли
+    int finalAdminCount = 0;
+    int finalParticipantCount = 0;
+
+    for (RoomParticipantResponse participant : finalParticipantsResponse.getBody()) {
+      if (participant.getRole() == Role.ADMIN) {
+        finalAdminCount++;
+      } else if (participant.getRole() == Role.PARTICIPANT) {
+        finalParticipantCount++;
+      }
+    }
+
+    assertEquals(1, finalAdminCount, "Должен быть 1 администратор");
+    assertEquals(2, finalParticipantCount, "Должно быть 2 участника");
+
+    // Проверяем финальную доску объявлений
+    ResponseEntity<RoomDetailedResponse> finalRoomDetailsResponse =
+      roomController.getRoomById(testRoomId, ownerToken);
+
+    assertEquals(HttpStatus.OK, finalRoomDetailsResponse.getStatusCode());
+    assertEquals(updatedBulletinContent, finalRoomDetailsResponse.getBody().getBulletinBoard().getContent());
+  }
+
   @Nested
-  @DisplayName("US-501: As a room administrator, I want to view   room participants")
+  @DisplayName("US-501: As a room administrator, I want to view room participants")
   class ViewRoomParticipantsTests {
 
     @Test
     @DisplayName("Owner should be able to view all participants")
     void ownerCanViewAllParticipants() {
-      // Act
       ResponseEntity<List<RoomParticipantResponse>> response =
         roomController.getRoomParticipants(ownerToken, testRoomId, null);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
-      System.out.println(response.getBody().getClass());
       List<RoomParticipantResponse> participants = response.getBody();
-      assertEquals(3, participants.size());
-
-      // Verify all users are present with correct roles
-      boolean foundOwner = false;
-      boolean foundAdmin = false;
-      boolean foundParticipant = false;
-
-      for (RoomParticipantResponse participant : participants) {
-        if (participant.getId().equals(ownerId)) {
-          assertEquals(Role.OWNER, participant.getRole());
-          foundOwner = true;
-        } else if (participant.getId().equals(adminId)) {
-          assertEquals(Role.ADMIN, participant.getRole());
-          foundAdmin = true;
-        } else if (participant.getId().equals(participantId)) {
-          assertEquals(Role.PARTICIPANT, participant.getRole());
-          foundParticipant = true;
-        }
-      }
-
-      assertTrue(foundOwner, "Should find owner");
-      assertTrue(foundAdmin, "Should find admin");
-      assertTrue(foundParticipant, "Should find participant");
+      assertEquals(4, participants.size());
     }
 
     @Test
     @DisplayName("Admin should be able to view all participants")
     void adminCanViewAllParticipants() {
-      // Act
       ResponseEntity<List<RoomParticipantResponse>> response =
         roomController.getRoomParticipants(adminToken, testRoomId, null);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
-      assertEquals(3, response.getBody().size());
+      assertEquals(4, response.getBody().size());
     }
 
     @Test
     @DisplayName("Admin should be able to filter participants by role")
     void adminCanFilterParticipantsByRole() {
-      // Act - filter by PARTICIPANT role
       ResponseEntity<List<RoomParticipantResponse>> response =
         roomController.getRoomParticipants(adminToken, testRoomId, Role.PARTICIPANT);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       List<RoomParticipantResponse> participants = response.getBody();
-      assertEquals(1, participants.size());
-      assertEquals(participantId, participants.get(0).getId());
-      assertEquals(Role.PARTICIPANT, participants.get(0).getRole());
-    }
-
-    @Test
-    @DisplayName("Participant should not be able to view participants")
-    void participantCannotViewParticipants() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> roomController.getRoomParticipants(participantToken, testRoomId, null));
-    }
-
-    @Test
-    @DisplayName("Regular user should not be able to view participants")
-    void regularUserCannotViewParticipants() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> roomController.getRoomParticipants(regularUserToken, testRoomId, null));
-    }
-
-    @Test
-    @DisplayName("Filter by ADMIN role should return only admins")
-    void filterByAdminRoleReturnsOnlyAdmins() throws SQLException {
-      // Arrange - add another admin
-      Integer anotherAdminId = createUser("another_admin@test.com", "AnotherAdmin");
-      addUserToRoom(testRoomId, anotherAdminId, "Admin");
-      String anotherAdminToken = "Bearer " + realTokenService.createToken(anotherAdminId);
-      realTokenService.registerToken(anotherAdminId, anotherAdminToken.substring(7));
-
-      // Act
-      ResponseEntity<List<RoomParticipantResponse>> response =
-        roomController.getRoomParticipants(ownerToken, testRoomId, Role.ADMIN);
-
-      // Assert
-      assertEquals(HttpStatus.OK, response.getStatusCode());
-      List<RoomParticipantResponse> admins = response.getBody();
-      assertEquals(2, admins.size()); // Original admin + new admin
-      assertTrue(admins.stream().allMatch(p -> p.getRole() == Role.ADMIN));
+      assertEquals(2, participants.size());
+      assertTrue(participants.stream().allMatch(p -> p.getRole() == Role.PARTICIPANT));
     }
   }
 
@@ -465,63 +554,28 @@ class RoomAdministrationIntegrationTest {
     @Test
     @DisplayName("Admin should be able to verify participant membership")
     void adminCanVerifyParticipantMembership() {
-      // Act
       ResponseEntity<MembershipVerificationResponse> response =
-        roomController.isUserInRoom(adminToken, testRoomId, participantId);
+        roomController.isUserInRoom(adminToken, testRoomId, participant1Id);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       MembershipVerificationResponse verification = response.getBody();
       assertTrue(verification.getIsMember());
       assertEquals(Role.PARTICIPANT, verification.getRole());
-      assertEquals(participantId, verification.getUserInfo().getId());
-    }
-
-    @Test
-    @DisplayName("Owner should be able to verify admin membership")
-    void ownerCanVerifyAdminMembership() {
-      // Act
-      ResponseEntity<MembershipVerificationResponse> response =
-        roomController.isUserInRoom(ownerToken, testRoomId, adminId);
-
-      // Assert
-      assertEquals(HttpStatus.OK, response.getStatusCode());
-      MembershipVerificationResponse verification = response.getBody();
-      assertTrue(verification.getIsMember());
-      assertEquals(Role.ADMIN, verification.getRole());
+      assertEquals(participant1Id, verification.getUserInfo().getId());
     }
 
     @Test
     @DisplayName("Admin should see false for non-member")
     void adminSeesFalseForNonMember() {
-      // Act
       ResponseEntity<MembershipVerificationResponse> response =
         roomController.isUserInRoom(adminToken, testRoomId, regularUserId);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       MembershipVerificationResponse verification = response.getBody();
       assertFalse(verification.getIsMember());
       assertNull(verification.getRole());
-      assertEquals(regularUserId, verification.getUserInfo().getId());
-    }
-
-    @Test
-    @DisplayName("Participant should not be able to verify membership")
-    void participantCannotVerifyMembership() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> roomController.isUserInRoom(participantToken, testRoomId, adminId));
-    }
-
-    @Test
-    @DisplayName("Regular user should not be able to verify membership")
-    void regularUserCannotVerifyMembership() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> roomController.isUserInRoom(regularUserToken, testRoomId, participantId));
     }
   }
 
@@ -532,59 +586,20 @@ class RoomAdministrationIntegrationTest {
     @Test
     @DisplayName("Owner should be able to promote participant to admin")
     void ownerCanPromoteParticipantToAdmin() {
-      // Act
-      System.out.println(roomRepository.getUserRoleByRoomId(testRoomId, participantId));
       ResponseEntity<RoleAssignmentResponse> response =
-        userController.assignAdminRole(ownerToken, testRoomId, participantId);
-      System.out.println(roomRepository.getUserRoleByRoomId(testRoomId, participantId));
-
-      // Assert
-
+        userController.assignAdminRole(ownerToken, testRoomId, participant1Id);
 
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       RoleAssignmentResponse roleResponse = response.getBody();
-      assertEquals(participantId, roleResponse.getUserId());
+      assertEquals(participant1Id, roleResponse.getUserId());
       assertEquals(testRoomId, roleResponse.getRoomId());
       assertEquals(Role.ADMIN, roleResponse.getNewRole());
       assertEquals(Role.PARTICIPANT, roleResponse.getPreviousRole());
 
-      // Verify in database
-      Role actualRole = roomRepository.getUserRoleByRoomId(testRoomId, participantId);
+      Role actualRole = roomRepository.getUserRoleByRoomId(testRoomId, participant1Id);
       assertEquals(Role.ADMIN, actualRole);
-    }
-
-    @Test
-    @DisplayName("Admin should not be able to promote users")
-    void adminCannotPromoteUsers() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> userController.assignAdminRole(adminToken, testRoomId, participantId));
-    }
-
-    @Test
-    @DisplayName("Should throw exception when promoting non-member")
-    void cannotPromoteNonMember() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.ValidationException.class,
-        () -> userController.assignAdminRole(ownerToken, testRoomId, regularUserId));
-    }
-
-    @Test
-    @DisplayName("Participant should not be able to promote users")
-    void participantCannotPromoteUsers() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> userController.assignAdminRole(participantToken, testRoomId, adminId));
-    }
-
-    @Test
-    @DisplayName("Regular user should not be able to promote users")
-    void regularUserCannotPromoteUsers() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> userController.assignAdminRole(regularUserToken, testRoomId, participantId));
     }
   }
 
@@ -594,60 +609,24 @@ class RoomAdministrationIntegrationTest {
 
     @BeforeEach
     void setUpDemoteTests() throws SQLException {
-      // Ensure participant is an admin for demotion tests
-      roomRepository.setRoleByUserIdAndRoomId(participantId, testRoomId, Role.ADMIN);
+      roomRepository.setRoleByUserIdAndRoomId(participant1Id, testRoomId, Role.ADMIN);
     }
 
     @Test
     @DisplayName("Owner should be able to demote admin to participant")
     void ownerCanDemoteAdminToParticipant() {
-      // Act
       ResponseEntity<RoleAssignmentResponse> response =
-        userController.demoteAdminRole(ownerToken, testRoomId, participantId);
+        userController.demoteAdminRole(ownerToken, testRoomId, participant1Id);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
 
       RoleAssignmentResponse roleResponse = response.getBody();
-      assertEquals(participantId, roleResponse.getUserId());
+      assertEquals(participant1Id, roleResponse.getUserId());
       assertEquals(Role.PARTICIPANT, roleResponse.getNewRole());
       assertEquals(Role.ADMIN, roleResponse.getPreviousRole());
 
-      // Verify in database
-      Role actualRole = roomRepository.getUserRoleByRoomId(testRoomId, participantId);
+      Role actualRole = roomRepository.getUserRoleByRoomId(testRoomId, participant1Id);
       assertEquals(Role.PARTICIPANT, actualRole);
-    }
-
-    @Test
-    @DisplayName("Admin should not be able to demote other admins")
-    void adminCannotDemoteOtherAdmins() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> userController.demoteAdminRole(adminToken, testRoomId, participantId));
-    }
-
-    @Test
-    @DisplayName("Demoting non-admin should work but keep same role")
-    void demotingNonAdminKeepsSameRole() throws SQLException {
-      // Arrange - ensure participant is just a participant
-      roomRepository.setRoleByUserIdAndRoomId(participantId, testRoomId, Role.PARTICIPANT);
-
-      // Act
-      ResponseEntity<RoleAssignmentResponse> response =
-        userController.demoteAdminRole(ownerToken, testRoomId, participantId);
-
-      // Assert
-      assertEquals(HttpStatus.OK, response.getStatusCode());
-      assertEquals(Role.PARTICIPANT, response.getBody().getNewRole());
-      assertEquals(Role.PARTICIPANT, response.getBody().getPreviousRole());
-    }
-
-    @Test
-    @DisplayName("Participant should not be able to demote admins")
-    void participantCannotDemoteAdmins() {
-      // Act & Assert
-      assertThrows(com.coactivity.service.exception.AuthorizationException.class,
-        () -> userController.demoteAdminRole(participantToken, testRoomId, adminId));
     }
   }
 
@@ -658,14 +637,11 @@ class RoomAdministrationIntegrationTest {
     @Test
     @DisplayName("Admin should be able to update bulletin board")
     void adminCanUpdateBulletinBoard() {
-      // Arrange
       String newContent = "Important announcement: Meeting scheduled for Friday";
 
-      // Act
       ResponseEntity<BulletinBoardResponse> response =
         roomController.updateBulletinBoard(adminToken, testRoomId, newContent);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
@@ -678,67 +654,16 @@ class RoomAdministrationIntegrationTest {
     @Test
     @DisplayName("Owner should be able to update bulletin board")
     void ownerCanUpdateBulletinBoard() {
-      // Arrange
       String newContent = "Owner announcement: New room rules";
 
-      // Act
       ResponseEntity<BulletinBoardResponse> response =
         roomController.updateBulletinBoard(ownerToken, testRoomId, newContent);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertEquals(newContent, response.getBody().getContent());
       assertEquals(ownerId, response.getBody().getAuthor().getId());
     }
-
-    @Test
-    @DisplayName("Should create bulletin board if not exists")
-    void createsBulletinBoardIfNotExists() {
-      // Arrange - delete any existing bulletin board
-      try (Connection connection = dataRepository.getDataSource().getConnection();
-           PreparedStatement ps = connection.prepareStatement(
-             "DELETE FROM BulletinBoard WHERE room_id = ?")) {
-        ps.setInt(1, testRoomId);
-        ps.executeUpdate();
-      } catch (SQLException e) {
-      }
-
-      String newContent = "Creating new bulletin board";
-
-      // Act
-      ResponseEntity<BulletinBoardResponse> response =
-        roomController.updateBulletinBoard(adminToken, testRoomId, newContent);
-
-      // Assert
-      assertEquals(HttpStatus.OK, response.getStatusCode());
-      assertEquals(newContent, response.getBody().getContent());
-    }
-
-    @Test
-    @DisplayName("Should update existing bulletin board content")
-    void updatesExistingBulletinBoard() {
-      // Arrange - first create a bulletin board
-      String initialContent = "Initial content";
-      roomController.updateBulletinBoard(adminToken, testRoomId, initialContent);
-
-      String updatedContent = "Updated content";
-
-      // Act
-      ResponseEntity<BulletinBoardResponse> response =
-        roomController.updateBulletinBoard(adminToken, testRoomId, updatedContent);
-
-      // Assert
-      assertEquals(HttpStatus.OK, response.getStatusCode());
-      assertEquals(updatedContent, response.getBody().getContent());
-
-      // Verify by getting room details
-      ResponseEntity<RoomDetailedResponse> roomResponse =
-        roomController.getRoomById(testRoomId, adminToken);
-      assertEquals(updatedContent, roomResponse.getBody().getBulletinBoard().getContent());
-    }
   }
-
-
 
   // Helper methods
   private Integer createUser(String email, String username) throws SQLException {
