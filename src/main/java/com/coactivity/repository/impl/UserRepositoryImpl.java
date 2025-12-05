@@ -17,6 +17,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
@@ -180,6 +181,27 @@ public class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
+
+  public User getUserByLogin(String login) {
+    String sql = "SELECT * FROM Users WHERE login = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setString(1, login);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return mapResultSetToUser(resultSet);
+        }
+      }
+
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    return null;
+  }
+
+  @Override
   public User getUserById(Integer userId) {
     String sql = "SELECT * FROM Users WHERE id = ?";
     try (Connection connection = dataRepository.getDataSource().getConnection();
