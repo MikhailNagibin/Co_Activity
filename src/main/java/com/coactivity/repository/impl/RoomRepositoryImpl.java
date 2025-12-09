@@ -53,7 +53,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setBoolean(1, true);
       statement.setBoolean(2, request.getIsPublic());
       statement.setString(3, request.getChatLink());
-      statement.setInt(4, request.getCategoryId());
+      statement.setInt(4, getCategoryIdByName(request.getCategory()));
       statement.setString(5, request.getName());
       statement.setString(6, request.getDescription());
       statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
@@ -458,5 +458,27 @@ public class RoomRepositoryImpl implements RoomRepository {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
+  }
+
+  public int getCategoryIdByName(String categoryName) {
+    String sql = """
+        SELECT id FROM Categories
+        WHERE LOWER(name) = LOWER(?);
+        """;
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, categoryName);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getInt("id");
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println("Error getting category ID by name: " + e.getMessage());
+      throw new RuntimeException("Failed to retrieve category ID", e);
+    }
+    return -1;
   }
 }

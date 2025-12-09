@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @SpringBootTest
 @DisplayName("Room Administration Full Integration Tests")
-class RoomAdministrationFullIntegrationTest {
+class RoomAdministrationIntegrationTest {
 
   @Container
   static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")

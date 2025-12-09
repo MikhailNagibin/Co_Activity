@@ -147,8 +147,8 @@ public class RoomService {
     if (request.getName() == null || request.getName().trim().isEmpty()) {
       throw new ValidationException("Room name cannot be empty");
     }
-    if (request.getCategoryId() == null) {
-      throw new ValidationException("Category id is required");
+    if (request.getCategory() == null) {
+      throw new ValidationException("Category is required");
     }
     if (request.getMaximumNumberOfPeople() == null) {
       throw new ValidationException("Maximum number of people is required");

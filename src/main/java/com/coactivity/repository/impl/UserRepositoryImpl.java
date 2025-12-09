@@ -324,4 +324,36 @@ public class UserRepositoryImpl implements UserRepository {
       throw new RuntimeException();
     }
   }
+
+
+  public void printAllCategories() throws SQLException {
+    String sql = "SELECT * FROM Categories ORDER BY id";
+
+    System.out.println("=== Все категории из базы данных ===");
+    System.out.println("ID | Название");
+    System.out.println("-----------");
+    DataRepository dataRepository = new DataRepository();
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql);
+         ResultSet resultSet = statement.executeQuery()) {
+
+      boolean hasData = false;
+      while (resultSet.next()) {
+        hasData = true;
+        int id = resultSet.getInt("id");
+        String name = resultSet.getString("name");
+        System.out.printf("%-3d | %s%n", id, name);
+      }
+
+      if (!hasData) {
+        System.out.println("Таблица Categories пустая!");
+      }
+
+      System.out.println("================================");
+
+    } catch (SQLException e) {
+      System.err.println("Ошибка при получении категорий: " + e.getMessage());
+      e.printStackTrace();
+    }
+  }
 }

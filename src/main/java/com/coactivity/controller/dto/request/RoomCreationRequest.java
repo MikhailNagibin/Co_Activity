@@ -44,8 +44,7 @@ public class RoomCreationRequest {
    * </p>
    */
   @NotNull
-  @Positive
-  private Integer categoryId;
+  private String category;
 
   /**
    * Public name or title of the room.

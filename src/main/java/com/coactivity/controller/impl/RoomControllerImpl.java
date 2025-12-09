@@ -54,10 +54,12 @@ public class RoomControllerImpl implements RoomController {
   }
 
   @Override
-  @PostMapping
+  @PostMapping("/createRoom")
   public ResponseEntity<RoomCreationResponse> createRoom(
+
       @RequestHeader(name = "Authorization", required = false) String token,
       @Valid @RequestBody RoomCreationRequest request) {
+
     Integer ownerId = resolveAuthorizedUserId(token);
     RoomCreationResponse response = roomService.createRoom(ownerId, request);
         URI location = response.getRoomId() != null

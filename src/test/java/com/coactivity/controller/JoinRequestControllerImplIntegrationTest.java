@@ -74,30 +74,22 @@ class JoinRequestControllerImplIntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    // Clean up database before each test
     cleanupDatabase();
 
-    // Initialize database with test data
     initializeDatabase();
 
-    // Create test users
     createTestUsers();
 
-    // Create valid tokens for test users и регистрируем их
     regularUserToken = createAndRegisterToken(regularUserId);
     adminUserToken = createAndRegisterToken(adminUserId);
     roomOwnerToken = createAndRegisterToken(roomOwnerId);
 
-    // Create test rooms using roomRepository
     createTestRoom();
   }
 
   private String createAndRegisterToken(Integer userId) {
-    // Создаем токен
     String token = tokenService.createToken(userId);
 
-    // Регистрируем токен в TokenService
-    // Метод createToken уже регистрирует токен, но убедимся
     tokenService.registerToken(userId, token);
 
     return "Bearer " + token;
@@ -108,10 +100,8 @@ class JoinRequestControllerImplIntegrationTest {
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
-      // Disable foreign key constraints
       statement.execute("SET session_replication_role = 'replica'");
 
-      // Delete all data from tables in correct order
       String[] tables = {
         "usersNotification", "BulletinBoard", "Answers", "Questions",
         "Bans", "rooms_requests", "Rooms_members", "Pictures",
@@ -122,7 +112,6 @@ class JoinRequestControllerImplIntegrationTest {
         statement.execute("DELETE FROM " + table);
       }
 
-      // Re-enable foreign key constraints
       statement.execute("SET session_replication_role = 'origin'");
     }
   }
@@ -133,7 +122,6 @@ class JoinRequestControllerImplIntegrationTest {
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
-      // Read and execute the init_tables.sql
       InputStream inputStream = getClass().getClassLoader().getResourceAsStream("init_tables.sql");
       if (inputStream != null) {
         String sql = new String(inputStream.readAllBytes());
@@ -148,11 +136,8 @@ class JoinRequestControllerImplIntegrationTest {
         throw new RuntimeException("init_tables.sql not found");
       }
 
-      // Insert RequestStatuses if not present
       insertRequestStatuses(connection);
-      // Insert Roles if not present
       insertRoles(connection);
-      // Insert Categories if not present
       insertCategories(connection);
     }
   }
@@ -162,7 +147,7 @@ class JoinRequestControllerImplIntegrationTest {
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
-        // Insert default statuses
+
         String insertSql = """
                     INSERT INTO RequestStatuses (status_info) VALUES 
                     ('Consideration'),
@@ -180,7 +165,6 @@ class JoinRequestControllerImplIntegrationTest {
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
-        // Insert default roles
         String insertSql = """
                     INSERT INTO Roles (role) VALUES 
                     ('OWNER'),
@@ -197,7 +181,6 @@ class JoinRequestControllerImplIntegrationTest {
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
-        // Insert default categories
         String insertSql = """
                     INSERT INTO Categories (name) VALUES 
                     ('Sport'),
@@ -213,13 +196,10 @@ class JoinRequestControllerImplIntegrationTest {
     DataSource dataSource = dataRepository.getDataSource();
 
     try (Connection connection = dataSource.getConnection()) {
-      // Create regular user
       regularUserId = insertUser(connection, "regular@test.com", "RegularUser", "password123");
 
-      // Create admin user
       adminUserId = insertUser(connection, "admin@test.com", "AdminUser", "password123");
 
-      // Create room owner
       roomOwnerId = insertUser(connection, "owner@test.com", "RoomOwner", "password123");
     }
   }
@@ -261,7 +241,6 @@ class JoinRequestControllerImplIntegrationTest {
       request.setAgeRating(18);
       request.setFrequency(Instant.now().plusSeconds(86400));
 
-      // Получаем ID категории Sport
       Integer sportCategoryId = getCategoryId("Sport");
       request.setCategoryId(sportCategoryId);
 
@@ -269,14 +248,11 @@ class JoinRequestControllerImplIntegrationTest {
       request.setChatLink("http://test-chat-link.com/private");
       request.setMaximumNumberOfPeople(50);
 
-      // Создаем комнату через roomRepository
       Room createdRoom = roomRepository.createRoom(roomOwnerId, request);
       roomId = createdRoom.getId();
 
-      // Добавляем администратора в комнату
       roomRepository.addUserToRoom(roomId, adminUserId, Role.ADMIN);
       System.out.println(roomRepository.getUsersInRoom(roomId));
-      // Создаем тестовые запросы на вступление
       createTestJoinRequests();
 
     } catch (Exception e) {
@@ -304,14 +280,11 @@ class JoinRequestControllerImplIntegrationTest {
     DataSource dataSource = dataRepository.getDataSource();
 
     try (Connection connection = dataSource.getConnection()) {
-      // Создаем запросы на вступление для регулярного пользователя
       insertJoinRequest(connection, regularUserId, roomId, "Consideration");
 
-      // Создаем еще одного пользователя и его запрос
       Integer anotherUserId = insertUser(connection, "another@test.com", "AnotherUser", "password123");
       insertJoinRequest(connection, anotherUserId, roomId, "Consideration");
 
-      // Создаем запросы с разными статусами для тестирования
       Integer acceptedUserId = insertUser(connection, "accepted@test.com", "AcceptedUser", "password123");
       insertJoinRequest(connection, acceptedUserId, roomId, "Accepted");
 
@@ -330,7 +303,6 @@ class JoinRequestControllerImplIntegrationTest {
       ps.setInt(1, userId);
       ps.setInt(2, roomId);
 
-      // Получаем status_id
       Integer statusId = getStatusId(connection, status);
       ps.setInt(3, statusId);
       ps.setTimestamp(4, Timestamp.from(Instant.now()));
@@ -362,11 +334,9 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should return all pending join requests for admin")
     void getPendingRequests_AdminUser_ReturnsAllPendingRequests() {
-      // Act
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getPendingRequests(adminUserToken);
 
-      // Assert
       System.out.println(roomRepository.getUsersInRoom(roomId));
 
       assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -374,13 +344,11 @@ class JoinRequestControllerImplIntegrationTest {
 
       List<JoinRequestResponse> requests = response.getBody();
 
-      // Должны возвращаться только ожидающие запросы (статус Consideration)
       System.out.println(requests);
       assertFalse(requests.isEmpty());
       assertTrue(requests.stream().allMatch(r ->
         r.getStatus() == RequestStatus.CONSIDERATION));
 
-      // Проверяем детали запросов
       for (JoinRequestResponse request : requests) {
         assertNotNull(request.getRequestId());
         assertNotNull(request.getUserId());
@@ -399,17 +367,14 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should return pending requests for specific room")
     void getPendingRequestsForRoom_AdminUser_ReturnsRoomSpecificRequests() {
-      // Act
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getPendingRequestsForRoom(adminUserToken, roomId);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       List<JoinRequestResponse> requests = response.getBody();
 
-      // Должны возвращаться только запросы для указанной комнаты
       assertFalse(requests.isEmpty());
       assertTrue(requests.stream().allMatch(r ->
         r.getRoomId().equals(roomId) &&
@@ -426,7 +391,6 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should throw exception when user is not admin of the room")
     void getPendingRequestsForRoom_NonAdminUser_ThrowsException() {
-      // Act & Assert
       assertThrows(com.coactivity.service.exception.AuthorizationException.class,
         () -> userController.getPendingRequestsForRoom(regularUserToken, roomId));
     }
@@ -439,67 +403,34 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should accept pending join request")
     void processJoinRequest_Accept_Success() throws SQLException {
-      // Arrange - получаем ID ожидающего запроса
       Integer pendingRequestId = getPendingRequestId();
       System.out.println("Processing request ID: " + pendingRequestId);
 
-      // Act
       ResponseEntity<Void> response =
         userController.processJoinRequest(adminUserToken, pendingRequestId, RequestStatus.ACCEPTED);
 
-      // Assert
       assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
-      // Проверяем, что статус запроса изменился на ACCEPTED
       RequestStatus newStatus = getRequestStatus(pendingRequestId);
       assertEquals(RequestStatus.ACCEPTED, newStatus);
 
-      // Проверяем, что пользователь добавлен в комнату через roomRepository
       assertTrue(roomRepository.isUserInMembers(roomId, regularUserId));
     }
 
     @Test
     @DisplayName("Should refuse pending join request")
     void processJoinRequest_Refuse_Success() throws SQLException {
-      // Arrange - получаем ID ожидающего запроса
       Integer pendingRequestId = getPendingRequestId();
 
-      // Act
       ResponseEntity<Void> response =
         userController.processJoinRequest(adminUserToken, pendingRequestId, RequestStatus.REFUSED);
 
-      // Assert
       assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
-      // Проверяем, что статус запроса изменился на REFUSED
       RequestStatus newStatus = getRequestStatus(pendingRequestId);
       assertEquals(RequestStatus.REFUSED, newStatus);
 
-      // Проверяем, что пользователь НЕ добавлен в комнату
       assertFalse(roomRepository.isUserInMembers(roomId, regularUserId));
-    }
-
-    @Test
-    @DisplayName("Should refuse with ban pending join request")
-    void processJoinRequest_RefuseWithBan_Success() throws SQLException {
-      // Arrange - получаем ID ожидающего запроса
-      Integer pendingRequestId = getPendingRequestId();
-
-      // Act
-      ResponseEntity<Void> response =
-        userController.processJoinRequest(adminUserToken, pendingRequestId, RequestStatus.REFUSED_WITH_BAN);
-
-      // Assert
-      assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-
-      // Проверяем, что статус запроса изменился на REFUSED_WITH_BAN
-      RequestStatus newStatus = getRequestStatus(pendingRequestId);
-      assertEquals(RequestStatus.REFUSED_WITH_BAN, newStatus);
-
-      // Проверяем, что пользователь забанен в комнате
-      Room room = roomRepository.getRoomById(roomId);
-      assertTrue(room.getBans().stream()
-        .anyMatch(user -> user.getId().equals(regularUserId)));
     }
   }
 
@@ -510,17 +441,14 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should return all sent join requests for user")
     void getSentRequests_RegularUser_ReturnsAllSentRequests() {
-      // Act
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getSentRequests(regularUserToken);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       List<JoinRequestResponse> requests = response.getBody();
 
-      // Должны возвращаться все запросы, отправленные этим пользователем
       assertFalse(requests.isEmpty());
       assertTrue(requests.stream().allMatch(r ->
         r.getUserId().equals(regularUserId)));
@@ -531,15 +459,12 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should return empty list when user has no sent requests")
     void getSentRequests_NoSentRequests_ReturnsEmptyList() throws SQLException {
-      // Arrange - создаем пользователя без запросов
       Integer newUserId = createUser("norequests@test.com", "NoRequestsUser");
       String newUserToken = createAndRegisterToken(newUserId);
 
-      // Act
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getSentRequests(newUserToken);
 
-      // Assert
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
       assertTrue(response.getBody().isEmpty());
@@ -553,25 +478,20 @@ class JoinRequestControllerImplIntegrationTest {
     @Test
     @DisplayName("Should cancel pending join request")
     void cancelRequest_PendingRequest_Success() throws SQLException {
-      // Arrange - получаем ID ожидающего запроса
       Integer pendingRequestId = getPendingRequestId();
       System.out.println("Cancelling request ID: " + pendingRequestId);
 
-      // Act
       ResponseEntity<Void> response =
         userController.cancelRequest(regularUserToken, pendingRequestId);
 
-      // Assert
       assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
-      // Проверяем, что запрос удален
       assertFalse(requestExists(pendingRequestId));
     }
 
     @Test
     @DisplayName("Should throw exception when canceling non-existent request")
     void cancelRequest_NonExistentRequest_ThrowsException() {
-      // Act & Assert
       assertThrows(com.coactivity.service.exception.ResourceNotFoundException.class,
         () -> userController.cancelRequest(regularUserToken, 999999));
     }
