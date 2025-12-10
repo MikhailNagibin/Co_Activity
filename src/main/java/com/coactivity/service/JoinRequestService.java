@@ -31,13 +31,16 @@ public class JoinRequestService {
   private final RoomRepositoryImpl roomRepository;
   private final RoomsRequestRepositoryImpl roomsRequestRepository;
   private final UserRepositoryImpl userRepository;
+  private final NotificationService notificationService;
 
   public JoinRequestService(RoomRepositoryImpl roomRepository,
       RoomsRequestRepositoryImpl roomsRequestRepository,
-      UserRepositoryImpl userRepository) {
+      UserRepositoryImpl userRepository,
+      NotificationService notificationService) {
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.userRepository = userRepository;
+    this.notificationService = notificationService;
   }
 
   /**
@@ -112,8 +115,11 @@ public class JoinRequestService {
 
     switch (effectiveAction) {
       case ACCEPTED -> acceptRequest(effectiveRequestId, roomId, requesterId);
-      case REFUSED -> roomsRequestRepository.updateRequest(effectiveRequestId,
-          RequestStatus.REFUSED);
+      case REFUSED -> {
+        roomsRequestRepository.updateRequest(effectiveRequestId, RequestStatus.REFUSED);
+        Room room = getExistingRoom(roomId);
+        notificationService.sendMembershipRejected(requesterId, room.getName());
+      }
       case REFUSED_WITH_BAN -> refuseWithBan(effectiveRequestId, roomId, requesterId);
       default -> throw new ValidationException("Unsupported join request action");
     }
@@ -186,11 +192,18 @@ public class JoinRequestService {
       roomRepository.addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
     }
     roomsRequestRepository.updateRequest(requestId, RequestStatus.ACCEPTED);
+
+    // Send notification to the user
+    notificationService.sendMembershipAccepted(requesterId, room.getName());
   }
 
   private void refuseWithBan(Integer requestId, Integer roomId, Integer requesterId) {
+    Room room = getExistingRoom(roomId);
     roomRepository.addUserBan(roomId, requesterId);
     roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
+
+    // Send notification to the user
+    notificationService.sendMembershipRejected(requesterId, room.getName());
   }
 
   /**

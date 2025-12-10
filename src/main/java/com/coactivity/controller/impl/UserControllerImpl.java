@@ -24,8 +24,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/users")
+@Validated
 public class UserControllerImpl implements UserController {
 
   private final UserProfileService userService;
@@ -59,9 +62,9 @@ public class UserControllerImpl implements UserController {
   public ResponseEntity<RegistrationResponse> registerUser(
       @Valid @RequestBody UserRegistrationRequest request) {
     RegistrationResponse response = userService.registerUser(request);
-    URI location = response != null && response.getUserId() != null
+    URI location = Objects.requireNonNull(response != null && response.getUserId() != null
         ? URI.create("/api/users/" + response.getUserId())
-        : URI.create("/api/users");
+        : URI.create("/api/users"));
     return ResponseEntity.created(location).body(response);
   }
 

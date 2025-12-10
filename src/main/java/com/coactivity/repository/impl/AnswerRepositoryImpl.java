@@ -33,7 +33,11 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
       statement.setInt(1, questionId);
 
-      statement.setInt(2, previousAnswerId);
+      if (previousAnswerId != null) {
+        statement.setInt(2, previousAnswerId);
+      } else {
+        statement.setNull(2, java.sql.Types.INTEGER);
+      }
       statement.setString(3, currentAnswer);
       statement.setInt(4, ownerId);
 
@@ -63,8 +67,10 @@ public class AnswerRepositoryImpl implements AnswerRepository {
 
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
+          int prevAnsIdRaw = resultSet.getInt("prev_ans_id");
+          Integer prevAnsId = resultSet.wasNull() ? null : prevAnsIdRaw;
           var answer = new Answer(resultSet.getInt("id"), questionId,
-              resultSet.getInt("prev_ans_id"), resultSet.getString("answer"),
+              prevAnsId, resultSet.getString("answer"),
               userRepository.getUserById(resultSet.getInt("owner")),
               resultSet.getTimestamp("created_at") != null ?
                   resultSet.getTimestamp("created_at").toInstant() : Instant.now());

@@ -35,17 +35,20 @@ public class UserWithRoomService {
   private final RoomsRequestRepositoryImpl roomsRequestRepository;
   private final PictureRepositoryImpl pictureRepository;
   private final BulletinBoardRepositoryImpl bulletinBoardRepository;
+  private final NotificationService notificationService;
 
   public UserWithRoomService(UserRepositoryImpl userRepository,
       RoomRepositoryImpl roomRepository,
       RoomsRequestRepositoryImpl roomsRequestRepository,
       PictureRepositoryImpl pictureRepository,
-      BulletinBoardRepositoryImpl bulletinBoardRepository) {
+      BulletinBoardRepositoryImpl bulletinBoardRepository,
+      NotificationService notificationService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.pictureRepository = pictureRepository;
     this.bulletinBoardRepository = bulletinBoardRepository;
+    this.notificationService = notificationService;
   }
 
   public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
@@ -108,6 +111,19 @@ public class UserWithRoomService {
       roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
     } else {
       roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
+
+      // Notify all admins and owner about the new join request
+      if (room.getUsers() != null) {
+        for (Map.Entry<User, Role> entry : room.getUsers().entrySet()) {
+          User roomUser = entry.getKey();
+          Role role = entry.getValue();
+          if (roomUser != null && roomUser.getId() != null) {
+            if (role == Role.OWNER || role == Role.ADMIN) {
+              notificationService.sendNewJoinRequest(roomUser.getId(), room.getName(), user.getUserName());
+            }
+          }
+        }
+      }
     }
   }
 

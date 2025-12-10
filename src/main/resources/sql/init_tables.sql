@@ -154,8 +154,9 @@ create table IF NOT EXISTS  BulletinBoard (
 --('Refused'),
 --('RefusedWithBan');
 
---INSERT INTO Notifications(notification) VALUES
---('MembershipAccepted'),
---('MembershipRejected'),
---('ActivityClosed'),
---('NewJoinRequest');
+-- INSERT INTO Notifications(notification) VALUES
+-- ('membershipAccepted'),
+-- ('membershipRejected'),
+-- ('activityClosed'),
+-- ('newJoinRequest')
+-- ON CONFLICT (notification) DO NOTHING;
