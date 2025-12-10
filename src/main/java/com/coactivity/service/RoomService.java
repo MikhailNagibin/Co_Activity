@@ -32,13 +32,16 @@ public class RoomService {
   private final RoomRepositoryImpl roomRepository;
   private final PictureRepositoryImpl pictureRepository;
   private final BulletinBoardRepositoryImpl bulletinBoardRepository;
+  private final NotificationService notificationService;
 
   public RoomService(RoomRepositoryImpl roomRepository,
       PictureRepositoryImpl pictureRepository,
-      BulletinBoardRepositoryImpl bulletinBoardRepository) {
+      BulletinBoardRepositoryImpl bulletinBoardRepository,
+      NotificationService notificationService) {
     this.roomRepository = roomRepository;
     this.pictureRepository = pictureRepository;
     this.bulletinBoardRepository = bulletinBoardRepository;
+    this.notificationService = notificationService;
   }
 
   /**
@@ -131,12 +134,22 @@ public class RoomService {
     if (requesterId == null || roomId == null) {
       throw new ValidationException("Requester id and room id are required");
     }
-    getExistingRoom(roomId);
+    Room room = getExistingRoom(roomId);
 
     Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
     if (requesterRole != Role.OWNER) {
       throw new AuthorizationException("Only owners can delete rooms");
     }
+
+    // Notify all participants before deleting the room
+    if (room.getUsers() != null && !room.getUsers().isEmpty()) {
+      for (User user : room.getUsers().keySet()) {
+        if (user != null && user.getId() != null) {
+          notificationService.sendActivityClosed(user.getId(), room.getName());
+        }
+      }
+    }
+
     roomRepository.deleteRoom(roomId);
   }
 

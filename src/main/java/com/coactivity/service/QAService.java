@@ -52,9 +52,8 @@ public class QAService {
     if (request.getPreviousAnswerId() != null) {
       ensurePreviousAnswerExists(request.getQuestionId(), request.getPreviousAnswerId());
     }
-    int prevAnsId = request.getPreviousAnswerId() != null ? request.getPreviousAnswerId() : 0;
     Answer domainAnswer = answerRepository.createAnswer(request.getQuestionId(),
-        prevAnsId, request.getAnswer(), userId);
+        request.getPreviousAnswerId(), request.getAnswer(), userId);
 
     User author = getExistingUser(userId);
     UserSummaryResponse authorProfile = mapUserSummaryResponse(author);

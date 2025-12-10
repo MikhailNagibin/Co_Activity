@@ -5,8 +5,6 @@ import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
-import com.coactivity.domain.User;
-import com.coactivity.repository.QuestionRepository;
 import com.coactivity.repository.RoomRepository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -18,22 +16,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.InflaterInputStream;
-
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class RoomRepositoryImpl implements RoomRepository {
 
   private final DataRepository dataRepository;
-  private final UserRepositoryImpl userRepository;
   private final QuestionRepositoryImpl qaRepository;
 
-  public RoomRepositoryImpl(DataRepository dataRepository, @Lazy UserRepositoryImpl userRepository,
-                            QuestionRepositoryImpl qaRepository) {
+  public RoomRepositoryImpl(DataRepository dataRepository, QuestionRepositoryImpl qaRepository) {
     this.dataRepository = dataRepository;
-    this.userRepository = userRepository;
     this.qaRepository = qaRepository;
   }
 

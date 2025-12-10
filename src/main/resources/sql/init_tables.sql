@@ -134,7 +134,7 @@ create table IF NOT EXISTS  BulletinBoard (
 --('Admin'),
 --('Participant'),
 --('Owner');
---
+
 --INSERT INTO Categories(name) VALUES
 --('Sport'),
 --('Music'),
@@ -147,15 +147,16 @@ create table IF NOT EXISTS  BulletinBoard (
 --('MassEvent'),
 --('Other'),
 --('NotSpecified');
---
+
 --INSERT INTO RequestStatuses(status_info) VALUES
 --('Consideration'),
 --('Accepted'),
 --('Refused'),
 --('RefusedWithBan');
---
---INSERT INTO Notifications(notification) VALUES
---('MembershipAccepted'),
---('MembershipRejected'),
---('ActivityClosed'),
---('NewJoinRequest');
+
+-- INSERT INTO Notifications(notification) VALUES
+-- ('membershipAccepted'),
+-- ('membershipRejected'),
+-- ('activityClosed'),
+-- ('newJoinRequest')
+-- ON CONFLICT (notification) DO NOTHING;
