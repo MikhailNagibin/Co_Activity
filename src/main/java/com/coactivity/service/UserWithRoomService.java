@@ -54,7 +54,7 @@ public class UserWithRoomService {
   public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
-    User targetUser = getExistingUser(targetUserId);
+    getExistingUser(targetUserId);
 
     // Validate that the target user is a member of the room before assigning admin role
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
@@ -68,7 +68,7 @@ public class UserWithRoomService {
   public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
-    User targetUser = getExistingUser(targetUserId);
+    getExistingUser(targetUserId);
 
     Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.PARTICIPANT);

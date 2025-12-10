@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import com.coactivity.service.dto.PendingVerification;
-import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 
 /**

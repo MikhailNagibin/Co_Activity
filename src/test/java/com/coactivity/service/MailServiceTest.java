@@ -1,9 +1,11 @@
 package com.coactivity.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
-import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,10 +21,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 @DisplayName("MailService Tests")
 class MailServiceTest {
 
+  private static final String FROM_EMAIL = "test-sender@example.com";
   private JavaMailSender javaMailSender;
   private MailService mailService;
-
-  private static final String FROM_EMAIL = "test-sender@example.com";
 
   @BeforeEach
   void setUp() {
@@ -48,9 +49,10 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       String[] recipients = sentMessage.getTo();
       assertNotNull(recipients);
       assertEquals(1, recipients.length);
@@ -71,9 +73,10 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       assertEquals(subject, sentMessage.getSubject());
     }
 
@@ -91,9 +94,10 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       assertEquals(text, sentMessage.getText());
     }
 
@@ -111,9 +115,10 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       assertEquals(FROM_EMAIL, sentMessage.getFrom());
     }
 
@@ -129,7 +134,7 @@ class MailServiceTest {
       mailService.sendSimpleMessage(to, subject, text);
 
       // Assert
-      verify(javaMailSender, times(1)).send(Objects.requireNonNull(any(SimpleMailMessage.class)));
+      verify(javaMailSender, times(1)).send(any(SimpleMailMessage.class));
     }
 
     @Test
@@ -146,9 +151,10 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       assertEquals(subject, sentMessage.getSubject());
     }
 
@@ -166,13 +172,13 @@ class MailServiceTest {
       // Assert
       ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(
           SimpleMailMessage.class);
-      verify(javaMailSender).send(Objects.requireNonNull(messageCaptor.capture()));
+      verify(javaMailSender).send(messageCaptor.capture());
 
       SimpleMailMessage sentMessage = messageCaptor.getValue();
+      assertNotNull(sentMessage);
       String bodyText = sentMessage.getText();
       assertNotNull(bodyText);
       assertEquals(10000, bodyText.length());
     }
   }
 }
-
