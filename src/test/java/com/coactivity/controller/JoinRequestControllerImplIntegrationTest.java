@@ -6,9 +6,7 @@ import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.impl.UserControllerImpl;
 import com.coactivity.domain.*;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
-import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.TokenService;
-import com.coactivity.service.dto.TokenPayload;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -56,9 +54,6 @@ class JoinRequestControllerImplIntegrationTest {
   private DataRepository dataRepository;
 
   @Autowired
-  private JoinRequestService joinRequestService;
-
-  @Autowired
   private TokenService tokenService;
 
   @Autowired
@@ -70,7 +65,6 @@ class JoinRequestControllerImplIntegrationTest {
   private Integer roomId;
   private String regularUserToken;
   private String adminUserToken;
-  private String roomOwnerToken;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -82,8 +76,6 @@ class JoinRequestControllerImplIntegrationTest {
 
     regularUserToken = createAndRegisterToken(regularUserId);
     adminUserToken = createAndRegisterToken(adminUserId);
-    roomOwnerToken = createAndRegisterToken(roomOwnerId);
-
     createTestRoom();
   }
 
@@ -241,8 +233,7 @@ class JoinRequestControllerImplIntegrationTest {
       request.setAgeRating(18);
       request.setFrequency(Instant.now().plusSeconds(86400));
 
-      Integer sportCategoryId = getCategoryId("Sport");
-      request.setCategoryId(sportCategoryId);
+      request.setCategory("Sport");
 
       request.setIsPublic(false); // Private room - требует запроса на вступление
       request.setChatLink("http://test-chat-link.com/private");
