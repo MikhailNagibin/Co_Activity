@@ -34,3 +34,6 @@ build/
 
 ### Configs ###
 src/main/resources/config.json
+.env
+.env.local
+.env.*.local
