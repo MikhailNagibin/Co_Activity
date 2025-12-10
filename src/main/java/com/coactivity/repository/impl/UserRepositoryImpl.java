@@ -356,4 +356,36 @@ public class UserRepositoryImpl implements UserRepository {
       e.printStackTrace();
     }
   }
+
+  @Override
+  public void createNullUser() {
+    String sql =
+      "INSERT INTO Users (id, login, password, birthday, city, country, description, avatar_id, username) "
+        +
+        "VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setString(1, "1");
+      statement.setString(2, "1");
+      statement.setTimestamp(3, Timestamp.from(Instant.now()));
+      statement.setString(4, "test");
+      statement.setString(5, "test");
+      statement.setString(6, "test");
+      statement.setInt(7, 0);
+      statement.setString(8, "test");
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          Integer userId = resultSet.getInt("id");
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    throw new RuntimeException();
+  }
+
 }

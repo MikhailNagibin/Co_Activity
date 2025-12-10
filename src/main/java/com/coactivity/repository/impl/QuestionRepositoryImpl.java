@@ -296,4 +296,27 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     return new Question(id, userRepository.getUserById(ownerId), questionText,
       getCategoryById(categoryId));
   }
+
+  public Question createNullQuestion() {
+    String sql = "INSERT INTO Questions (id, owner, question, category_id) VALUES (0, ?, ?, ?) RETURNING id";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      int categoryId = getCategoryIdByName("SPORT");
+      statement.setInt(1, 0);
+      statement.setString(2, "Test");
+      statement.setInt(3, categoryId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          Integer questionId = resultSet.getInt("id");
+        }
+      }
+
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+    throw new RuntimeException();
+  }
+
 }

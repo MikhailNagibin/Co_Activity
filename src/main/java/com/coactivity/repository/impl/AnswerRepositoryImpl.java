@@ -97,4 +97,29 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       throw new RuntimeException();
     }
   }
+
+  public void createNullAnswer() {
+    String sql = "INSERT INTO Answers (id, question_id, prev_ans_id, answer, owner) VALUES (0, ?, ?, ?, ?) RETURNING id";
+
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+      statement.setInt(1, 0);
+
+      statement.setInt(2, 0);
+      statement.setString(3, "test");
+      statement.setInt(4, 0);
+
+      try (ResultSet resultSet = statement.executeQuery())  {
+        if (resultSet.next()) {
+          Integer answerId = resultSet.getInt("id");
+        }
+      }
+
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+    throw new RuntimeException();
+  }
 }

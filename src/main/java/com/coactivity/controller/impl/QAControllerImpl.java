@@ -66,7 +66,7 @@ public class QAControllerImpl implements QAController {
   @Override
   @GetMapping("/questions/{questionId}")
   public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
-    @PathVariable @Positive Integer questionId) {
+    @PathVariable Integer questionId) {
     QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
     return ResponseEntity.ok(response);
   }

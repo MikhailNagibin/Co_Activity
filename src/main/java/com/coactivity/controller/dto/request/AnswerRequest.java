@@ -39,7 +39,7 @@ public class AnswerRequest {
    * answer to the main question.
    * </p>
    */
-  @Positive
+//  @Positive
   private Integer previousAnswerId;
 
   /**
