@@ -3,9 +3,7 @@ package com.coactivity.repository;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.User;
-
 import java.sql.SQLException;
-import java.util.Optional;
 
 public interface UserRepository {
 

@@ -1,5 +1,6 @@
 package com.coactivity.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -8,9 +9,12 @@ import org.springframework.stereotype.Service;
 public class MailService {
 
   private final JavaMailSender mailSender;
+  private final String fromEmail;
 
-  public MailService(JavaMailSender mailSender) {
+  public MailService(JavaMailSender mailSender,
+      @Value("${spring.mail.username}") String fromEmail) {
     this.mailSender = mailSender;
+    this.fromEmail = fromEmail;
   }
 
   /**
@@ -18,7 +22,7 @@ public class MailService {
    */
   public void sendSimpleMessage(String to, String subject, String text) {
     SimpleMailMessage message = new SimpleMailMessage();
-    message.setFrom("bumagin.nicita@yandex.ru");
+    message.setFrom(fromEmail);
     message.setTo(to);
     message.setSubject(subject);
     message.setText(text);

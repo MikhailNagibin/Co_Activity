@@ -21,7 +21,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/rooms")
+@Validated
 public class RoomControllerImpl implements RoomController {
 
   private final RoomService roomService;
@@ -62,9 +65,9 @@ public class RoomControllerImpl implements RoomController {
 
     Integer ownerId = resolveAuthorizedUserId(token);
     RoomCreationResponse response = roomService.createRoom(ownerId, request);
-        URI location = response.getRoomId() != null
+    URI location = Objects.requireNonNull(response.getRoomId() != null
         ? URI.create("/api/rooms/" + response.getRoomId())
-        : URI.create("/api/rooms");
+        : URI.create("/api/rooms"));
     return ResponseEntity.created(location).body(response);
   }
 

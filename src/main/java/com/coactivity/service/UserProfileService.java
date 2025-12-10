@@ -20,6 +20,7 @@ import com.coactivity.service.exception.ValidationException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -243,23 +244,56 @@ public class UserProfileService {
     }
 
     try {
-      if (request.getActivityClosed()) {
-        userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
+      // Handle MEMBERSHIP_ACCEPTED
+      if (request.getMembershipAccepted() != null) {
+        if (request.getMembershipAccepted()) {
+          userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
+        } else {
+          userRepository.removeNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
+        }
       }
-      if (request.getNewJoinRequest()) {
-        userRepository.setNotification(userId, Notification.NEW_JOIN_REQUEST);
+
+      // Handle MEMBERSHIP_REJECTED
+      if (request.getMembershipRejected() != null) {
+        if (request.getMembershipRejected()) {
+          userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
+        } else {
+          userRepository.removeNotification(userId, Notification.MEMBERSHIP_REJECTED);
+        }
       }
-      if (request.getMembershipAccepted()) {
-        userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
+
+      // Handle ACTIVITY_CLOSED
+      if (request.getActivityClosed() != null) {
+        if (request.getActivityClosed()) {
+          userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
+        } else {
+          userRepository.removeNotification(userId, Notification.ACTIVITY_CLOSED);
+        }
       }
-      if (request.getMembershipRejected()) {
-        userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
+
+      // Handle NEW_JOIN_REQUEST
+      if (request.getNewJoinRequest() != null) {
+        if (request.getNewJoinRequest()) {
+          userRepository.setNotification(userId, Notification.NEW_JOIN_REQUEST);
+        } else {
+          userRepository.removeNotification(userId, Notification.NEW_JOIN_REQUEST);
+        }
       }
+
+      // Retrieve actual preferences from database
+      User user = userRepository.getUserById(userId);
+      List<Notification> enabledNotifications = user != null ? user.getNotifications() : List.of();
+
+      boolean membershipAccepted = enabledNotifications.contains(Notification.MEMBERSHIP_ACCEPTED);
+      boolean membershipRejected = enabledNotifications.contains(Notification.MEMBERSHIP_REJECTED);
+      boolean activityClosed = enabledNotifications.contains(Notification.ACTIVITY_CLOSED);
+      boolean newJoinRequest = enabledNotifications.contains(Notification.NEW_JOIN_REQUEST);
+
       return new NotificationSettingsResponse(
-          request.getMembershipAccepted(),
-          request.getMembershipRejected(),
-          request.getActivityClosed(),
-          request.getNewJoinRequest(),
+          membershipAccepted,
+          membershipRejected,
+          activityClosed,
+          newJoinRequest,
           Instant.now());
     } catch (Exception e) {
       throw new ValidationException("Unable to update notification settings", e);

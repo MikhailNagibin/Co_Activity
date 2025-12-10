@@ -17,7 +17,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
@@ -223,8 +222,26 @@ public class UserRepositoryImpl implements UserRepository {
 
   public void setNotification(Integer id, Notification notification) {
     String sql = """
-        Insert into usersNotification (user_id, notification_id)  values (?,
-        (select id from Notifications where notification = ?));
+        INSERT INTO usersNotification (user_id, notification_id)
+        VALUES (?, (SELECT id FROM Notifications WHERE notification = ?))
+        ON CONFLICT (user_id, notification_id) DO NOTHING;
+        """;
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, id);
+      statement.setString(2, notification.toString());
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      System.err.println(e.getMessage());
+      throw new RuntimeException();
+    }
+  }
+
+  public void removeNotification(Integer id, Notification notification) {
+    String sql = """
+        DELETE FROM usersNotification
+        WHERE user_id = ?
+        AND notification_id = (SELECT id FROM Notifications WHERE notification = ?);
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {

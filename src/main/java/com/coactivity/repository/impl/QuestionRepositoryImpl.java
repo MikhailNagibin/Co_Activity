@@ -4,6 +4,7 @@ import com.coactivity.DataRepository;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Question;
 import com.coactivity.repository.QuestionRepository;
+import com.coactivity.service.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,11 +26,15 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
   @Override
   public Question createQuestion(Integer userId, String question, String category) {
+    Integer categoryId = getCategoryIdByName(category);
+    if (categoryId == null) {
+      throw new ValidationException("Category not found: " + category);
+    }
+
     String sql = "INSERT INTO Questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
-      int categoryId = getCategoryIdByName(category);
       statement.setInt(1, userId);
       statement.setString(2, question);
       statement.setInt(3, categoryId);

@@ -1,6 +1,5 @@
 package com.coactivity.controller.dto.request;
 
-import jakarta.validation.constraints.Positive;
 import java.time.Instant;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;

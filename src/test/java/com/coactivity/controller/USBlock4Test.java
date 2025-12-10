@@ -5,10 +5,8 @@ import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.impl.RoomControllerImpl;
-import com.coactivity.domain.Category;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
-import com.coactivity.domain.Room;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.TokenService;
@@ -31,7 +29,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -109,7 +106,7 @@ public class USBlock4Test {
         RoomCreationRequest request = new RoomCreationRequest();
         request.setName(name);
         request.setIsPublic(isPublic);
-        request.setCategoryId(Category.SPORT.ordinal());
+        request.setCategory("Sport");
         return roomRepository.createRoom(ownerId, request);
     }
 
@@ -118,7 +115,7 @@ public class USBlock4Test {
         RoomCreationRequest request = new RoomCreationRequest();
         request.setName("New Room");
         request.setIsPublic(true);
-        request.setCategoryId(Category.MUSIC.ordinal());
+      request.setCategory("Music");
 
         ResponseEntity<RoomCreationResponse> response = roomController.createRoom(validToken, request);
 

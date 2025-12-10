@@ -36,28 +36,32 @@ public class UserWithRoomService {
   private final RoomsRequestRepositoryImpl roomsRequestRepository;
   private final PictureRepositoryImpl pictureRepository;
   private final BulletinBoardRepositoryImpl bulletinBoardRepository;
+  private final NotificationService notificationService;
 
   public UserWithRoomService(UserRepositoryImpl userRepository,
       RoomRepositoryImpl roomRepository,
       RoomsRequestRepositoryImpl roomsRequestRepository,
       PictureRepositoryImpl pictureRepository,
-      BulletinBoardRepositoryImpl bulletinBoardRepository) {
+      BulletinBoardRepositoryImpl bulletinBoardRepository,
+      NotificationService notificationService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.pictureRepository = pictureRepository;
     this.bulletinBoardRepository = bulletinBoardRepository;
+    this.notificationService = notificationService;
   }
 
   public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
+    getExistingUser(targetUserId);
 
     // Validate that the target user is a member of the room before assigning admin role
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
       throw new ValidationException("Target user is not a member of the room and cannot be assigned admin role.");
     }
-
+    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.ADMIN);
     return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, Role.PARTICIPANT, ownerId);
   }
@@ -65,7 +69,7 @@ public class UserWithRoomService {
   public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
-    User targetUser = getExistingUser(targetUserId);
+    getExistingUser(targetUserId);
 
     Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.PARTICIPANT);
@@ -108,6 +112,19 @@ public class UserWithRoomService {
       roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
     } else {
       roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
+
+      // Notify all admins and owner about the new join request
+      if (room.getUsers() != null) {
+        for (Map.Entry<User, Role> entry : room.getUsers().entrySet()) {
+          User roomUser = entry.getKey();
+          Role role = entry.getValue();
+          if (roomUser != null && roomUser.getId() != null) {
+            if (role == Role.OWNER || role == Role.ADMIN) {
+              notificationService.sendNewJoinRequest(roomUser.getId(), room.getName(), user.getUserName());
+            }
+          }
+        }
+      }
     }
   }
 
