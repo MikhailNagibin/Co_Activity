@@ -22,7 +22,6 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,7 +60,6 @@ public class UserWithRoomService {
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
       throw new ValidationException("Target user is not a member of the room and cannot be assigned admin role.");
     }
-    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.ADMIN);
     return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, Role.PARTICIPANT, ownerId);
   }
