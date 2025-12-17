@@ -10,10 +10,10 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Answer {
 
-  private int id;
-  private int questionId;
-  private int previousAnswerId;
+  private Integer id;
+  private Integer questionId;
+  private Integer previousAnswerId;
   private String answer;
-  private int ownerId;
+  private User ownerId;
   private Instant createdAt;
 }

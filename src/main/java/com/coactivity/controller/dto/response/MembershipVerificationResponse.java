@@ -1,8 +1,9 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Role;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents the result of verifying a user's membership status in a specific room.
@@ -19,11 +20,12 @@ import lombok.Data;
  * </ul>
  * </p>
  *
- * @see com.coactivity.controller.UserController#isUserInRoom(String, Integer, Integer)
+ * @see com.coactivity.controller.RoomController#isUserInRoom(String, Integer, Integer)
  * @see Role
  */
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MembershipVerificationResponse {
 
   /**
@@ -47,13 +49,9 @@ public class MembershipVerificationResponse {
   private Role role;
 
   /**
-   * Display name of the verified user.
-   * <p>
-   * Provides human-readable identification of the user for display in verification interfaces,
-   * access control systems, and administrative dashboards.
-   * </p>
+   * Basic user information for identification purposes.
    */
-  private String userName;
+  private UserSummaryResponse userInfo;
 
   /**
    * Official name of the room being verified against.

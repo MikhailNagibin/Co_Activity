@@ -45,7 +45,7 @@ public class AnswerResponse {
   /**
    * Author information of the user who provided this answer.
    */
-  private UserProfileResponse author;
+  private UserSummaryResponse author;
 
   /**
    * Timestamp when this answer was submitted.

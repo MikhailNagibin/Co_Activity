@@ -9,5 +9,5 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Picture {
   private Room room;
-  private int photoId;
+  private Integer photoId;
 }

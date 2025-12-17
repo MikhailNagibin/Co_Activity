@@ -1,5 +1,13 @@
 package com.coactivity.controller.dto.request;
 
+import java.time.Instant;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomCreationRequest {
+public class  RoomCreationRequest {
 
   /**
    * Determines the room's visibility and join requirements.
@@ -24,6 +32,7 @@ public class RoomCreationRequest {
    * requiring administrator approval for joining.
    * </p>
    */
+  @NotNull
   private Boolean isPublic;
 
   /**
@@ -33,7 +42,8 @@ public class RoomCreationRequest {
    * reference an existing system category.
    * </p>
    */
-  private Integer categoryId;
+  @NotNull
+  private String category;
 
   /**
    * Public name or title of the room.
@@ -42,6 +52,8 @@ public class RoomCreationRequest {
    * 100 characters and unique within the system.
    * </p>
    */
+  @NotBlank
+  @Size(min = 3, max = 100)
   private String name;
 
   /**
@@ -51,6 +63,8 @@ public class RoomCreationRequest {
    * engagement is expected. Maximum 2000 characters.
    * </p>
    */
+  @NotBlank
+  @Size(max = 2000)
   private String description;
 
   /**
@@ -60,5 +74,60 @@ public class RoomCreationRequest {
    * creator + one participant) and maximum 100,000 for system performance considerations.
    * </p>
    */
+  @NotNull
+  @Min(2)
+  @Max(100000)
   private Integer maximumNumberOfPeople;
+
+  /**
+   * External communication link for room participants.
+   * <p>
+   * Optional URL or connection string for external chat services (Discord, Telegram, etc.)
+   * that room participants can use for real-time communication. Visible only to room members
+   * after joining.
+   * </p>
+   */
+  @Size(max = 255)
+  private String chatLink;
+
+  /**
+   * Scheduled start time for the room's primary activity or event.
+   * <p>
+   * Defines when the main activity begins. Used for scheduling and reminder notifications.
+   * Can be {@code null} for ongoing rooms without specific start times.
+   * </p>
+   */
+  @FutureOrPresent
+  private Instant dateOfStartEvent;
+
+  /**
+   * Scheduled end time for the room's primary activity or event.
+   * <p>
+   * Defines when the main activity concludes. Used for scheduling and automatic room closure.
+   * Can be {@code null} for ongoing rooms without specific end times.
+   * </p>
+   */
+  @Future
+  private Instant dateOfEndEvent;
+
+  /**
+   * Recurrence pattern for repeating activities.
+   * <p>
+   * Defines how often the room's activities repeat (daily, weekly, etc.). Used for scheduling
+   * recurring events and generating calendar invites. Format and interpretation depends on
+   * room category and activity type.
+   * </p>
+   */
+  private Instant frequency;
+
+  /**
+   * Age restriction level for room participation.
+   * <p>
+   * Minimum age requirement for joining the room. Must be between 0 (no restriction) and 21.
+   * Used to enforce age-appropriate content and comply with platform safety policies.
+   * </p>
+   */
+  @Min(0)
+  @Max(21)
+  private int ageRating;
 }

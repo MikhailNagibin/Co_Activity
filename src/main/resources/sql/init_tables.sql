@@ -1,25 +1,24 @@
--- todo Написать скрипт для создания всех таблиц. Заполнить таблицы со статическими данными
-CREATE TABLE Users (
+CREATE TABLE IF NOT EXISTS  Users (
   id SERIAl PRIMARY KEY,
   login VARCHAR(100) NOT NULL,
   username VARCHAR(20) UNIQUE NOT NULL,
   password VARCHAR(128) NOT NULL,
-  birthday DATE,
+  birthday TIMESTAMP,
   country VARCHAR(100),
   city VARCHAR(100),
   description TEXT,
   avatar_id INT
 );
 
-CREATE TABLE Categories (
+CREATE TABLE IF NOT EXISTS  Categories (
     id SERIAl PRIMARY KEY,
-    name VARCHAR(20) NOT NULL
+    name VARCHAR(20) NOT NULL UNIQUE
 );
 
-CREATE TABLE Rooms (
+CREATE TABLE IF NOT EXISTS  Rooms (
   id SERIAl PRIMARY KEY,
-  is_active BOOLEAN NOT NULL
-  is_visible BOOLEAN NOT NULL,
+  is_active BOOLEAN NOT NULL,
+  is_public BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT,
   name VARCHAR(100) NOT NULL,
@@ -27,127 +26,137 @@ CREATE TABLE Rooms (
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   age_rating INT,
---  owner_id INT,
-  frequency INT,
+  frequency TIMESTAMP,
   maximum_number_of_people int,
-  current_number_of_people int,
---  FOREIGN KEY (owner_id) REFERENCES Users(id)
   FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
 
+-- Note: The code uses 'is_private' in RoomRepositoryImpl but SQL has 'is_public'
+-- This is a logic mismatch - the code should be fixed to use 'is_public' or SQL should use 'is_private'
+-- Currently keeping 'is_public' in SQL as it matches the domain model field name
 
-CREATE TABLE Pictures (
+
+CREATE TABLE IF NOT EXISTS  Pictures (
     picture_id SERIAl PRIMARY KEY,
     room_id INT NOT NULL,
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
 
-CREATE TABLE Roles (
-    id SERIAl NOT NULL,
-    role VARCHAR(50),
+CREATE TABLE IF NOT EXISTS  Roles (
+    id SERIAl PRIMARY KEY,
+    role VARCHAR(50) UNIQUE NOT NULL
 );
 
-CREATE TABLE Rooms_members (
+CREATE TABLE IF NOT EXISTS  Rooms_members (
     room_id INT NOT NULL,
     user_id INT NOT NULL,
     role_id INT,
+    PRIMARY KEY (room_id, user_id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (role_id) REFERENCES Roles(id)
 );
 
-CREATE TABLE RequestStatuses(
+CREATE TABLE IF NOT EXISTS  RequestStatuses(
     id SERIAl PRIMARY KEY,
-    status_info VARCHAR(50) NOT NULL
+    status_info VARCHAR(50) NOT NULL UNIQUE
 );
 
-CREATE TABLE Rooms_requests(
+CREATE TABLE IF NOT EXISTS  Rooms_requests(
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     room_id INT NOT NULL,
-    status_id INT NOT NULL,
-    created_at TIMESTAMP,
+    status_id INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_rooms_requests_user_room UNIQUE (user_id, room_id),
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
-    FOREIGN KEY (status_id) REFERENCES RequestStatuses(status)
+    FOREIGN KEY (status_id) REFERENCES RequestStatuses(id)
 );
 
-CREATE TABLE Bans(
+CREATE TABLE IF NOT EXISTS  Bans(
     user_id INT NOT NULL,
     room_id INT NOT NULL,
+    PRIMARY KEY (user_id, room_id),
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
 
 
-CREATE TABLE Questions(
+CREATE TABLE IF NOT EXISTS  Questions(
     id SERIAl PRIMARY KEY,
     owner INT NOT NULL,
     question TEXT NOT NULL,
-    category_id int
-    FOREIGN KEY (category_id) REFERENCES Categories(id)
+    category_id int,
+    FOREIGN KEY (category_id) REFERENCES Categories(id),
     FOREIGN KEY (owner) REFERENCES Users(id)
 );
 
-CREATE TABLE Answers(
+CREATE TABLE IF NOT EXISTS  Answers(
     id SERIAl PRIMARY KEY,
     question_id INT NOT NULL,
     prev_ans_id INT,
     answer TEXT,
     owner INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (question_id) REFERENCES Questions(id),
-    FOREIGN KEY (owner) REFERENCES Users(id)
+    FOREIGN KEY (owner) REFERENCES Users(id),
+    FOREIGN KEY (prev_ans_id) REFERENCES Answers(id)
 );
 
 
 
-create table Notification (
+create table IF NOT EXISTS  Notifications (
     id serial PRIMARY KEY,
-    notification varchar(50),
+    notification varchar(50) UNIQUE
 );
 
-create table usersNotification (
-    user_id int,
-    notificationId int,
-    FOREIGN KEY (user_id) REFERENCES Users(id)
-    FOREIGN KEY (notificationId) REFERENCES Notification(id)
+create table IF NOT EXISTS  usersNotification (
+    user_id int NOT NULL,
+    notification_id int NOT NULL,
+    PRIMARY KEY (user_id, notification_id),
+    FOREIGN KEY (user_id) REFERENCES Users(id),
+    FOREIGN KEY (notification_id) REFERENCES Notifications(id)
 );
 
-create table BulletinBoard (
+create table IF NOT EXISTS  BulletinBoard (
     id SERIAL PRIMARY KEY,
-    room_id int
+    room_id int,
     content TEXT,
     author_id int,
-    Date updated_at,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES Rooms(id),
     FOREIGN KEY (author_id) REFERENCES Users(id)
 );
 
-Insert into Roles(role) values
-(Admin),
-(Participant),
-(Owner);
 
-Insert into Categories(name) values
-(Sport),
-(Music),
-(Art),
-(Entertainments),
-(Business),
-(Education),
-(ActiveRecreation),
-(PassiveRecreation),
-(isAMassEvent),
-(Other),
-(NotSpecified);
+--Insert into Roles(role) values
+--('Admin'),
+--('Participant'),
+--('Owner');
 
+--INSERT INTO Categories(name) VALUES
+--('Sport'),
+--('Music'),
+--('Art'),
+--('Entertainments'),
+--('Business'),
+--('Education'),
+--('ActiveRecreation'),
+--('PassiveRecreation'),
+--('MassEvent'),
+--('Other'),
+--('NotSpecified');
 
-Insert into RequestStatuses(status_info) values
-(Consideration),
-(Accepted),
-(Refused);
+--INSERT INTO RequestStatuses(status_info) VALUES
+--('Consideration'),
+--('Accepted'),
+--('Refused'),
+--('RefusedWithBan');
 
-Insert into Notifications(notification) values
-(membershipAccepted),
-(membershipRejected),
-(activityClosed),
-(newJoinRequest);
+-- INSERT INTO Notifications(notification) VALUES
+-- ('membershipAccepted'),
+-- ('membershipRejected'),
+-- ('activityClosed'),
+-- ('newJoinRequest')
+-- ON CONFLICT (notification) DO NOTHING;

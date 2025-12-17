@@ -1,8 +1,9 @@
 package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Role;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents the outcome of a role change operation within a room.
@@ -20,7 +21,8 @@ import lombok.Data;
  * @see Role
  */
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoleAssignmentResponse {
 
   /**

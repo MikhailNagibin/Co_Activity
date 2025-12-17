@@ -4,28 +4,26 @@ import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
-import com.coactivity.controller.dto.response.ApiResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.dto.response.LoginResponse;
-import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.NotificationSettingsResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
+import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Core API controller interface for the CoActivity platform.
  * <p>
  * Defines the complete contract for user management, room operations, and activity participation.
- * All methods return standardized {@link ApiResponse} wrappers containing either the requested data
- * or detailed error information. JWT tokens are used for stateless authentication with 30-minute
- * session persistence.
- * <p><b>Error Handling:</b> All methods return {@link ApiResponse} instances where the
- * {@code success} field indicates operation outcome. Clients should always check this field before
- * processing the data payload.</p>
+ * All methods return {@link ResponseEntity} instances so that controllers can express HTTP status,
+ * headers, and DTO payloads explicitly. Business logic belongs in the service layer, while error
+ * handling should rely on {@code @ControllerAdvice} translating domain exceptions into consistent
+ * HTTP responses.
  *
  * @author CoActivity 13 Development Team
  * </p>
@@ -42,11 +40,11 @@ public interface UserController {
    * </p>
    *
    * @param request user registration data containing all required personal information
-   * @return {@link ApiResponse} containing {@link RegistrationResponse} with new user ID and
-   * username confirmation, or error details if registration fails
+   * @return {@link ResponseEntity} containing {@link RegistrationResponse} with new user metadata
+   * and {@code 201 Created} alongside a {@code Location} header pointing to the new resource
    * @throws IllegalArgumentException if required parameters are missing or invalid
    */
-  ApiResponse<RegistrationResponse> registerUser(UserRegistrationRequest request);
+  ResponseEntity<RegistrationResponse> registerUser(UserRegistrationRequest request);
 
   /**
    * Initiates the user authentication process.
@@ -58,11 +56,11 @@ public interface UserController {
    * </p>
    *
    * @param request login credentials containing email and password
-   * @return {@link ApiResponse} with empty data but success status indicating the verification code
-   * was sent, or error details for invalid credentials
+   * @return {@link ResponseEntity} with {@code 200 OK} and an empty body when the verification code
+   * is issued, or an appropriate error status for invalid credentials
    * @throws IllegalArgumentException if email format is invalid or password is empty
    */
-  ApiResponse<Void> loginUser(LoginRequest request);
+  ResponseEntity<Void> loginUser(LoginRequest request);
 
   /**
    * Step 2 of login: User enters the 5-digit code from email to get final access.
@@ -79,23 +77,10 @@ public interface UserController {
    *
    * @param login            same email used in step 1
    * @param verificationCode the 5-digit number from email
-   * @return JWT token that works for 30 minutes
+   * @return {@link ResponseEntity} containing {@link LoginResponse} with a JWT token that works for
+   * 30 minutes
    */
-  ApiResponse<LoginResponse> verifyLogin(String login, String verificationCode);
-
-  /**
-   * Validates a JWT token and checks session status.
-   * <p>
-   * Verifies that the provided token is properly signed, has not expired, and contains valid user
-   * claims. This method enables the "no re-login within 30 minutes" functionality by allowing
-   * clients to check token validity and automatically extend sessions when appropriate.
-   * </p>
-   *
-   * @param token the JWT token to validate, typically from the {@code Authorization} header
-   * @return {@link ApiResponse} with empty data but success status indicating token validity, or
-   * error details for invalid/expired tokens
-   */
-  ApiResponse<Void> validateToken(String token);
+  ResponseEntity<LoginResponse> verifyLogin(String login, String verificationCode);
 
   /**
    * Invalidates the user's current authentication token and ends the session.
@@ -109,14 +94,14 @@ public interface UserController {
    * invalidated immediately and cannot be reused.</p>
    *
    * @param token valid JWT token to invalidate (this will be the last successful use)
-   * @return {@link ApiResponse} with success status confirming the logout
+   * @return {@link ResponseEntity} with {@code 204 No Content} when the token is invalidated
    * @throws SecurityException if the token is already invalid or expired
    * @example // Log out the current user ApiResponse<Void> response = logout(userToken); //
    * Response: { "success": true, "message": "Logged out successfully", "data": null }
    * @see #loginUser(LoginRequest)
    * @see #verifyLogin(String, String)
    */
-  ApiResponse<Void> logoutUser(String token);
+  ResponseEntity<Void> logoutUser(String token);
 
   // ===== USER PROFILE MANAGEMENT =====
 
@@ -129,10 +114,10 @@ public interface UserController {
    * </p>
    *
    * @param token valid JWT token obtained during authentication
-   * @return {@link ApiResponse} containing {@link UserProfileResponse} with complete user profile
-   * data, or error details for invalid tokens or missing users
+   * @return {@link ResponseEntity} containing {@link UserProfileResponse} with complete user
+   * profile data, or {@code 401/404} for invalid tokens or missing users
    */
-  ApiResponse<UserProfileResponse> getUserProfile(String token);
+  ResponseEntity<UserProfileResponse> getUserProfile(String token);
 
   /**
    * Retrieves public profile information for any user in the system.
@@ -147,14 +132,14 @@ public interface UserController {
    *
    * @param token  valid JWT token of the requesting user
    * @param userId unique identifier of the user whose profile is being requested
-   * @return {@link ApiResponse} containing {@link UserSummaryResponse} with public profile
+   * @return {@link ResponseEntity} containing {@link UserSummaryResponse} with public profile
    * information of the requested user
    * @throws SecurityException        if the requesting user is not authenticated
    * @throws IllegalArgumentException if the target user doesn't exist
    * @see UserSummaryResponse
    * @see #getUserProfile(String)
    */
-  ApiResponse<UserSummaryResponse> getUserProfileById(String token, Integer userId);
+  ResponseEntity<UserSummaryResponse> getPublicUserProfileById(String token, Integer userId);
 
   /**
    * Updates the authenticated user's profile information.
@@ -167,11 +152,30 @@ public interface UserController {
    *
    * @param token   valid JWT token for the user being updated
    * @param request profile update parameters containing fields to modify
-   * @return {@link ApiResponse} containing the updated {@link UserProfileResponse}, or error
-   * details for invalid tokens or validation failures
+   * @return {@link ResponseEntity} containing the updated {@link UserProfileResponse}, or
+   * enforcement errors expressed through HTTP status codes
    */
-  ApiResponse<UserProfileResponse> updateUserProfile(String token,
+  ResponseEntity<UserProfileResponse> updateUserProfile(String token,
       UserProfileUpdateRequest request);
+
+  /**
+   * Securely changes the user's password and issues a new authentication token.
+   * <p>
+   * Requires verification of the current password as an additional security measure. All existing
+   * tokens for the user are invalidated upon successful password change.
+   * </p>
+   *
+   * <p><b>Access Control:</b> Requires valid authentication and current password verification.</p>
+   *
+   * @param token           valid JWT token of the authenticated user
+   * @param currentPassword the user's current password for security verification
+   * @param newPassword     the new password to set
+   * @return {@link ResponseEntity} containing {@link LoginResponse} with a fresh JWT token
+   * @throws SecurityException        if current password verification fails
+   * @throws IllegalArgumentException if new password validation fails
+   */
+  ResponseEntity<LoginResponse> updatePassword(String token, String currentPassword,
+      String newPassword);
 
   /**
    * Updates the user's notification preferences and delivery settings.
@@ -186,8 +190,8 @@ public interface UserController {
    *
    * @param token   valid JWT token of the user updating their preferences
    * @param request contains the notification settings to apply
-   * @return {@link ApiResponse} containing the updated {@link NotificationSettingsResponse} with
-   * applied preferences
+   * @return {@link ResponseEntity} containing the updated {@link NotificationSettingsResponse}
+   * with applied preferences
    * @throws SecurityException if the token is invalid or expired
    * @example // Configure notification settings NotificationSettingsRequest request = new
    * NotificationSettingsRequest(); request.setEmailNotifications(true);
@@ -199,7 +203,7 @@ public interface UserController {
    * @see NotificationSettingsRequest
    * @see NotificationSettingsResponse
    */
-  ApiResponse<NotificationSettingsResponse> configureNotificationSettings(String token,
+  ResponseEntity<NotificationSettingsResponse> configureNotificationSettings(String token,
       NotificationSettingsRequest request);
 
   /**
@@ -217,11 +221,11 @@ public interface UserController {
    * may be anonymized rather than completely deleted for legal or analytical purposes.</p>
    *
    * @param token valid JWT token of the user requesting account deletion
-   * @return {@link ApiResponse} with success status confirming account deletion
+   * @return {@link ResponseEntity} with {@code 204 No Content} once the account is deleted
    * @throws SecurityException if authentication fails or user doesn't exist
    * @see #registerUser(UserRegistrationRequest)
    */
-  ApiResponse<Void> deleteAccount(String token);
+  ResponseEntity<Void> deleteAccount(String token);
 
   /**
    * Grants administrator privileges to a room participant.
@@ -237,12 +241,13 @@ public interface UserController {
    * @param token  valid JWT token of the room owner
    * @param roomId unique identifier of the room
    * @param userId unique identifier of the participant to promote
-   * @return {@link ApiResponse} with success status and updated role information
+   * @return {@link ResponseEntity} containing {@link RoleAssignmentResponse} with updated role
+   * information
    * @throws SecurityException        if user is not the room owner
    * @throws IllegalArgumentException if target user is not a room participant
    * @see RoleAssignmentResponse
    */
-  ApiResponse<RoleAssignmentResponse> assignAdminRole(String token, Integer roomId,
+  ResponseEntity<RoleAssignmentResponse> assignAdminRole(String token, Integer roomId,
       Integer userId);
 
   /**
@@ -269,14 +274,16 @@ public interface UserController {
    * @param token  valid JWT token of the room owner
    * @param roomId unique identifier of the room
    * @param userId unique identifier of the administrator to demote
-   * @return {@link ApiResponse} with success status and updated role information
+   * @return {@link ResponseEntity} containing {@link RoleAssignmentResponse} with updated role
+   * information
    * @throws SecurityException        if user is not the room owner or attempts self-demotion
    * @throws IllegalArgumentException if target user is not an administrator or doesn't exist
    * @throws IllegalStateException    if demotion would leave the room with no administrators
    * @see #assignAdminRole(String, Integer, Integer)
    * @see RoleAssignmentResponse
    */
-  ApiResponse<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId, Integer userId);
+  ResponseEntity<RoleAssignmentResponse> demoteAdminRole(String token, Integer roomId,
+      Integer userId);
 
   // ===== REQUEST MANAGEMENT =====
 
@@ -289,10 +296,10 @@ public interface UserController {
    * </p>
    *
    * @param token valid JWT token of a user with room administration privileges
-   * @return {@link ApiResponse} containing a list of {@link JoinRequestResponse} objects
-   * representing pending requests, or empty list if no pending requests exist
+   * @return {@link ResponseEntity} containing a list of {@link JoinRequestResponse} objects, or an
+   * empty list with {@code 200 OK} when nothing is pending
    */
-  ApiResponse<List<JoinRequestResponse>> getPendingRequests(String token);
+  ResponseEntity<List<JoinRequestResponse>> getPendingRequests(String token);
 
   /**
    * Retrieves pending join requests for a specific private room where the user has administrative
@@ -305,13 +312,12 @@ public interface UserController {
    *
    * @param token  valid JWT token of a user with administrative privileges for the room
    * @param roomId unique identifier of the private room to retrieve requests for
-   * @return {@link ApiResponse} containing a list of {@link JoinRequestResponse} objects
-   * representing pending join requests for the specified room, or empty list if no pending requests
-   * exist or the room is public
+   * @return {@link ResponseEntity} containing a list of {@link JoinRequestResponse} objects for the
+   * specified room, or {@code 200 OK} with an empty list when nothing is pending
    * @throws SecurityException if the authenticated user lacks administrative privileges for the
    *                           specified room
    */
-  ApiResponse<List<JoinRequestResponse>> getPendingRequestsForRoom(String token, Integer roomId);
+  ResponseEntity<List<JoinRequestResponse>> getPendingRequestsForRoom(String token, Integer roomId);
 
   /**
    * Processes a room join request with the specified action.
@@ -325,11 +331,12 @@ public interface UserController {
    * @param token     valid JWT token of a user with room administration privileges
    * @param requestId unique identifier of the join request to process
    * @param action    the action to perform: {@link RequestStatus#ACCEPTED} to approve,
-   *                  {@link RequestStatus#REFUSED} to reject
-   * @return {@link ApiResponse} with empty data but success status confirming the request was
-   * processed, or error details for invalid requests or insufficient permissions
+   *                  {@link RequestStatus#REFUSED} to reject,
+   *                  {@link RequestStatus#REFUSED_WITH_BAN} to reject and ban the user
+   * @return {@link ResponseEntity} with {@code 204 No Content} when the request is processed, or an
+   * error status for invalid requests or insufficient permissions
    */
-  ApiResponse<Void> processJoinRequest(String token, Integer requestId, RequestStatus action);
+  ResponseEntity<Void> processJoinRequest(String token, Integer requestId, RequestStatus action);
 
   /**
    * Retrieves join requests submitted by the authenticated user.
@@ -340,10 +347,11 @@ public interface UserController {
    * </p>
    *
    * @param token valid JWT token of the user whose requests are being retrieved
-   * @return {@link ApiResponse} containing a list of {@link JoinRequestResponse} objects
-   * representing the user's sent requests, or empty list if no requests exist
+   * @return {@link ResponseEntity} containing a list of {@link JoinRequestResponse} objects
+   * representing the user's sent requests, or {@code 200 OK} with an empty list when no requests
+   * exist
    */
-  ApiResponse<List<JoinRequestResponse>> getSentRequests(String token);
+  ResponseEntity<List<JoinRequestResponse>> getSentRequests(String token);
 
   /**
    * Cancels a pending join request submitted by the authenticated user.
@@ -355,32 +363,34 @@ public interface UserController {
    *
    * @param token     valid JWT token of the user who submitted the request
    * @param requestId unique identifier of the join request to cancel
-   * @return {@link ApiResponse} with empty data but success status confirming the request was
-   * cancelled, or error details for invalid requests or already-processed requests
+   * @return {@link ResponseEntity} with {@code 204 No Content} confirming the request was
+   * cancelled, or an error status for invalid requests or already-processed requests
    */
-  ApiResponse<Void> cancelRequest(String token, Integer requestId);
-
+  ResponseEntity<Void> cancelRequest(String token, Integer requestId);
 
   /**
-   * Verifies whether a specific user is a participant in a given room.
+   * Retrieves all rooms where the authenticated user is currently banned.
    * <p>
-   * Provides a programmatic way to check room membership without requiring QR code scanning. This
-   * method serves as a backend alternative to the QR verification system and can be used for
-   * administrative purposes or integration with other systems.
+   * Provides users with visibility into rooms they are excluded from, allowing them to understand
+   * their participation limitations. Users can see basic room information but cannot access
+   * protected content or request to join these rooms while banned.
    * </p>
    *
-   * <p><b>Access Control:</b> Requires valid authentication. Users can check their own
-   * membership or, if they have administrative privileges in the room, they can check other users'
-   * membership status.</p>
-   *
-   * @param token  valid JWT token of the requesting user
-   * @param roomId unique identifier of the room to check
-   * @param userId unique identifier of the user to verify
-   * @return {@link ApiResponse} containing {@link MembershipVerificationResponse} with verification
-   * results and role information
-   * @throws SecurityException if user lacks permission to check membership
-   * @see MembershipVerificationResponse
+   * @param token valid JWT token of the authenticated user
+   * @return {@link ResponseEntity} containing list of {@link RoomSummaryResponse} for rooms where
+   * the user is banned, or {@code 200 OK} with an empty list if no bans exist
+   * @throws SecurityException if authentication token is invalid or expired
    */
-  ApiResponse<MembershipVerificationResponse> isUserInRoom(String token, Integer roomId,
-      Integer userId);
+  ResponseEntity<List<RoomSummaryResponse>> getBanRooms(String token);
+
+  /**
+   * Checks if the authenticated user is a member of the specified room.
+   *
+   * @param token  valid JWT token of the authenticated user
+   * @param roomId unique identifier of the room to check membership for
+   * @return {@link ResponseEntity} containing {@code true} if the user is a member, {@code false}
+   * otherwise
+   * @throws SecurityException if authentication token is invalid or expired
+   */
+  ResponseEntity<Boolean> isUserInRoom(String token, Integer roomId);
 }

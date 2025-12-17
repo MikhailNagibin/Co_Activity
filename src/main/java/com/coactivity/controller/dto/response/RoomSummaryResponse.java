@@ -2,20 +2,24 @@ package com.coactivity.controller.dto.response;
 
 import com.coactivity.domain.Category;
 import java.time.Instant;
-import lombok.Builder;
+import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Simplified room information for listing and search interfaces.
  * <p>
  * Contains essential room metadata optimized for display in lists, grids, and search results where
- * screen space is limited. Safe for both authorized and unauthorized users.
+ * screen space is limited. Designed for public access without authentication requirements. All
+ * fields are safe for consumption by both authorized and unauthorized users.
  * </p>
  *
  * @see RoomDetailedResponse
  */
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoomSummaryResponse {
 
   /**
@@ -24,62 +28,90 @@ public class RoomSummaryResponse {
   private Integer id;
 
   /**
-   * Shows whether room is active
+   * Indicates whether the room is currently active and accepting participants.
+   * <p>
+   * Inactive rooms are typically completed, canceled, or archived activities that are no longer
+   * available for participation.
+   * </p>
    */
   private boolean isActive;
 
   /**
    * Indicates whether the room is publicly accessible.
    * <p>
-   * {@code true} means any user can view and join the room directly. {@code false} means users must
-   * request and be approved to join.
+   * {@code true} means any user can view and join the room directly without approval. {@code false}
+   * means users must request and be approved by room administrators to join.
    * </p>
    */
   private Boolean isPublic;
 
   /**
    * Classification category for the room's primary activity.
+   * <p>
+   * Helps users quickly identify rooms relevant to their interests and enables effective filtering
+   * and discovery of related activities.
+   * </p>
    */
   private Category category;
 
   /**
-   * Public name of the room or activity.
+   * Public display name of the room or activity.
+   * <p>
+   * Should be clear, descriptive, and engaging to help users understand the room's purpose at a
+   * glance in list views.
+   * </p>
    */
   private String name;
 
   /**
    * Brief description of the room's purpose or activities.
    * <p>
-   * Truncated or summarized for display in list views.
+   * Provides additional context about the room's goals, activities, and expectations. Typically
+   * truncated or summarized for optimal display in list and grid interfaces.
    * </p>
    */
   private String description;
 
   /**
-   * The date when event begins
+   * Scheduled start time of the room's primary activity or event.
+   * <p>
+   * Uses {@link Instant} for timezone-agnostic timestamp representation, ensuring consistent
+   * display across all user locations and devices.
+   * </p>
    */
   private Instant dateOfStartEvent;
 
   /**
-   * The date when event ends
+   * Scheduled end time of the room's primary activity or event.
+   * <p>
+   * Helps users understand the duration and time commitment required for participation.
+   * </p>
    */
   private Instant dateOfEndEvent;
 
   /**
-   * Age rating of event.
+   * Minimum age requirement for room participation.
+   * <p>
+   * Ensures age-appropriate activities and compliance with platform guidelines. Users must meet or
+   * exceed this age rating to join the room.
+   * </p>
    */
   private int ageRating;
 
   /**
-   * Frequency of the event.
+   * How frequently the room's activities occur, measured in days.
+   * <p>
+   * Indicates the recurrence pattern for ongoing activities. Common values include 1 (daily), 7
+   * (weekly), 14 (bi-weekly), or 30 (monthly).
+   * </p>
    */
-  private int frequency;
+  private Instant frequency;
 
   /**
    * Current number of active participants in the room.
    * <p>
-   * This count helps users gauge the activity level and popularity of the room before deciding to
-   * join.
+   * Provides social proof and helps users gauge activity popularity and engagement levels before
+   * deciding to join. Updated in real-time as users join and leave.
    * </p>
    */
   private Integer participantCount;
@@ -87,20 +119,21 @@ public class RoomSummaryResponse {
   /**
    * Maximum number of participants allowed in the room.
    * <p>
-   * When {@code participantCount} equals this value, no additional users can join until existing
-   * participants leave.
+   * When {@code participantCount} equals this value, the room is at capacity and cannot accept
+   * additional participants until existing members leave.
    * </p>
    */
   private Integer maximumParticipants;
 
 
   /**
-   * User who created the room.
+   * Public profile information of the user who created the room.
    * <p>
-   * Provides attribution and helps users identify rooms created by people they know or trust.
+   * Provides attribution and helps users identify rooms created by people they know or trust. Only
+   * includes publicly accessible user information.
    * </p>
    */
-  private UserProfileResponse creator;
+  private UserSummaryResponse creator;
 
   /**
    * Indicates whether the current user is already a participant.
@@ -110,4 +143,14 @@ public class RoomSummaryResponse {
    * </p>
    */
   private Boolean isCurrentUserParticipant;
+
+  /**
+   * List of image identifiers associated with the room.
+   * <p>
+   * Contains unique identifiers for room-related images that can be used to construct image URLs
+   * via the platform's media serving endpoints. The first image in the list is typically considered
+   * the primary or featured image.
+   * </p>
+   */
+  private List<Integer> imageIds;
 }

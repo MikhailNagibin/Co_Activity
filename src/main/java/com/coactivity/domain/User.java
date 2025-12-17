@@ -11,15 +11,15 @@ import lombok.Setter;
 @AllArgsConstructor
 public class User {
 
-  private int id;
+  private Integer id;
   private String login;
-  private String username;
+  private String userName;
   private String password;
   private Instant dataOfBirth;
-  private String city;
   private String country;
+  private String city;
   private String description;
-  private int avatarId;
+  private Integer avatarId;
   private List<Room> rooms;
   private List<Notification> notifications;
 }
