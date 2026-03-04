@@ -28,7 +28,6 @@ public class QuestionRequest {
    * </p>
    */
   @NotNull
-  @Positive
   private String category;
 
   /**

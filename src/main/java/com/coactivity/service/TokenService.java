@@ -50,7 +50,7 @@ public class TokenService {
    * @return base64-encoded token containing userId:expiresAt
    */
   public String createToken(Integer userId) {
-    Instant expiresAt = Instant.now().plusSeconds(TOKEN_EXPIRATION_MINUTES * 6000L);
+    Instant expiresAt = Instant.now().plusSeconds(TOKEN_EXPIRATION_MINUTES * 60L);
     String payload = userId + ":" + expiresAt.toEpochMilli();
     return Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
   }
@@ -143,7 +143,7 @@ public class TokenService {
       if (payload.expiresAt().isBefore(Instant.now())) {
         return false;
       }
-      
+
       // Check if token is registered and matches the active token for this user
       return token.equals(activeTokens.get(payload.userId()));
     } catch (TokenValidationException e) {

@@ -2,6 +2,6 @@
   "database": "postgres_db",
   "host": "localhost",
   "port": 5430,
-  "username": "",
-  "password": ""
+  "username": "postgres",
+  "password": "postgres"
 }
