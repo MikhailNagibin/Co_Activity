@@ -3,13 +3,43 @@ services:
     image: postgres:16.2
     container_name: postgres_container
     environment:
-      POSTGRES_USER: {your_username}
-      POSTGRES_PASSWORD: {your_password}
-      POSTGRES_DB: postgres_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres_db}
     ports:
       - "5430:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/sql/init_tables.sql:/docker-entrypoint-initdb.d/01_init_tables.sql:ro
+      - ./docker/postgres-init/02_seed_reference_data.sql:/docker-entrypoint-initdb.d/02_seed_reference_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    container_name: coactivity_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-postgres_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+    ports:
+      - "8080:8080"
     restart: unless-stopped
 
 volumes:
