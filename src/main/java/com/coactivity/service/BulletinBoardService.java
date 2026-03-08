@@ -3,11 +3,13 @@ package com.coactivity.service;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
+import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import org.springframework.stereotype.Service;
@@ -53,17 +55,13 @@ public class BulletinBoardService {
     }
 
     User author = getExistingUser(authorId);
+    getExistingRoom(roomId);
+    enforceBulletinModerationRights(roomId, authorId);
 
-
-    // Validate room existence before proceeding
-    var board = bulletinBoardRepository.getBulletinBoard(roomId);
-
-    if (board == null) {
-      bulletinBoardRepository.createBulletinBoard(roomId, "temp content", authorId);
-    }
-
-    getExistingRoom(roomId);    BulletinBoard updatedDomainBoard = bulletinBoardRepository.updateBulletinBoard(roomId, content,
-        authorId);
+    BulletinBoard existingBoard = bulletinBoardRepository.getBulletinBoard(roomId);
+    BulletinBoard updatedDomainBoard = existingBoard == null
+        ? bulletinBoardRepository.createBulletinBoard(roomId, content, authorId)
+        : bulletinBoardRepository.updateBulletinBoard(roomId, content, authorId);
     if (updatedDomainBoard == null) {
       throw new ResourceNotFoundException("Failed to update bulletin board for room " + roomId);
     }
@@ -76,14 +74,29 @@ public class BulletinBoardService {
     return responseDto;
   }
 
-  public void deleteBulletinBoard(Integer roomId) {
+  public void deleteBulletinBoard(Integer roomId, Integer requesterId) {
     if (roomId == null) {
       throw new ValidationException("Room id is required");
     }
+    if (requesterId == null) {
+      throw new ValidationException("Requester id is required");
+    }
+    getExistingRoom(roomId);
+    enforceBulletinModerationRights(roomId, requesterId);
     if (!bulletinBoardRepository.isBulletinBoardExists(roomId)) {
       throw new ResourceNotFoundException("Bulletin board not found for room " + roomId);
     }
     bulletinBoardRepository.deleteBulletinBoard(roomId);
+  }
+
+  private void enforceBulletinModerationRights(Integer roomId, Integer userId) {
+    if (!roomRepository.isUserInMembers(roomId, userId)) {
+      throw new AuthorizationException("User is not a participant of room " + roomId);
+    }
+    Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
+    if (role != Role.OWNER && role != Role.ADMIN) {
+      throw new AuthorizationException("Only room owner or admin can manage bulletin board");
+    }
   }
 
   private Room getExistingRoom(Integer roomId) {

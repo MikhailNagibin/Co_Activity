@@ -89,8 +89,8 @@ public class RoomControllerImpl implements RoomController {
   public ResponseEntity<Void> deleteBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
       @PathVariable @Positive Integer roomId) {
-    resolveAuthorizedUserId(token);
-    bulletinBoardService.deleteBulletinBoard(roomId);
+    Integer requesterId = resolveAuthorizedUserId(token);
+    bulletinBoardService.deleteBulletinBoard(roomId, requesterId);
     return ResponseEntity.noContent().build();
   }
 
