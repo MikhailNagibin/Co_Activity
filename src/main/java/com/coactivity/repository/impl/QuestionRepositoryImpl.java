@@ -55,11 +55,12 @@ public class QuestionRepositoryImpl implements QuestionRepository {
 
   public Integer getCategoryIdByName(String categoryName) {
     String sql = "SELECT id FROM Categories WHERE LOWER(name) = LOWER(?)";
+    String normalizedCategoryName = toDbCategoryName(categoryName);
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
 
-      statement.setString(1, categoryName);
+      statement.setString(1, normalizedCategoryName);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return resultSet.getInt("id");
@@ -85,7 +86,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           String name = resultSet.getString("name");
-          return Category.valueOf(name.toUpperCase().replace(" ", "_"));
+          return toCategoryEnum(name);
         }
       }
 
@@ -94,6 +95,48 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     } catch (SQLException e) {
       throw new RuntimeException("Database error", e);
     }
+  }
+
+  private String toDbCategoryName(String rawCategoryName) {
+    if (rawCategoryName == null || rawCategoryName.isBlank()) {
+      return rawCategoryName;
+    }
+    String normalized = rawCategoryName.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
+    return switch (normalized) {
+      case "sport" -> "Sport";
+      case "music" -> "Music";
+      case "art" -> "Art";
+      case "entertainments" -> "Entertainments";
+      case "business" -> "Business";
+      case "education" -> "Education";
+      case "activerecreation", "activerecreationcategory" -> "ActiveRecreation";
+      case "passiverecreation", "passiverecreationcategory" -> "PassiveRecreation";
+      case "massevent", "isamassevent" -> "MassEvent";
+      case "other" -> "Other";
+      case "notspecified" -> "NotSpecified";
+      default -> rawCategoryName;
+    };
+  }
+
+  private Category toCategoryEnum(String dbCategoryName) {
+    if (dbCategoryName == null || dbCategoryName.isBlank()) {
+      throw new IllegalArgumentException("Category name is blank");
+    }
+    String normalized = dbCategoryName.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
+    return switch (normalized) {
+      case "sport" -> Category.SPORT;
+      case "music" -> Category.MUSIC;
+      case "art" -> Category.ART;
+      case "entertainments" -> Category.ENTERTAINMENTS;
+      case "business" -> Category.BUSINESS;
+      case "education" -> Category.EDUCATION;
+      case "activerecreation" -> Category.ACTIVE_RECREATION;
+      case "passiverecreation" -> Category.PASSIVE_RECREATION;
+      case "massevent", "isamassevent" -> Category.IS_A_MASS_EVENT;
+      case "other" -> Category.OTHER;
+      case "notspecified" -> Category.NOT_SPECIFIED;
+      default -> throw new IllegalArgumentException("Unsupported category in DB: " + dbCategoryName);
+    };
   }
 
   @Override

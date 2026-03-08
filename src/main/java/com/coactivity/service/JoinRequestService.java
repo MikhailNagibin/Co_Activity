@@ -56,8 +56,7 @@ public class JoinRequestService {
     List<Room> managedRooms = admin.getRooms();
 
     if (managedRooms == null || managedRooms.isEmpty()) {
-//      return Collections.emptyList();
-      throw new RuntimeException();
+      return Collections.emptyList();
     }
 
     List<JoinRequestResponse> responses = new ArrayList<>();
@@ -183,7 +182,7 @@ public class JoinRequestService {
   private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
 
-    int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
+    int currentParticipants = roomRepository.getRoomParticipantCount(roomId);
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
       throw new ValidationException("Room capacity exceeded");
     }

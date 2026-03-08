@@ -153,8 +153,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
   }
 
-  // Дополнительный метод для проверки бана
-  private boolean isUserBannedInRoom(Integer roomId, Integer userId) {
+  public boolean isUserBannedInRoom(Integer roomId, Integer userId) {
     String sql = "SELECT EXISTS(SELECT 1 FROM Bans WHERE room_id = ? AND user_id = ?)";
 
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -173,6 +172,23 @@ public class RoomRepositoryImpl implements RoomRepository {
       throw new RuntimeException("Failed to check user ban status", e);
     }
     return false;
+  }
+
+  public int getRoomParticipantCount(Integer roomId) {
+    String sql = "SELECT COUNT(*) FROM Rooms_members WHERE room_id = ?";
+    try (Connection connection = dataRepository.getDataSource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getInt(1);
+        }
+      }
+    } catch (SQLException e) {
+      System.err.println("Error getting participant count: " + e.getMessage());
+      throw new RuntimeException("Failed to get room participant count", e);
+    }
+    return 0;
   }
 
   @Override

@@ -14,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +67,11 @@ public class UserRepositoryImpl implements UserRepository {
       statement.setString(4, request.getCity());
       statement.setString(5, request.getCountry());
       statement.setString(6, request.getDescription());
-      statement.setInt(7, request.getAvatarId());
+      if (request.getAvatarId() != null) {
+        statement.setInt(7, request.getAvatarId());
+      } else {
+        statement.setNull(7, Types.INTEGER);
+      }
       statement.setString(8, request.getUserName());
 
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -99,62 +104,84 @@ public class UserRepositoryImpl implements UserRepository {
       String newUsername =
           request.getUsername() != null ? request.getUsername() : user.getUserName();
 
-      Timestamp newBirthday =
-          request.getDateOfBirth() != null ? Timestamp.from(request.getDateOfBirth()) :
-              Timestamp.from(user.getDataOfBirth());
+      Timestamp newBirthday;
+      if (request.getDateOfBirth() != null) {
+        newBirthday = Timestamp.from(request.getDateOfBirth());
+      } else if (user.getDataOfBirth() != null) {
+        newBirthday = Timestamp.from(user.getDataOfBirth());
+      } else {
+        newBirthday = null;
+      }
       String newCountry = request.getCountry() != null ? request.getCountry() : user.getCountry();
       String newCity = request.getCity() != null ? request.getCity() : user.getCity();
       String newDescription =
           request.getDescription() != null ? request.getDescription() : user.getDescription();
-      Integer newAvatarId = request.getAvatarId() != null ? request.getAvatarId() : user.getAvatarId();
+      Integer newAvatarId =
+          request.getAvatarId() != null ? request.getAvatarId() : user.getAvatarId();
       statement.setString(1, newUsername);
       statement.setTimestamp(2, newBirthday);
       statement.setString(3, newCountry);
       statement.setString(4, newCity);
       statement.setString(5, newDescription);
-      statement.setInt(6, newAvatarId);
-      statement.executeUpdate();
+      if (newAvatarId != null) {
+        statement.setInt(6, newAvatarId);
+      } else {
+        statement.setNull(6, Types.INTEGER);
+      }
+      statement.setInt(7, userId);
+      int affectedRows = statement.executeUpdate();
+      if (affectedRows == 0) {
+        throw new RuntimeException("User not found for update: " + userId);
+      }
 
-      user.setDataOfBirth(newBirthday.toInstant());
+      user.setDataOfBirth(newBirthday != null ? newBirthday.toInstant() : null);
+      user.setUserName(newUsername);
       user.setCountry(newCountry);
       user.setCity(newCity);
       user.setDescription(newDescription);
       user.setAvatarId(newAvatarId);
+      return;
 
     } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
     }
-    throw new RuntimeException();
   }
 
   @Override
   public void deleteUser(Integer userId) {
-    String sql = """
-        DELETE FROM Rooms_members WHERE user_id = ?;
-        DELETE FROM Rooms_requests WHERE user_id = ?;
-        DELETE FROM Bans WHERE user_id = ?;
-        DELETE FROM Questions WHERE owner = ?;
-        DELETE FROM Answers WHERE owner = ?;
-        DELETE FROM usersNotification WHERE user_id = ?;
-        DELETE FROM BulletinBoard WHERE author_id = ?;
-        DELETE FROM Users WHERE id = ?;
-        """;
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      for (int i = 1; i <= 8; i++) {
-        statement.setInt(i, userId);
+    String[] sqlStatements = {
+        "DELETE FROM Rooms_members WHERE user_id = ?",
+        "DELETE FROM Rooms_requests WHERE user_id = ?",
+        "DELETE FROM Bans WHERE user_id = ?",
+        "DELETE FROM Questions WHERE owner = ?",
+        "DELETE FROM Answers WHERE owner = ?",
+        "DELETE FROM usersNotification WHERE user_id = ?",
+        "DELETE FROM BulletinBoard WHERE author_id = ?",
+        "DELETE FROM Users WHERE id = ?"
+    };
+    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+      connection.setAutoCommit(false);
+      for (int i = 0; i < sqlStatements.length - 1; i++) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlStatements[i])) {
+          statement.setInt(1, userId);
+          statement.executeUpdate();
+        }
       }
-      int affectedRows = statement.executeUpdate();
-
+      int affectedRows;
+      try (PreparedStatement deleteUserStatement = connection.prepareStatement(
+          sqlStatements[sqlStatements.length - 1])) {
+        deleteUserStatement.setInt(1, userId);
+        affectedRows = deleteUserStatement.executeUpdate();
+      }
       if (affectedRows == 0) {
-        throw new RuntimeException("No user did not delete");
+        connection.rollback();
+        throw new RuntimeException("User not found for delete: " + userId);
       }
-
+      connection.commit();
     } catch (SQLException e) {
       System.err.println(e.getMessage());
       throw new RuntimeException();
-
     }
   }
 
@@ -223,7 +250,7 @@ public class UserRepositoryImpl implements UserRepository {
   public void setNotification(Integer id, Notification notification) {
     String sql = """
         INSERT INTO usersNotification (user_id, notification_id)
-        VALUES (?, (SELECT id FROM Notifications WHERE notification = ?))
+        VALUES (?, (SELECT id FROM Notifications WHERE LOWER(notification) = LOWER(?)))
         ON CONFLICT (user_id, notification_id) DO NOTHING;
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
@@ -241,7 +268,7 @@ public class UserRepositoryImpl implements UserRepository {
     String sql = """
         DELETE FROM usersNotification
         WHERE user_id = ?
-        AND notification_id = (SELECT id FROM Notifications WHERE notification = ?);
+        AND notification_id = (SELECT id FROM Notifications WHERE LOWER(notification) = LOWER(?));
         """;
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -275,7 +302,8 @@ public class UserRepositoryImpl implements UserRepository {
     Integer userId = resultSet.getInt("id");
     String login = resultSet.getString("login");
     String password = resultSet.getString("password");
-    Instant birthday = resultSet.getTimestamp("birthday").toInstant();
+    Timestamp birthdayTimestamp = resultSet.getTimestamp("birthday");
+    Instant birthday = birthdayTimestamp != null ? birthdayTimestamp.toInstant() : null;
     String country = resultSet.getString("country");
     String city = resultSet.getString("city");
     String description = resultSet.getString("description");
@@ -307,14 +335,19 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   private List<Notification> getNotification(Integer userId) {
-    String sql = "select notification_id from usersNotification where user_id = ?";
+    String sql = """
+        SELECT n.notification
+        FROM usersNotification un
+        JOIN Notifications n ON n.id = un.notification_id
+        WHERE un.user_id = ?
+        """;
     var notifications = new ArrayList<Notification>();
     try (Connection connection = dataRepository.getDataSource().getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, userId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
-          Notification notification = Notification.getByIndex(resultSet.getInt(1));
+          Notification notification = Notification.fromValue(resultSet.getString(1));
           notifications.add(notification);
         }
       }

@@ -12,6 +12,7 @@ import com.coactivity.domain.Picture;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.PictureRepositoryImpl;
@@ -24,6 +25,7 @@ import com.coactivity.service.exception.ValidationException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -70,6 +72,9 @@ public class UserWithRoomService {
     getExistingUser(targetUserId);
 
     Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+    if (previousRole != Role.ADMIN) {
+      throw new ValidationException("Only admin users can be demoted");
+    }
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.PARTICIPANT);
     return new RoleAssignmentResponse(targetUserId, roomId, Role.PARTICIPANT, previousRole, ownerId);
   }
@@ -109,17 +114,22 @@ public class UserWithRoomService {
     if (room.isPublic()) {
       roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
     } else {
+      RoomsRequest existingRequest = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
+      if (existingRequest != null) {
+        return;
+      }
       roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
 
       // Notify all admins and owner about the new join request
-      if (room.getUsers() != null) {
-        for (Map.Entry<User, Role> entry : room.getUsers().entrySet()) {
+      Map<User, Role> roomUsers = roomRepository.getUsersInRoom(roomId);
+      if (roomUsers != null) {
+        for (Entry<User, Role> entry : roomUsers.entrySet()) {
           User roomUser = entry.getKey();
           Role role = entry.getValue();
-          if (roomUser != null && roomUser.getId() != null) {
-            if (role == Role.OWNER || role == Role.ADMIN) {
-              notificationService.sendNewJoinRequest(roomUser.getId(), room.getName(), user.getUserName());
-            }
+          if (roomUser != null && roomUser.getId() != null
+              && (role == Role.OWNER || role == Role.ADMIN)) {
+            notificationService.sendNewJoinRequest(roomUser.getId(), room.getName(),
+                user.getUserName());
           }
         }
       }
@@ -134,8 +144,7 @@ public class UserWithRoomService {
     }
 
     return rooms.stream()
-        .filter(room -> room.getBans() != null
-            && room.getBans().stream().anyMatch(banned -> banned.getId().equals(requesterId)))
+        .filter(room -> roomRepository.isUserBannedInRoom(room.getId(), requesterId))
         .map(room -> mapRoomToSummaryResponse(room, requesterId))
         .collect(Collectors.toList());
   }
@@ -210,11 +219,11 @@ public class UserWithRoomService {
   }
 
   private void enforceJoinEligibility(User user, Room room) {
-    if (room.getBans() != null && room.getBans().contains(user)) {
+    if (roomRepository.isUserBannedInRoom(room.getId(), user.getId())) {
       throw new AuthorizationException("User is banned from this room");
     }
 
-    int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
+    int currentParticipants = roomRepository.getRoomParticipantCount(room.getId());
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
       throw new ValidationException("Room capacity exceeded");
     }

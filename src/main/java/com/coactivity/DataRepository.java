@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.Optional;
 import javax.sql.DataSource;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,17 @@ public class DataRepository {
 
   public DataRepository() {
     setupDataSourceFromConfig();
+  }
+
+  /**
+   * In Spring runtime, always prefer the framework-managed DataSource to avoid configuration drift
+   * between custom JDBC repositories and Spring infrastructure.
+   */
+  @Autowired(required = false)
+  public void useSpringManagedDataSource(DataSource springDataSource) {
+    if (springDataSource != null) {
+      this.dataSource = springDataSource;
+    }
   }
 
   private void setupDataSourceFromConfig() {
