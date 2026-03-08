@@ -10,6 +10,7 @@ import com.coactivity.service.TokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest
+@Tag("docker")
 @DisplayName("JoinRequestControllerImplIntegrationTest - Join Request Management Integration Tests")
 class JoinRequestControllerImplIntegrationTest {
 
