@@ -19,6 +19,62 @@ services:
       retries: 20
     restart: unless-stopped
 
+  kafka:
+    image: bitnami/kafka:3.9.0
+    container_name: coactivity_kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "29092:29092"
+    restart: unless-stopped
+
+  qa-service:
+    container_name: coactivity_qa_service
+    build:
+      context: .
+      dockerfile: modules/qa-service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=}
+      JWT_ISSUER: ${JWT_ISSUER:-coactivity-core}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-coactivity-api}
+      QA_SERVICE_PORT: 8081
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  notifications-service:
+    container_name: coactivity_notifications_service
+    build:
+      context: .
+      dockerfile: modules/notifications-service/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_started
+    environment:
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
+      NOTIFICATIONS_KAFKA_GROUP_ID: ${NOTIFICATIONS_KAFKA_GROUP_ID:-notifications-service-v1}
+      NOTIFICATIONS_SERVICE_PORT: 8082
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
   app:
     container_name: coactivity_app
     build:
@@ -27,6 +83,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
+      qa-service:
+        condition: service_started
+      notifications-service:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
@@ -36,6 +98,22 @@ services:
       DB_NAME: ${DB_NAME:-postgres_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=}
+      JWT_ISSUER: ${JWT_ISSUER:-coactivity-core}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-coactivity-api}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-30}
+      QA_MODE: SERVICE
+      QA_SERVICE_BASE_URL: http://qa-service:8081
+      NOTIFICATIONS_MODE: KAFKA
+      NOTIFICATIONS_SERVICE_BASE_URL: http://notifications-service:8082
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
+      NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS: ${NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS:-5000}
+      OUTBOX_ENABLED: "true"
+      OUTBOX_POLL_DELAY_MS: 3000
+      OUTBOX_BATCH_SIZE: 20
+      OUTBOX_MAX_RETRIES: 5
+      OUTBOX_RETRY_DELAY_SECONDS: 30
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     ports:

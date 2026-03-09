@@ -3,126 +3,190 @@ package com.coactivity.service;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import org.springframework.web.client.RestClient;
 
 /**
- * Handles asynchronous email notifications with user preference checking. All notification methods
- * run in background threads and respect user notification settings.
+ * Handles notifications with user preference checking.
+ *
+ * <p>Mode switch:
+ * <ul>
+ *   <li>INPROC: send email directly using local MailService</li>
+ *   <li>SERVICE: call notifications-service over HTTP</li>
+ *   <li>KAFKA: publish email command to Kafka topic</li>
+ * </ul>
  */
 @Service
 public class NotificationService {
 
   private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
+  private static final String MODE_INPROC = "INPROC";
+  private static final String MODE_SERVICE = "SERVICE";
+  private static final String MODE_KAFKA = "KAFKA";
+  private static final String DEFAULT_NOTIFICATIONS_BASE_URL = "http://localhost:8082";
+  private static final String DEFAULT_NOTIFICATIONS_KAFKA_TOPIC = "notifications.email.v1";
+  private static final long DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS = 5000L;
+
   private final MailService mailService;
   private final UserRepositoryImpl userRepository;
+  private final ObjectMapper objectMapper = new ObjectMapper();
+
+  private String notificationsMode = MODE_INPROC;
+  private KafkaTemplate<String, String> kafkaTemplate;
+  private String notificationsKafkaTopic = DEFAULT_NOTIFICATIONS_KAFKA_TOPIC;
+  private long notificationsKafkaSendTimeoutMs = DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS;
+  private RestClient notificationsRestClient =
+      RestClient.builder().baseUrl(DEFAULT_NOTIFICATIONS_BASE_URL).build();
 
   public NotificationService(MailService mailService, UserRepositoryImpl userRepository) {
     this.mailService = mailService;
     this.userRepository = userRepository;
   }
 
-  /**
-   * Sends notification when a user's membership request is accepted. Runs asynchronously with user
-   * preference checking.
-   *
-   * @param userId   the ID of the user who was accepted
-   * @param roomName the name of the room they were accepted into
-   */
+  @Value("${notifications.mode:" + MODE_INPROC + "}")
+  public void setNotificationsMode(String notificationsMode) {
+    this.notificationsMode = notificationsMode != null ? notificationsMode : MODE_INPROC;
+  }
+
+  @Value("${notifications.service.base-url:" + DEFAULT_NOTIFICATIONS_BASE_URL + "}")
+  public void setNotificationsServiceBaseUrl(String baseUrl) {
+    if (baseUrl == null || baseUrl.isBlank()) {
+      this.notificationsRestClient =
+          RestClient.builder().baseUrl(DEFAULT_NOTIFICATIONS_BASE_URL).build();
+      return;
+    }
+    this.notificationsRestClient = RestClient.builder().baseUrl(baseUrl).build();
+  }
+
+  @Autowired(required = false)
+  public void setKafkaTemplate(KafkaTemplate<String, String> kafkaTemplate) {
+    this.kafkaTemplate = kafkaTemplate;
+  }
+
+  @Value("${notifications.kafka.topic:" + DEFAULT_NOTIFICATIONS_KAFKA_TOPIC + "}")
+  public void setNotificationsKafkaTopic(String notificationsKafkaTopic) {
+    if (notificationsKafkaTopic == null || notificationsKafkaTopic.isBlank()) {
+      this.notificationsKafkaTopic = DEFAULT_NOTIFICATIONS_KAFKA_TOPIC;
+      return;
+    }
+    this.notificationsKafkaTopic = notificationsKafkaTopic;
+  }
+
+  @Value("${notifications.kafka.send-timeout-ms:" + DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS
+      + "}")
+  public void setNotificationsKafkaSendTimeoutMs(long notificationsKafkaSendTimeoutMs) {
+    this.notificationsKafkaSendTimeoutMs =
+        Math.max(notificationsKafkaSendTimeoutMs, 1000L);
+  }
+
   @Async("taskExecutor")
   public void sendMembershipAccepted(Integer userId, String roomName) {
+    sendMembershipAcceptedSync(userId, roomName);
+  }
+
+  @Async("taskExecutor")
+  public void sendMembershipRejected(Integer userId, String roomName) {
+    sendMembershipRejectedSync(userId, roomName);
+  }
+
+  /**
+   * Synchronous dispatch used by outbox worker to know whether delivery succeeded.
+   */
+  public boolean sendMembershipAcceptedSync(Integer userId, String roomName) {
     log.debug("Attempting to send membership accepted notification to userId={}, room={}", userId,
         roomName);
 
     User user = userRepository.getUserById(userId);
     if (user == null || user.getLogin() == null) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
-      return;
+      return true;
     }
 
     if (!shouldNotifyUser(user, Notification.MEMBERSHIP_ACCEPTED)) {
       log.debug("User {} has disabled MEMBERSHIP_ACCEPTED notifications", userId);
-      return;
+      return true;
     }
 
     String subject = "🎉 Welcome to " + roomName + "!";
     String message = String.format("""
          Hello!
-        \s
-         Your request to join "%s" has been accepted.\s
+
+         Your request to join "%s" has been accepted.
          You can now participate in all room activities and discussions.
-        \s
+
          Happy collaborating!
          The CoActivity Team
-        \s""", roomName);
+
+""", roomName);
 
     try {
-      mailService.sendSimpleMessage(user.getLogin(), subject, message);
+      dispatchEmail(user.getLogin(), subject, message);
       log.info("✅ Membership accepted notification sent to userId={}, email={}", userId,
           user.getLogin());
+      return true;
     } catch (Exception e) {
       log.error("❌ Failed to send membership accepted notification to userId={}, email={}", userId,
           user.getLogin(), e);
+      return false;
     }
   }
 
   /**
-   * Sends notification when a user's membership request is rejected. Runs asynchronously with user
-   * preference checking.
-   *
-   * @param userId   the ID of the user who was rejected
-   * @param roomName the name of the room they were rejected from
+   * Synchronous dispatch used by outbox worker to know whether delivery succeeded.
    */
-  @Async("taskExecutor")
-  public void sendMembershipRejected(Integer userId, String roomName) {
+  public boolean sendMembershipRejectedSync(Integer userId, String roomName) {
     log.debug("Attempting to send membership rejected notification to userId={}, room={}", userId,
         roomName);
 
     User user = userRepository.getUserById(userId);
     if (user == null || user.getLogin() == null) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
-      return;
+      return true;
     }
 
     if (!shouldNotifyUser(user, Notification.MEMBERSHIP_REJECTED)) {
       log.debug("User {} has disabled MEMBERSHIP_REJECTED notifications", userId);
-      return;
+      return true;
     }
 
     String subject = "❌ Membership request update for " + roomName;
     String message = String.format("""
          Hello!
-        \s
-         Your request to join "%s" has been reviewed but unfortunately\s
+
+         Your request to join "%s" has been reviewed but unfortunately
          we cannot accept your participation at this time.
-        \s
+
          You can explore other rooms that might be a better fit!
-        \s
+
          The CoActivity Team
-        \s""", roomName);
+
+""", roomName);
 
     try {
-      mailService.sendSimpleMessage(user.getLogin(), subject, message);
+      dispatchEmail(user.getLogin(), subject, message);
       log.info("✅ Membership rejected notification sent to userId={}, email={}", userId,
           user.getLogin());
+      return true;
     } catch (Exception e) {
       log.error("❌ Failed to send membership rejected notification to userId={}, email={}", userId,
           user.getLogin(), e);
+      return false;
     }
   }
 
-  /**
-   * Sends notification when an activity/room is closed. Runs asynchronously with user preference
-   * checking.
-   *
-   * @param userId   the ID of the room participant
-   * @param roomName the name of the room that was closed
-   */
   @Async("taskExecutor")
   public void sendActivityClosed(Integer userId, String roomName) {
     log.debug("Attempting to send activity closed notification to userId={}, room={}", userId,
@@ -142,17 +206,17 @@ public class NotificationService {
     String subject = "🔒 Activity closed: " + roomName;
     String message = String.format("""
         Hello!
-        
+
         The activity "%s" has been closed.
         All participants have been removed and the room is no longer active.
-        
+
         Thank you for your participation!
-        
+
         The CoActivity Team
         """, roomName);
 
     try {
-      mailService.sendSimpleMessage(user.getLogin(), subject, message);
+      dispatchEmail(user.getLogin(), subject, message);
       log.info("✅ Activity closed notification sent to userId={}, email={}", userId,
           user.getLogin());
     } catch (Exception e) {
@@ -161,14 +225,6 @@ public class NotificationService {
     }
   }
 
-  /**
-   * Sends notification to room administrators about a new join request. Runs asynchronously with
-   * user preference checking.
-   *
-   * @param adminId           the ID of the room administrator
-   * @param roomName          the name of the room with the new request
-   * @param requesterUsername the username of the person requesting to join
-   */
   @Async("taskExecutor")
   public void sendNewJoinRequest(Integer adminId, String roomName, String requesterUsername) {
     log.debug("Attempting to send new join request notification to adminId={}, room={}", adminId,
@@ -188,17 +244,17 @@ public class NotificationService {
     String subject = "📥 New join request for " + roomName;
     String message = String.format("""
         Hello Room Administrator!
-        
+
         There's a new join request for your room "%s".
-        
+
         User: %s
         Action Required: Please review this request in your room administration panel.
-        
+
         The CoActivity Team
         """, roomName, requesterUsername);
 
     try {
-      mailService.sendSimpleMessage(admin.getLogin(), subject, message);
+      dispatchEmail(admin.getLogin(), subject, message);
       log.info("✅ New join request notification sent to adminId={}, email={}", adminId,
           admin.getLogin());
     } catch (Exception e) {
@@ -207,13 +263,6 @@ public class NotificationService {
     }
   }
 
-  /**
-   * Sends a login verification code to the user. This notification always sends regardless of user
-   * preferences (security requirement). Runs asynchronously.
-   *
-   * @param userEmail        the email of the user attempting to log in
-   * @param verificationCode the one-time verification code
-   */
   @Async("taskExecutor")
   public void sendLoginVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send login verification code to email={}", userEmail);
@@ -221,37 +270,29 @@ public class NotificationService {
     String subject = "🔐 Your CoActivity verification code";
     String message = String.format("""
         Hello!
-        
+
         Use the verification code below to finish signing in:
-        
+
         %s
-        
+
         The code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
-        
+
         Stay secure,
         The CoActivity Team
         """, verificationCode);
 
     try {
-      mailService.sendSimpleMessage(userEmail, subject, message);
+      dispatchEmail(userEmail, subject, message);
       log.info("✅ Login verification code sent to email={}", userEmail);
     } catch (Exception e) {
       log.error("❌ Failed to send login verification code to email={}", userEmail, e);
     }
   }
 
-  /**
-   * Checks if a user has enabled a specific notification type.
-   *
-   * @param user             the user to check
-   * @param notificationType the type of notification
-   * @return true if the user should receive this notification, false otherwise
-   */
   private boolean shouldNotifyUser(User user, Notification notificationType) {
     try {
       List<Notification> enabledNotifications = user.getNotifications();
       if (enabledNotifications == null || enabledNotifications.isEmpty()) {
-        // By default, if no preferences are set, don't send notifications
         log.debug("User {} has no notification preferences set", user.getId());
         return false;
       }
@@ -260,8 +301,70 @@ public class NotificationService {
     } catch (Exception e) {
       log.error("Error checking notification preferences for userId={}, type={}", user.getId(),
           notificationType, e);
-      // Fail closed: if we can't check preferences, don't send
       return false;
     }
+  }
+
+  private void dispatchEmail(String to, String subject, String message) {
+    if (to == null || to.isBlank()) {
+      return;
+    }
+
+    if (isKafkaMode()) {
+      publishEmailCommand(to, subject, message);
+      return;
+    }
+
+    if (isServiceMode()) {
+      notificationsRestClient.post()
+          .uri("/api/notifications/email")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(new SendEmailRequest(to, subject, message))
+          .retrieve()
+          .toBodilessEntity();
+      return;
+    }
+
+    mailService.sendSimpleMessage(to, subject, message);
+  }
+
+  private void publishEmailCommand(String to, String subject, String body) {
+    if (kafkaTemplate == null) {
+      throw new IllegalStateException(
+          "KafkaTemplate is not configured while NOTIFICATIONS_MODE=KAFKA");
+    }
+
+    String payload;
+    try {
+      payload = objectMapper.writeValueAsString(new SendEmailRequest(to, subject, body));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize email command for Kafka", e);
+    }
+
+    try {
+      kafkaTemplate.send(notificationsKafkaTopic, to, payload)
+          .get(notificationsKafkaSendTimeoutMs, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Kafka publish interrupted", e);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to publish email command to Kafka", e);
+    }
+  }
+
+  private boolean isServiceMode() {
+    String mode = notificationsMode == null ? MODE_INPROC : notificationsMode;
+    return MODE_SERVICE.equalsIgnoreCase(mode.trim().toUpperCase(Locale.ROOT));
+  }
+
+  private boolean isKafkaMode() {
+    String mode = notificationsMode == null ? MODE_INPROC : notificationsMode;
+    return MODE_KAFKA.equalsIgnoreCase(mode.trim().toUpperCase(Locale.ROOT));
+  }
+
+  private record SendEmailRequest(
+      String to,
+      String subject,
+      String body) {
   }
 }

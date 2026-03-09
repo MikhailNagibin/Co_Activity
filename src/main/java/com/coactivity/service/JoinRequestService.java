@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -32,6 +33,8 @@ public class JoinRequestService {
   private final RoomsRequestRepositoryImpl roomsRequestRepository;
   private final UserRepositoryImpl userRepository;
   private final NotificationService notificationService;
+  private JoinRequestOutboxTransactionService joinRequestOutboxTransactionService;
+  private boolean outboxEnabled;
 
   public JoinRequestService(RoomRepositoryImpl roomRepository,
       RoomsRequestRepositoryImpl roomsRequestRepository,
@@ -41,6 +44,17 @@ public class JoinRequestService {
     this.roomsRequestRepository = roomsRequestRepository;
     this.userRepository = userRepository;
     this.notificationService = notificationService;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setJoinRequestOutboxTransactionService(
+      JoinRequestOutboxTransactionService joinRequestOutboxTransactionService) {
+    this.joinRequestOutboxTransactionService = joinRequestOutboxTransactionService;
+  }
+
+  @Value("${outbox.enabled:false}")
+  public void setOutboxEnabled(boolean outboxEnabled) {
+    this.outboxEnabled = outboxEnabled;
   }
 
   /**
@@ -111,6 +125,13 @@ public class JoinRequestService {
     ensureModerationRights(moderatorId, roomId);
 
     Integer requesterId = request.getUser().getId();
+
+    if (shouldUseOutboxFlow(effectiveAction)) {
+      Room room = getExistingRoom(roomId);
+      joinRequestOutboxTransactionService.processDecision(effectiveRequestId, roomId, requesterId,
+          room, effectiveAction);
+      return;
+    }
 
     switch (effectiveAction) {
       case ACCEPTED -> acceptRequest(effectiveRequestId, roomId, requesterId);
@@ -246,6 +267,15 @@ public class JoinRequestService {
       throw new ValidationException("Cannot process consideration status");
     }
     return action;
+  }
+
+  private boolean shouldUseOutboxFlow(RequestStatus action) {
+    if (!outboxEnabled || joinRequestOutboxTransactionService == null) {
+      return false;
+    }
+    return action == RequestStatus.ACCEPTED
+        || action == RequestStatus.REFUSED
+        || action == RequestStatus.REFUSED_WITH_BAN;
   }
 
   private User getExistingUser(Integer userId) {

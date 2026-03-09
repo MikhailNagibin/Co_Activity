@@ -129,6 +129,23 @@ create table IF NOT EXISTS  BulletinBoard (
     FOREIGN KEY (author_id) REFERENCES Users(id)
 );
 
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id BIGSERIAL PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'NEW',
+    retry_count INT NOT NULL DEFAULT 0,
+    last_error TEXT,
+    available_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP,
+    idempotency_key VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_events_status_available
+    ON outbox_events(status, available_at, created_at);
+
 
 --Insert into Roles(role) values
 --('Admin'),

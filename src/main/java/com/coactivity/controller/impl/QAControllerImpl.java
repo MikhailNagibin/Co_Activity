@@ -6,7 +6,7 @@ import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
-import com.coactivity.service.QAService;
+import com.coactivity.service.QaGatewayService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.exception.TokenValidationException;
 import jakarta.validation.Valid;
@@ -29,11 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/qa")
 public class QAControllerImpl implements QAController {
 
-  private final QAService qaService;
+  private final QaGatewayService qaGatewayService;
   private final TokenService tokenService;
 
-  public QAControllerImpl(QAService qaService, TokenService tokenService) {
-    this.qaService = qaService;
+  public QAControllerImpl(QaGatewayService qaGatewayService, TokenService tokenService) {
+    this.qaGatewayService = qaGatewayService;
     this.tokenService = tokenService;
   }
 
@@ -43,7 +43,7 @@ public class QAControllerImpl implements QAController {
     @RequestHeader(name = "Authorization", required = false) String token,
     @Valid @RequestBody QuestionRequest request) {
     Integer userId = resolveAuthorizedUserId(token);
-    QuestionResponse response = qaService.askQuestion(userId, request);
+    QuestionResponse response = qaGatewayService.askQuestion(token, userId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -53,7 +53,7 @@ public class QAControllerImpl implements QAController {
     @RequestHeader(name = "Authorization", required = false) String token,
     @Valid @RequestBody AnswerRequest request) {
     Integer userId = resolveAuthorizedUserId(token);
-    AnswerResponse response = qaService.answerQuestion(userId, request);
+    AnswerResponse response = qaGatewayService.answerQuestion(token, userId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -61,7 +61,7 @@ public class QAControllerImpl implements QAController {
   @GetMapping("/questions/category")
   public ResponseEntity<List<QuestionResponse>> getQuestions(
     @RequestParam(name = "categoryId", required = false) Integer categoryId) {
-    List<QuestionResponse> responses = qaService.getQuestions(categoryId);
+    List<QuestionResponse> responses = qaGatewayService.getQuestions(categoryId);
     return ResponseEntity.ok(responses);
   }
 
@@ -69,7 +69,7 @@ public class QAControllerImpl implements QAController {
   @GetMapping("/questions/{questionId}")
   public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
     @PathVariable @Positive Integer questionId) {
-    QuestionWithAnswersResponse response = qaService.getQuestionWithAnswers(questionId);
+    QuestionWithAnswersResponse response = qaGatewayService.getQuestionWithAnswers(questionId);
     return ResponseEntity.ok(response);
   }
 
@@ -80,7 +80,7 @@ public class QAControllerImpl implements QAController {
    */
   @GetMapping("/questions")
   public ResponseEntity<List<QuestionResponse>> getAllQuestions() {
-    List<QuestionResponse> responses = qaService.getQuestions(null);
+    List<QuestionResponse> responses = qaGatewayService.getAllQuestions();
     return ResponseEntity.ok(responses);
   }
 

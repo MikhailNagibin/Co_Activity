@@ -1,170 +1,191 @@
 package com.coactivity.service;
 
+import com.coactivity.service.dto.PendingVerification;
 import com.coactivity.service.dto.TokenPayload;
 import com.coactivity.service.exception.TokenValidationException;
-import java.nio.charset.StandardCharsets;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import java.time.Instant;
-import java.util.Base64;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import com.coactivity.service.dto.PendingVerification;
+import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Manages authentication token lifecycle for the CoActivity platform.
- * <p>
- * Tokens are base64-encoded strings containing user id and expiration timestamp.
- * Tokens automatically expire 30 minutes after creation. Active tokens are tracked
- * in memory to prevent use of invalidated or expired tokens. This service is a
- * singleton managed by Spring, ensuring all services share the same active token registry.
- * </p>
+ * Token service based on signed JWT access tokens.
+ *
+ * <p>For the training-stage architecture we intentionally keep only access tokens (no refresh
+ * flow).
+ * This means token revocation is best-effort via in-memory revoked jti set.
  */
 @Service
 public class TokenService {
 
-  /**
-   * Token expiration duration in minutes.
-   */
-  private static final int TOKEN_EXPIRATION_MINUTES = 30;
+    private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
-  /**
-   * Map of active tokens consisting of pairs (userId : token).
-   * TokenService is singleton, so this field is shared across all service instances.
-   */
-  private final Map<Integer, String> activeTokens = new ConcurrentHashMap<>();
+    private static final int DEFAULT_TOKEN_EXPIRATION_MINUTES = 30;
+    private static final String DEFAULT_ISSUER = "coactivity-core";
+    private static final String DEFAULT_AUDIENCE = "coactivity-api";
+    private static final String DEFAULT_SECRET_BASE64 =
+            "MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=";
+    /**
+     * Legacy compatibility map used by tests that still seed pending verifications via
+     * TokenService.
+     */
+    private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
+    /**
+     * In-memory revoked token ids (jti). Keeps logout behavior in a single instance deployment.
+     */
+    private final Set<String> revokedTokenIds = ConcurrentHashMap.newKeySet();
+    @Value("${security.jwt.secret-base64:" + DEFAULT_SECRET_BASE64 + "}")
+    private String jwtSecretBase64 = DEFAULT_SECRET_BASE64;
+    @Value("${security.jwt.issuer:" + DEFAULT_ISSUER + "}")
+    private String jwtIssuer = DEFAULT_ISSUER;
+    @Value("${security.jwt.audience:" + DEFAULT_AUDIENCE + "}")
+    private String jwtAudience = DEFAULT_AUDIENCE;
+    @Value("${security.jwt.expiration-minutes:" + DEFAULT_TOKEN_EXPIRATION_MINUTES + "}")
+    private int tokenExpirationMinutes = DEFAULT_TOKEN_EXPIRATION_MINUTES;
+    private volatile SecretKey signingKey;
 
-  /**
-   * Map of pending verifications consisting of pairs (login : PendingVerification).
-   */
-  private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
+    public String createToken(Integer userId) {
+        if (userId == null || userId <= 0) {
+            throw new TokenValidationException("User id must be positive");
+        }
 
-  /**
-   * Creates a new authentication token for the specified user.
-   * <p>
-   * The token automatically expires 30 minutes after creation. The token contains
-   * the user's id and expiration timestamp encoded in base64 format.
-   * </p>
-   *
-   * @param userId the user's unique identifier
-   * @return base64-encoded token containing userId:expiresAt
-   */
-  public String createToken(Integer userId) {
-    Instant expiresAt = Instant.now().plusSeconds(TOKEN_EXPIRATION_MINUTES * 60L);
-    String payload = userId + ":" + expiresAt.toEpochMilli();
-    return Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
-  }
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plusSeconds(tokenExpirationMinutes * 60L);
+        String tokenId = UUID.randomUUID().toString();
 
-  /**
-   * Decodes a token and extracts the user information.
-   *
-   * @param token the authentication token to decode
-   * @return TokenPayload containing userId and expiresAt
-   * @throws TokenValidationException if the token cannot be decoded
-   */
-  public TokenPayload decodeToken(String token) {
-    try {
-      String payload = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
-      String[] parts = payload.split(":", 2);
-      if (parts.length != 2) {
-        throw new TokenValidationException("Invalid token format");
-      }
-      Integer userId = Integer.parseInt(parts[0]);
-      Instant expiresAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
-      return new TokenPayload(userId, expiresAt);
-    } catch (TokenValidationException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new TokenValidationException("Invalid token", e);
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .issuer(jwtIssuer)
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt))
+                .id(tokenId)
+                .claim("aud", jwtAudience)
+                .claim("roles", List.of())
+                .signWith(resolveSigningKey())
+                .compact();
     }
-  }
 
-  /**
-   * Registers a token as active for the specified user.
-   * <p>
-   * If the user already has an active token, it will be replaced.
-   * </p>
-   *
-   * @param userId the user id to associate with the token
-   * @param token  the token to register as active
-   */
-  public void registerToken(Integer userId, String token) {
-    activeTokens.put(userId, token);
-  }
-
-  /**
-   * Adds a pending verification for a given login.
-   *
-   * @param login the login for which verification is pending
-   * @param pendingVerification the pending verification object
-   */
-  public void addPendingVerification(String login, PendingVerification pendingVerification) {
-    pendingVerifications.put(login, pendingVerification);
-  }
-
-  /**
-   * Retrieves a pending verification for a given login.
-   *
-   * @param login the login for which verification is pending
-   * @return an Optional containing the PendingVerification object if found, otherwise empty
-   */
-  public Optional<PendingVerification> getPendingVerification(String login) {
-    return Optional.ofNullable(pendingVerifications.get(login));
-  }
-
-  /**
-   * Removes a pending verification for a given login.
-   *
-   * @param login the login for which verification is to be removed
-   */
-  public void removePendingVerification(String login) {
-    pendingVerifications.remove(login);
-  }
-
-  /**
-   * Verifies that a token is currently active and valid.
-   * <p>
-   * A token is considered valid if:
-   * <ul>
-   *   <li>It can be successfully decoded</li>
-   *   <li>It has not expired (expiresAt is in the future)</li>
-   *   <li>It is registered and matches the stored active token for the user</li>
-   * </ul>
-   * </p>
-   *
-   * @param token the token to validate
-   * @return true if the token is registered, not expired, and matches the stored active token
-   */
-  public boolean isTokenActive(String token) {
-    try {
-      TokenPayload payload = decodeToken(token);
-      System.out.println();
-      // Check if token has expired
-      if (payload.expiresAt().isBefore(Instant.now())) {
-        return false;
-      }
-
-      // Check if token is registered and matches the active token for this user
-      return token.equals(activeTokens.get(payload.userId()));
-    } catch (TokenValidationException e) {
-      return false;
+    public TokenPayload decodeToken(String token) {
+        Claims claims = parseSignedClaims(token);
+        try {
+            Integer userId = Integer.parseInt(claims.getSubject());
+            Instant expiresAt = claims.getExpiration().toInstant();
+            return new TokenPayload(userId, expiresAt);
+        } catch (Exception e) {
+            throw new TokenValidationException("Invalid token subject", e);
+        }
     }
-  }
 
-  /**
-   * Invalidates a token, removing it from active tokens.
-   * <p>
-   * If the token doesn't match the current active token for the user, no action is taken.
-   * </p>
-   *
-   * @param token the token to invalidate
-   */
-  public void invalidateToken(String token) {
-    try {
-      TokenPayload payload = decodeToken(token);
-      activeTokens.remove(payload.userId(), token);
-    } catch (TokenValidationException e) {
-      // Token was invalid anyway - no action needed
+    /**
+     * Kept for backward compatibility. Access JWT is stateless and does not require registration.
+     */
+    public void registerToken(Integer userId, String token) {
+        // No-op by design for stateless JWT.
     }
-  }
+
+    public void addPendingVerification(String login, PendingVerification pendingVerification) {
+        pendingVerifications.put(login, pendingVerification);
+    }
+
+    public Optional<PendingVerification> getPendingVerification(String login) {
+        return Optional.ofNullable(pendingVerifications.get(login));
+    }
+
+    public void removePendingVerification(String login) {
+        pendingVerifications.remove(login);
+    }
+
+    public boolean isTokenActive(String token) {
+        try {
+            Claims claims = parseSignedClaims(token);
+            if (!jwtIssuer.equals(claims.getIssuer())) {
+                return false;
+            }
+
+            String audience = claims.get("aud", String.class);
+            if (audience == null || !jwtAudience.equals(audience)) {
+                return false;
+            }
+
+            String tokenId = claims.getId();
+            return tokenId == null || !revokedTokenIds.contains(tokenId);
+        } catch (TokenValidationException e) {
+            return false;
+        }
+    }
+
+    public void invalidateToken(String token) {
+        try {
+            Claims claims = parseSignedClaims(token);
+            String tokenId = claims.getId();
+            if (tokenId != null && !tokenId.isBlank()) {
+                revokedTokenIds.add(tokenId);
+            }
+        } catch (TokenValidationException e) {
+            // Token is already invalid; nothing else to do.
+        }
+    }
+
+    private Claims parseSignedClaims(String rawToken) {
+        String token = extractToken(rawToken);
+        if (token == null || token.isBlank()) {
+            throw new TokenValidationException("Token is required");
+        }
+
+        try {
+            return Jwts.parser()
+                    .verifyWith(resolveSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new TokenValidationException("Invalid token", e);
+        }
+    }
+
+    private SecretKey resolveSigningKey() {
+        if (signingKey != null) {
+            return signingKey;
+        }
+
+        synchronized (this) {
+            if (signingKey != null) {
+                return signingKey;
+            }
+
+            try {
+                byte[] keyBytes = Decoders.BASE64.decode(jwtSecretBase64);
+                signingKey = Keys.hmacShaKeyFor(keyBytes);
+
+                if (DEFAULT_SECRET_BASE64.equals(jwtSecretBase64)) {
+                    log.warn(
+                            "Using default JWT secret. Set security.jwt.secret-base64 in env for non-local runs.");
+                }
+                return signingKey;
+            } catch (Exception e) {
+                throw new TokenValidationException("Invalid JWT secret configuration", e);
+            }
+        }
+    }
+
+    private String extractToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return null;
+        }
+        return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
+    }
 }
