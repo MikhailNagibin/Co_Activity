@@ -12,11 +12,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mail.MailSendException;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Unit tests for NotificationService - runs synchronously without Spring context. This avoids async
@@ -452,6 +454,57 @@ class NotificationServiceTest {
       notificationService.sendMembershipAccepted(testUserId, testRoomName);
 
       // Assert
+      verify(mailService, never()).sendSimpleMessage(anyString(), anyString(), anyString());
+    }
+  }
+
+  // ==================== Kafka Mode Tests ====================
+
+  @Nested
+  @DisplayName("Kafka Mode")
+  class KafkaModeTests {
+
+    @Test
+    @DisplayName("Should publish email command to Kafka and not use local mail service")
+    void kafkaMode_publishesToKafka() {
+      // Arrange
+      List<Notification> notifications = List.of(Notification.MEMBERSHIP_ACCEPTED);
+      testUser.setNotifications(notifications);
+      when(userRepository.getUserById(testUserId)).thenReturn(testUser);
+
+      @SuppressWarnings("unchecked")
+      KafkaTemplate<String, String> kafkaTemplate = Mockito.mock(KafkaTemplate.class);
+      when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+          .thenReturn(CompletableFuture.completedFuture(null));
+
+      notificationService.setNotificationsMode("KAFKA");
+      notificationService.setNotificationsKafkaTopic("notifications.email.v1");
+      notificationService.setKafkaTemplate(kafkaTemplate);
+
+      // Act
+      boolean delivered = notificationService.sendMembershipAcceptedSync(testUserId, testRoomName);
+
+      // Assert
+      assertTrue(delivered);
+      verify(kafkaTemplate, times(1))
+          .send(eq("notifications.email.v1"), eq(testUserEmail), anyString());
+      verify(mailService, never()).sendSimpleMessage(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should return false when Kafka mode is enabled but template is missing")
+    void kafkaMode_withoutTemplate_returnsFalse() {
+      // Arrange
+      List<Notification> notifications = List.of(Notification.MEMBERSHIP_ACCEPTED);
+      testUser.setNotifications(notifications);
+      when(userRepository.getUserById(testUserId)).thenReturn(testUser);
+      notificationService.setNotificationsMode("KAFKA");
+
+      // Act
+      boolean delivered = notificationService.sendMembershipAcceptedSync(testUserId, testRoomName);
+
+      // Assert
+      assertFalse(delivered);
       verify(mailService, never()).sendSimpleMessage(anyString(), anyString(), anyString());
     }
   }

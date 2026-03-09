@@ -120,6 +120,83 @@ class NotificationIntegrationTest {
     );
   }
 
+  // ==================== Outbox Routing Tests ====================
+
+  @Nested
+  @DisplayName("JoinRequestService Outbox Routing")
+  class OutboxRoutingTests {
+
+    @Test
+    @DisplayName("Should route ACCEPTED action to outbox transaction service when enabled")
+    void enabledOutbox_routesAcceptedToOutboxService() {
+      // Arrange
+      JoinRequestOutboxTransactionService outboxTransactionService = Mockito.mock(
+          JoinRequestOutboxTransactionService.class);
+      joinRequestService.setJoinRequestOutboxTransactionService(outboxTransactionService);
+      joinRequestService.setOutboxEnabled(true);
+
+      when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
+      when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+      when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
+
+      // Act
+      joinRequestService.processJoinRequest(adminId, requestId, RequestStatus.ACCEPTED);
+
+      // Assert
+      verify(outboxTransactionService, times(1))
+          .processDecision(requestId, roomId, userId, testRoom, RequestStatus.ACCEPTED);
+
+      verify(notificationService, never()).sendMembershipAccepted(anyInt(), anyString());
+      verify(roomsRequestRepository, never()).updateRequest(anyInt(), any(RequestStatus.class));
+      verify(roomRepository, never()).addUserToRoom(anyInt(), anyInt(), any(Role.class));
+    }
+
+    @Test
+    @DisplayName("Should route REFUSED_WITH_BAN action to outbox transaction service when enabled")
+    void enabledOutbox_routesRefuseWithBanToOutboxService() {
+      // Arrange
+      JoinRequestOutboxTransactionService outboxTransactionService = Mockito.mock(
+          JoinRequestOutboxTransactionService.class);
+      joinRequestService.setJoinRequestOutboxTransactionService(outboxTransactionService);
+      joinRequestService.setOutboxEnabled(true);
+
+      when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
+      when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+      when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
+
+      // Act
+      joinRequestService.processJoinRequest(adminId, requestId, RequestStatus.REFUSED_WITH_BAN);
+
+      // Assert
+      verify(outboxTransactionService, times(1))
+          .processDecision(requestId, roomId, userId, testRoom, RequestStatus.REFUSED_WITH_BAN);
+
+      verify(notificationService, never()).sendMembershipRejected(anyInt(), anyString());
+      verify(roomRepository, never()).addUserBan(anyInt(), anyInt());
+    }
+
+    @Test
+    @DisplayName("Should fallback to legacy flow when outbox enabled but service is absent")
+    void enabledOutboxWithoutService_fallsBackToLegacyFlow() {
+      // Arrange
+      joinRequestService.setOutboxEnabled(true);
+
+      when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
+      when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+      when(userRepository.getUserById(userId)).thenReturn(testUser);
+      when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
+      when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
+
+      // Act
+      joinRequestService.processJoinRequest(adminId, requestId, RequestStatus.ACCEPTED);
+
+      // Assert
+      verify(notificationService, times(1)).sendMembershipAccepted(eq(userId), eq("Test Room"));
+      verify(roomRepository, times(1)).addUserToRoom(roomId, userId, Role.PARTICIPANT);
+      verify(roomsRequestRepository, times(1)).updateRequest(requestId, RequestStatus.ACCEPTED);
+    }
+  }
+
   // ==================== JoinRequestService Integration ====================
 
   @Nested
