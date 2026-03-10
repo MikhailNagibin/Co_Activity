@@ -36,7 +36,7 @@ public interface RoomRepository {
    * @param userId
    * @param role
    */
-  void addUserToRoom(Integer roomId, Integer userId, Role role);
+  void addUserToRoom(Integer roomId, Integer userId, String role);
 
   /**
    *

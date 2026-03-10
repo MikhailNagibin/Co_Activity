@@ -1,157 +1,94 @@
 package com.coactivity.repository.impl;
 
-import com.coactivity.DataRepository;
 import com.coactivity.domain.BulletinBoard;
+import com.coactivity.domain.Room;
+import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.Instant;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+
 @Repository
+@Transactional
 public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
 
-  private final DataRepository dataRepository;
+  @PersistenceContext
+  private EntityManager entityManager;
+
   private final UserRepositoryImpl userRepository;
   private final RoomRepositoryImpl roomRepository;
 
-  public BulletinBoardRepositoryImpl(DataRepository dataRepository,
-                                    UserRepositoryImpl userRepository,
-                                    RoomRepositoryImpl roomRepository) {
-    this.dataRepository = dataRepository;
+  public BulletinBoardRepositoryImpl(UserRepositoryImpl userRepository,
+                                     RoomRepositoryImpl roomRepository) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
   }
 
   @Override
   public BulletinBoard createBulletinBoard(Integer roomId, String content, Integer authorId) {
-    String sql = "INSERT INTO BulletinBoard (room_id, content, author_id, updated_at) " +
-        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, updated_at";
+    Room room = roomRepository.getRoomById(roomId);
+    User author = userRepository.getUserById(authorId);
+    Instant now = Instant.now();
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+    BulletinBoard bulletinBoard = new BulletinBoard();
+    bulletinBoard.setRoom(room);
+    bulletinBoard.setContent(content);
+    bulletinBoard.setAuthor(author);
+    bulletinBoard.setUpdatedAt(now);
 
-      statement.setInt(1, roomId);
-      statement.setString(2, content);
-      statement.setInt(3, authorId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          Integer boardId = resultSet.getInt("id");
-          Instant createdAt = resultSet.getTimestamp("updated_at").toInstant();
-          return new BulletinBoard(boardId, roomRepository.getRoomById(roomId),
-              content, userRepository.getUserById(authorId), createdAt);
-        }
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
-    }
-    throw new RuntimeException();
+    entityManager.persist(bulletinBoard);
+    return bulletinBoard;
   }
 
   @Override
   public BulletinBoard updateBulletinBoard(Integer roomId, String content, Integer authorId) {
-    String sql =
-        "UPDATE BulletinBoard SET content = ?, author_id = ?, updated_at = CURRENT_TIMESTAMP" +
-            " WHERE room_id = ? RETURNING id, updated_at";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setString(1, content);
-      statement.setInt(2, authorId);
-      statement.setInt(3, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          Integer boardId = resultSet.getInt("id");
-          Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
-          return new BulletinBoard(boardId, roomRepository.getRoomById(roomId), content,
-              userRepository.getUserById(authorId), updatedAt);
-        }
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+    BulletinBoard bulletinBoard = getBulletinBoard(roomId);
+    if (bulletinBoard == null) {
+      throw new RuntimeException("Bulletin board not found for room: " + roomId);
     }
-    throw new RuntimeException();
+
+    User author = userRepository.getUserById(authorId);
+
+    bulletinBoard.setContent(content);
+    bulletinBoard.setAuthor(author);
+    bulletinBoard.setUpdatedAt(Instant.now());
+
+    return entityManager.merge(bulletinBoard);
   }
 
   @Override
   public BulletinBoard getBulletinBoard(Integer roomId) {
-    String sql = "SELECT * FROM BulletinBoard WHERE room_id = ?";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return mapResultSetToBulletinBoard(resultSet);
-        }
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException();
+    try {
+      return entityManager.createQuery(
+              "SELECT b FROM BulletinBoard b WHERE b.room.id = :roomId",
+              BulletinBoard.class)
+          .setParameter("roomId", roomId)
+          .getSingleResult();
+    } catch (jakarta.persistence.NoResultException e) {
+      return null;
     }
-    return null;
   }
 
   @Override
   public void deleteBulletinBoard(Integer roomId) {
-    String sql = "DELETE FROM BulletinBoard WHERE room_id = ?";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException();
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+    BulletinBoard bulletinBoard = getBulletinBoard(roomId);
+    if (bulletinBoard != null) {
+      entityManager.remove(bulletinBoard);
+    } else {
+      throw new RuntimeException("Bulletin board not found for room: " + roomId);
     }
   }
 
   @Override
   public boolean isBulletinBoardExists(Integer roomId) {
-    String sql = "select * from BulletinBoard WHERE room_id = ?";
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return true;
-        } else {
-          return false;
-        }
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-  }
-
-  private BulletinBoard mapResultSetToBulletinBoard(ResultSet resultSet) throws SQLException {
-    Integer id = resultSet.getInt("id");
-    Integer roomId = resultSet.getInt("room_id");
-    String content = resultSet.getString("content");
-    Integer authorId = resultSet.getInt("author_id");
-    Instant updatedAt = resultSet.getTimestamp("updated_at").toInstant();
-
-    return new BulletinBoard(id, roomRepository.getRoomById(roomId), content,
-        userRepository.getUserById(authorId), updatedAt);
+    Long count = entityManager.createQuery(
+            "SELECT COUNT(b) FROM BulletinBoard b WHERE b.room.id = :roomId",
+            Long.class)
+        .setParameter("roomId", roomId)
+        .getSingleResult();
+    return count > 0;
   }
 }

@@ -1,327 +1,154 @@
 package com.coactivity.repository.impl;
 
-import com.coactivity.DataRepository;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Question;
+import com.coactivity.domain.User;
+import com.coactivity.repository.impl.CategoryRepository;
 import com.coactivity.repository.QuestionRepository;
 import com.coactivity.service.exception.ValidationException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.NoResultException;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
+@Transactional
 public class QuestionRepositoryImpl implements QuestionRepository {
 
-  private final DataRepository dataRepository;
-  private final UserRepositoryImpl userRepository;
+  @PersistenceContext
+  private EntityManager entityManager;
 
-  public QuestionRepositoryImpl(DataRepository dataRepository, UserRepositoryImpl userRepository) {
-    this.dataRepository = dataRepository;
+  private final UserRepositoryImpl userRepository;
+  private final CategoryRepository categoryRepository;
+
+  public QuestionRepositoryImpl(UserRepositoryImpl userRepository,
+                                CategoryRepository categoryRepository) {
     this.userRepository = userRepository;
+    this.categoryRepository = categoryRepository;
   }
 
   @Override
   public Question createQuestion(Integer userId, String question, String category) {
-    Integer categoryId = getCategoryIdByName(category);
-    if (categoryId == null) {
-      throw new ValidationException("Category not found: " + category);
-    }
+    Category categoryEntity = categoryRepository.findByName(category.toUpperCase())
+        .orElseThrow(() -> new ValidationException("Category not found: " + category));
 
-    String sql = "INSERT INTO Questions (owner, question, category_id) VALUES (?, ?, ?) RETURNING id";
+    User owner = userRepository.getUserById(userId);
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, userId);
-      statement.setString(2, question);
-      statement.setInt(3, categoryId);
+    Question newQuestion = new Question();
+    newQuestion.setOwner(owner);
+    newQuestion.setQuestion(question);
+    newQuestion.setCategory(categoryEntity);
 
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          Integer questionId = resultSet.getInt("id");
-          return new Question(questionId, userRepository.getUserById(userId), question,
-            getCategoryById(categoryId));
-        }
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-    throw new RuntimeException();
+    entityManager.persist(newQuestion);
+    return newQuestion;
   }
 
   public Integer getCategoryIdByName(String categoryName) {
-    String sql = "SELECT id FROM Categories WHERE LOWER(name) = LOWER(?)";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setString(1, categoryName);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getInt("id");
-        }
-      }
-
-      return null;
-
-    } catch (SQLException e) {
-      System.err.println("Error getting category ID by name: " + e.getMessage());
-      throw new RuntimeException("Database error while getting category ID", e);
-    }
+    return categoryRepository.findByName(categoryName.toUpperCase())
+        .map(Category::getId)
+        .orElse(null);
   }
 
   public Category getCategoryById(Integer categoryId) {
-    String sql = "SELECT name FROM Categories WHERE id = ?";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, categoryId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          String name = resultSet.getString("name");
-          return Category.valueOf(name.toUpperCase().replace(" ", "_"));
-        }
-      }
-
-      throw new IllegalArgumentException("Category not found: " + categoryId);
-
-    } catch (SQLException e) {
-      throw new RuntimeException("Database error", e);
-    }
+    return categoryRepository.findById(categoryId)
+        .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
   }
 
   @Override
   public List<Question> getAllQuestions() {
-    var questions = new ArrayList<Question>();
-    // Добавлено условие id > 0
-    String sql = "SELECT * FROM Questions WHERE id > 0 ORDER BY id";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql);
-         ResultSet resultSet = statement.executeQuery()) {
-
-      while (resultSet.next()) {
-        var question = mapResultSetToQuestion(resultSet);
-        questions.add(question);
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    return questions;
+    return entityManager.createQuery(
+            "SELECT q FROM Question q WHERE q.id > 0 ORDER BY q.id",
+            Question.class)
+        .getResultList();
   }
 
   public Question getQuestionById(Integer questionId) {
-    // Добавлено условие id > 0
-    String sql = "SELECT * FROM Questions WHERE id = ? AND id > 0";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, questionId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return mapResultSetToQuestion(resultSet);
-        } else {
-          throw new RuntimeException();
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
+    try {
+      return entityManager.createQuery(
+              "SELECT q FROM Question q WHERE q.id = :id AND q.id > 0",
+              Question.class)
+          .setParameter("id", questionId)
+          .getSingleResult();
+    } catch (NoResultException e) {
+      throw new RuntimeException("Question not found with id: " + questionId);
     }
   }
 
   @Override
   public Question updateQuestion(Integer questionId, String question, Integer categoryId) {
-    // Добавлено условие id > 0
-    String sql = "UPDATE Questions SET question = ?, category_id = ? WHERE id = ? AND id > 0 RETURNING id, owner, question, category_id";
+    Question existingQuestion = getQuestionById(questionId);
+    Category category = getCategoryById(categoryId);
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
+    existingQuestion.setQuestion(question);
+    existingQuestion.setCategory(category);
 
-      statement.setString(1, question);
-      statement.setInt(2, categoryId);
-      statement.setInt(3, questionId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return mapResultSetToQuestion(resultSet);
-        }
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    throw new RuntimeException();
+    return entityManager.merge(existingQuestion);
   }
 
   @Override
   public void deleteQuestion(Integer questionId) {
     deleteAllWithQuestion(questionId);
-    // Добавлено условие id > 0
-    String sql = "DELETE FROM Questions WHERE id = ? AND id > 0";
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, questionId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException();
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
+    Question question = getQuestionById(questionId);
+    entityManager.remove(question);
   }
 
   private void deleteAllWithQuestion(Integer questionId) {
-    // Добавлено условие question_id > 0
-    String sql = "DELETE FROM Answers WHERE question_id = ? AND question_id > 0";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, questionId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
+    entityManager.createQuery("DELETE FROM Answer a WHERE a.questionId = :questionId AND a.questionId > 0")
+        .setParameter("questionId", questionId)
+        .executeUpdate();
   }
 
-  /**
-   * Получает вопросы по категории с фильтрацией id > 0
-   */
   public List<Question> getQuestionsByCategory(Integer categoryId) {
-    var questions = new ArrayList<Question>();
-    // Добавлено условие id > 0
-    String sql = "SELECT * FROM Questions WHERE category_id = ? AND id > 0 ORDER BY id";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, categoryId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          var question = mapResultSetToQuestion(resultSet);
-          questions.add(question);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    return questions;
+    Category category = getCategoryById(categoryId);
+    return entityManager.createQuery(
+            "SELECT q FROM Question q WHERE q.category = :category AND q.id > 0 ORDER BY q.id",
+            Question.class)
+        .setParameter("category", category)
+        .getResultList();
   }
 
-  /**
-   * Получает вопросы пользователя с фильтрацией id > 0
-   */
   public List<Question> getQuestionsByUser(Integer userId) {
-    var questions = new ArrayList<Question>();
-    // Добавлено условие id > 0
-    String sql = "SELECT * FROM Questions WHERE owner = ? AND id > 0 ORDER BY id";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          var question = mapResultSetToQuestion(resultSet);
-          questions.add(question);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    return questions;
+    User user = userRepository.getUserById(userId);
+    return entityManager.createQuery(
+            "SELECT q FROM Question q WHERE q.owner = :user AND q.id > 0 ORDER BY q.id",
+            Question.class)
+        .setParameter("user", user)
+        .getResultList();
   }
 
-  /**
-   * Проверяет существование вопроса с фильтрацией id > 0
-   */
   public boolean questionExists(Integer questionId) {
-    // Добавлено условие id > 0
-    String sql = "SELECT COUNT(*) FROM Questions WHERE id = ? AND id > 0";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, questionId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getInt(1) > 0;
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    return false;
+    Long count = entityManager.createQuery(
+            "SELECT COUNT(q) FROM Question q WHERE q.id = :id AND q.id > 0",
+            Long.class)
+        .setParameter("id", questionId)
+        .getSingleResult();
+    return count > 0;
   }
 
-  /**
-   * Получает количество вопросов с фильтрацией id > 0
-   */
   public int getQuestionsCount() {
-    // Добавлено условие id > 0
-    String sql = "SELECT COUNT(*) FROM Questions WHERE id > 0";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql);
-         ResultSet resultSet = statement.executeQuery()) {
-
-      if (resultSet.next()) {
-        return resultSet.getInt(1);
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException();
-    }
-    return 0;
-  }
-
-  private Question mapResultSetToQuestion(ResultSet resultSet) throws SQLException {
-    Integer id = resultSet.getInt("id");
-    Integer ownerId = resultSet.getInt("owner");
-    String questionText = resultSet.getString("question");
-    Integer categoryId = resultSet.getInt("category_id");
-
-    return new Question(id, userRepository.getUserById(ownerId), questionText,
-      getCategoryById(categoryId));
+    return entityManager.createQuery(
+            "SELECT COUNT(q) FROM Question q WHERE q.id > 0",
+            Long.class)
+        .getSingleResult()
+        .intValue();
   }
 
   public Question createNullQuestion() {
-    String sql = "INSERT INTO Questions (id, owner, question, category_id) VALUES (0, ?, ?, ?) RETURNING id";
+    User nullUser = userRepository.getUserById(0);
+    Category defaultCategory = categoryRepository.findByName(Category.SPORT)
+        .orElseThrow(() -> new RuntimeException("Default category not found"));
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-      int categoryId = getCategoryIdByName("SPORT");
-      statement.setInt(1, 0);
-      statement.setString(2, "Test");
-      statement.setInt(3, categoryId);
+    Question question = new Question();
+    question.setId(0);
+    question.setOwner(nullUser);
+    question.setQuestion("Test");
+    question.setCategory(defaultCategory);
 
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          Integer questionId = resultSet.getInt("id");
-        }
-      }
-
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-    throw new RuntimeException();
+    entityManager.persist(question);
+    return question;
   }
-
 }
