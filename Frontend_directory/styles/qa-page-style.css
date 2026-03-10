@@ -43,6 +43,19 @@ button {
     border-radius: 6px;
 }
 
+.fa-moon {
+    padding: 5px;
+    border-radius: 9px;
+}
+.fa-moon:hover {
+    background-color: rgb(201, 189, 189);
+}
+
+
+
+
+
+
 .search-wrapper {
     flex-grow: 10;
     position: relative;
