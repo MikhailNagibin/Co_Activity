@@ -42,3 +42,47 @@ body {
 button {
     border-radius: 6px;
 }
+
+.fa-moon {
+    padding: 5px;
+    border-radius: 9px;
+}
+.fa-moon:hover {
+    background-color: rgb(201, 189, 189);
+}
+
+.virtual-elem {
+    padding-top: 66px;
+}
+
+
+/* уникальное снизу начинается */
+
+main {
+    margin: 15px 50px;
+}
+.two-top-fields {
+    display: flex;
+    gap: 100px;
+}
+.two-top-fields img, article {
+    border-radius: 10px;
+}
+
+.two-top-fields article {
+    border: 1px solid black;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.sign-in-to-join {
+    margin-left: 165px;
+    width: 80%;
+    height: 100px;
+    text-align: center;
+    border: 1px solid gray;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    padding: 10px;
+}
