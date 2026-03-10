@@ -69,10 +69,10 @@ main select {
     border-radius: 8px;
 }
 
+
+
+
 /* Сверху и для и для qa-page */
-
-
-
 
 
 
@@ -81,13 +81,24 @@ main select {
     flex-flow: row wrap;
     justify-content: space-between;
     gap: 2.5em;
+    
 }
-.cards > article > img {
+.cards > article > div:has(img) {
+    overflow: hidden;
     width: 100%;
     height: 200px;
-    object-fit: cover;
+    
     border-top-right-radius: 10px;
     border-top-left-radius: 10px;
+}
+.cards > article > div > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.cards > article > div > img:hover {
+    transform: scale(1.06);
 }
 
 .cards > article > p {
@@ -101,6 +112,5 @@ main select {
     border-radius: 14px;
     border: 1px solid rgb(136, 134, 134);
 }
-
 
 
