@@ -8,21 +8,15 @@ import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
-import com.coactivity.domain.BulletinBoard;
-import com.coactivity.domain.Role;
-import com.coactivity.domain.Room;
-import com.coactivity.domain.User;
+import com.coactivity.domain.*;
 import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.PictureRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -137,14 +131,13 @@ public class RoomService {
     Room room = getExistingRoom(roomId);
 
     Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
-    if (requesterRole != Role.OWNER) {
+    if (requesterRole.getPermissions().equals(Role.OWNER)) {
       throw new AuthorizationException("Only owners can delete rooms");
     }
 
-    // Notify all participants before deleting the room
-    if (room.getUsers() != null && !room.getUsers().isEmpty()) {
-      for (User user : room.getUsers().keySet()) {
-        if (user != null && user.getId() != null) {
+    if (room.getMembers() != null && !room.getMembers().isEmpty()) {
+      for (RoomMember user : room.getMembers()) {
+        if (user != null && user.getUser().getId() != null) {
           notificationService.sendActivityClosed(user.getId(), room.getName());
         }
       }
@@ -196,7 +189,6 @@ public class RoomService {
       String description = room.getDescription() != null ? room.getDescription().toLowerCase() : "";
       return name.contains(query) || description.contains(query);
     }
-    // Room entity does not contain city/country fields, so these filters are ignored for now.
     return true;
   }
 
@@ -204,7 +196,7 @@ public class RoomService {
     RoomSort effectiveSort = sortBy != null ? sortBy : RoomSort.NEWEST;
     return switch (effectiveSort) {
       case POPULAR -> Comparator.comparingInt(
-              (Room room) -> room.getUsers() != null ? room.getUsers().size() : 0)
+              (Room room) -> room.getMembers() != null ? room.getMembers().size() : 0)
           .reversed();
       case NAME ->
           Comparator.comparing(room -> room.getName() != null ? room.getName().toLowerCase() : "",
@@ -230,7 +222,10 @@ public class RoomService {
     response.setAgeRating(room.getAgeRating());
     response.setFrequency(room.getFrequency());
 
-    Map<User, Role> users = room.getUsers();
+    Map<User, Role> users = new HashMap<>();
+    for (RoomMember member : room.getMembers()) {
+      users.put(member.getUser(), member.getRole());
+    }
     int participantCount = users != null ? users.size() : 0;
     response.setParticipantCount(participantCount);
     response.setMaximumParticipants(room.getMaximumNumberOfPeople());
@@ -247,7 +242,6 @@ public class RoomService {
       pictureRepository.getRoomPictures(room.getId())
           .forEach(p -> imageIds.add(p.getPhotoId()));
     } catch (Exception e) {
-      // If pictures cannot be loaded, leave empty list
     }
     response.setImageIds(imageIds);
 
@@ -271,11 +265,10 @@ public class RoomService {
       return null;
     }
     for (Map.Entry<User, Role> entry : users.entrySet()) {
-      if (entry.getValue() == Role.OWNER) {
+      if (entry.getValue().getPermissions().equals(Role.OWNER)) {
         return entry.getKey();
       }
     }
-    // Fallback: return any user if owner is not explicitly set
     return users.keySet().iterator().next();
   }
 

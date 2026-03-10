@@ -1,11 +1,7 @@
 package com.coactivity.service;
 
 import com.coactivity.controller.dto.response.JoinRequestResponse;
-import com.coactivity.domain.RequestStatus;
-import com.coactivity.domain.Role;
-import com.coactivity.domain.Room;
-import com.coactivity.domain.RoomsRequest;
-import com.coactivity.domain.User;
+import com.coactivity.domain.*;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -53,22 +49,21 @@ public class JoinRequestService {
     Integer adminId = requireUserId(userId);
     User admin = getExistingUser(adminId);
 
-    List<Room> managedRooms = admin.getRooms();
+    List<RoomMember> managedRooms = admin.getRooms();
 
     if (managedRooms == null || managedRooms.isEmpty()) {
-//      return Collections.emptyList();
       throw new RuntimeException();
     }
 
     List<JoinRequestResponse> responses = new ArrayList<>();
-    for (Room room : managedRooms) {
-      if (room == null || room.isPublic()) {
+    for (RoomMember room : managedRooms) {
+      if (room == null || room.getRoom().isPublic()) {
         continue;
       }
-      if (!hasModerationRights(adminId, room.getId())) {
+      if (!hasModerationRights(adminId, room.getRoom().getId())) {
         continue;
       }
-      collectPendingForRoom(room.getId(), responses);
+      collectPendingForRoom(room.getRoom().getId(), responses);
     }
 
     return responses;
@@ -113,14 +108,14 @@ public class JoinRequestService {
 
     Integer requesterId = request.getUser().getId();
 
-    switch (effectiveAction) {
-      case ACCEPTED -> acceptRequest(effectiveRequestId, roomId, requesterId);
-      case REFUSED -> {
+    switch (effectiveAction.getDescription()) {
+      case "ACCEPTED" -> acceptRequest(effectiveRequestId, roomId, requesterId);
+      case "REFUSED" -> {
         roomsRequestRepository.updateRequest(effectiveRequestId, RequestStatus.REFUSED);
         Room room = getExistingRoom(roomId);
         notificationService.sendMembershipRejected(requesterId, room.getName());
       }
-      case REFUSED_WITH_BAN -> refuseWithBan(effectiveRequestId, roomId, requesterId);
+      case "REFUSED_WITH_BAN" -> refuseWithBan(effectiveRequestId, roomId, requesterId);
       default -> throw new ValidationException("Unsupported join request action");
     }
   }
@@ -174,7 +169,7 @@ public class JoinRequestService {
       return;
     }
     for (RoomsRequest request : roomRequests) {
-      if (request != null && request.getStatus() == RequestStatus.CONSIDERATION) {
+      if (request != null && request.getStatus().getDescription().equals("CONSIDERATION")) {
         target.add(mapToResponse(request));
       }
     }
@@ -183,7 +178,7 @@ public class JoinRequestService {
   private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
 
-    int currentParticipants = room.getUsers() != null ? room.getUsers().size() : 0;
+    int currentParticipants = room.getMembers() != null ? room.getMembers().size() : 0;
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
       throw new ValidationException("Room capacity exceeded");
     }
@@ -193,7 +188,6 @@ public class JoinRequestService {
     }
     roomsRequestRepository.updateRequest(requestId, RequestStatus.ACCEPTED);
 
-    // Send notification to the user
     notificationService.sendMembershipAccepted(requesterId, room.getName());
   }
 
@@ -201,8 +195,6 @@ public class JoinRequestService {
     Room room = getExistingRoom(roomId);
     roomRepository.addUserBan(roomId, requesterId);
     roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
-
-    // Send notification to the user
     notificationService.sendMembershipRejected(requesterId, room.getName());
   }
 
@@ -213,7 +205,7 @@ public class JoinRequestService {
   private boolean hasModerationRights(Integer userId, Integer roomId) {
     try {
       Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
-      return role == Role.OWNER || role == Role.ADMIN;
+      return role.getPermissions().equals("Owner") || role.getPermissions().equals("Admin");
     } catch (Exception e) {
       return false;
     }
@@ -243,7 +235,7 @@ public class JoinRequestService {
     if (action == null) {
       throw new ValidationException("Action is required");
     }
-    if (action == RequestStatus.CONSIDERATION) {
+    if (action.getDescription().equals("Consideration")) {
       throw new ValidationException("Cannot process consideration status");
     }
     return action;
@@ -277,7 +269,7 @@ public class JoinRequestService {
   }
 
   private void ensurePending(RoomsRequest request) {
-    if (request.getStatus() != RequestStatus.CONSIDERATION) {
+    if (request.getStatus().getDescription().equals("CONSIDERATION")) {
       throw new ValidationException("Join request already processed");
     }
   }

@@ -55,7 +55,6 @@ public class BulletinBoardService {
     User author = getExistingUser(authorId);
 
 
-    // Validate room existence before proceeding
     var board = bulletinBoardRepository.getBulletinBoard(roomId);
 
     if (board == null) {

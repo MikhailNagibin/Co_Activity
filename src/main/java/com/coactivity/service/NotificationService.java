@@ -2,12 +2,14 @@ package com.coactivity.service;
 
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
+import com.coactivity.domain.UserNotification;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -247,20 +249,17 @@ public class NotificationService {
    * @param notificationType the type of notification
    * @return true if the user should receive this notification, false otherwise
    */
-  private boolean shouldNotifyUser(User user, Notification notificationType) {
+  private boolean shouldNotifyUser(User user, String notificationType) {
     try {
-      List<Notification> enabledNotifications = user.getNotifications();
-      if (enabledNotifications == null || enabledNotifications.isEmpty()) {
-        // By default, if no preferences are set, don't send notifications
-        log.debug("User {} has no notification preferences set", user.getId());
-        return false;
+      for (UserNotification userNotification : user.getNotifications()) {
+        if (userNotification.getNotification().getDescription().equals(notificationType)) {
+          return true;
+        }
       }
-
-      return enabledNotifications.contains(notificationType);
+      return false;
     } catch (Exception e) {
       log.error("Error checking notification preferences for userId={}, type={}", user.getId(),
           notificationType, e);
-      // Fail closed: if we can't check preferences, don't send
       return false;
     }
   }

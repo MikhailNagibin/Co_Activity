@@ -11,6 +11,7 @@ import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
+import com.coactivity.domain.UserNotification;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.dto.PendingVerification;
 import com.coactivity.service.exception.AuthorizationException;
@@ -244,7 +245,6 @@ public class UserProfileService {
     }
 
     try {
-      // Handle MEMBERSHIP_ACCEPTED
       if (request.getMembershipAccepted() != null) {
         if (request.getMembershipAccepted()) {
           userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
@@ -253,7 +253,6 @@ public class UserProfileService {
         }
       }
 
-      // Handle MEMBERSHIP_REJECTED
       if (request.getMembershipRejected() != null) {
         if (request.getMembershipRejected()) {
           userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
@@ -262,7 +261,6 @@ public class UserProfileService {
         }
       }
 
-      // Handle ACTIVITY_CLOSED
       if (request.getActivityClosed() != null) {
         if (request.getActivityClosed()) {
           userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
@@ -271,7 +269,6 @@ public class UserProfileService {
         }
       }
 
-      // Handle NEW_JOIN_REQUEST
       if (request.getNewJoinRequest() != null) {
         if (request.getNewJoinRequest()) {
           userRepository.setNotification(userId, Notification.NEW_JOIN_REQUEST);
@@ -280,15 +277,21 @@ public class UserProfileService {
         }
       }
 
-      // Retrieve actual preferences from database
       User user = userRepository.getUserById(userId);
-      List<Notification> enabledNotifications = user != null ? user.getNotifications() : List.of();
 
-      boolean membershipAccepted = enabledNotifications.contains(Notification.MEMBERSHIP_ACCEPTED);
-      boolean membershipRejected = enabledNotifications.contains(Notification.MEMBERSHIP_REJECTED);
-      boolean activityClosed = enabledNotifications.contains(Notification.ACTIVITY_CLOSED);
-      boolean newJoinRequest = enabledNotifications.contains(Notification.NEW_JOIN_REQUEST);
+      boolean membershipAccepted = false;
+      boolean membershipRejected = false;
+      boolean activityClosed = false;
+      boolean newJoinRequest = false;
 
+      for (UserNotification notification : user.getNotifications()) {
+        switch (notification.getNotification().getDescription()) {
+          case ("membershipAccepted") -> membershipAccepted = true;
+          case ("membershipRejected") -> membershipRejected = true;
+          case ("activityClosed") -> activityClosed = true;
+          case ("newJoinRequest") -> newJoinRequest = true;
+        }
+      }
       return new NotificationSettingsResponse(
           membershipAccepted,
           membershipRejected,
