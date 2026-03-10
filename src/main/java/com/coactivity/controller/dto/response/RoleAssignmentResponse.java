@@ -50,7 +50,7 @@ public class RoleAssignmentResponse {
    * {@link Role#ADMIN}; for demotions, this will be {@link Role#PARTICIPANT}.
    * </p>
    */
-  private Role newRole;
+  private String newRole;
 
   /**
    * The role held by the user before the operation.
@@ -59,7 +59,7 @@ public class RoleAssignmentResponse {
    * responsibilities within the room.
    * </p>
    */
-  private Role previousRole;
+  private String previousRole;
 
   /**
    * Unique identifier of the user who performed the role assignment.

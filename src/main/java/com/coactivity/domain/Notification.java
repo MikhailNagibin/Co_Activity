@@ -1,27 +1,42 @@
 package com.coactivity.domain;
 
-public enum Notification {
-  MEMBERSHIP_ACCEPTED("membershipAccepted"),
-  MEMBERSHIP_REJECTED("membershipRejected"),
-  ACTIVITY_CLOSED("activityClosed"),
-  NEW_JOIN_REQUEST("newJoinRequest");
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-  private final String notificationName;
+@Entity
+@Table(name = "notifications")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Notification {
 
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer id;
+
+  @Column(name = "name", nullable = false, unique = true)
+  private String name;
+
+  @Column(name = "description")
+  private String description;
+
+  // Для обратной совместимости
   public static Notification getByIndex(int index) {
-    Notification[] notification = values();
-    if (index >= 0 && index < notification.length) {
-      return notification[index];
-    }
-    throw new IllegalArgumentException("Invalid role notification: " + index);
-  }
-
-  Notification(String notificationName) {
-    this.notificationName = notificationName;
+    throw new UnsupportedOperationException("Use NotificationRepository instead");
   }
 
   @Override
   public String toString() {
-    return notificationName;
+    return name;
   }
+
+  // Предопределенные константы
+  public static final String MEMBERSHIP_ACCEPTED = "membershipAccepted";
+  public static final String MEMBERSHIP_REJECTED = "membershipRejected";
+  public static final String ACTIVITY_CLOSED = "activityClosed";
+  public static final String NEW_JOIN_REQUEST = "newJoinRequest";
 }

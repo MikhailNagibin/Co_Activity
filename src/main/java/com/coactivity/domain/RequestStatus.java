@@ -1,40 +1,41 @@
 package com.coactivity.domain;
 
-public enum RequestStatus {
-  CONSIDERATION,
-  ACCEPTED,
-  REFUSED,
-  REFUSED_WITH_BAN;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-  // Метод для получения значения для БД
-  public String toDatabaseValue() {
-    switch (this) {
-      case CONSIDERATION: return "Consideration";
-      case ACCEPTED: return "Accepted";
-      case REFUSED: return "Refused";
-      case REFUSED_WITH_BAN: return "RefusedWithBan";
-      default: throw new IllegalStateException("Unknown status: " + this);
+@Entity
+@Table(name = "request_statuses")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class RequestStatus {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(name = "name", nullable = false, unique = true)
+    private String name;
+
+    @Column(name = "description")
+    private String description;
+
+    // Для обратной совместимости с существующим кодом
+    public String toDatabaseValue() {
+        return name;
     }
-  }
 
-  // Метод для преобразования из БД
-  public static RequestStatus fromDatabase(String dbValue) {
-    if (dbValue == null) return null;
-
-    String trimmed = dbValue.trim();
-    switch (trimmed) {
-      case "Consideration": return CONSIDERATION;
-      case "Accepted": return ACCEPTED;
-      case "Refused": return REFUSED;
-      case "RefusedWithBan": return REFUSED_WITH_BAN;
-      default:
-        // Регистронезависимое сравнение
-        String upper = trimmed.toUpperCase();
-        if (upper.equals("CONSIDERATION")) return CONSIDERATION;
-        if (upper.equals("ACCEPTED")) return ACCEPTED;
-        if (upper.equals("REFUSED")) return REFUSED;
-        if (upper.equals("REFUSEDWITHBAN")) return REFUSED_WITH_BAN;
-        throw new IllegalArgumentException("Unknown status in DB: '" + dbValue + "'");
+    public static RequestStatus fromDatabase(String dbValue) {
+        throw new UnsupportedOperationException("Use RequestStatusRepository instead");
     }
-  }
+
+    // Предопределенные константы
+    public static final String CONSIDERATION = "Consideration";
+    public static final String ACCEPTED = "Accepted";
+    public static final String REFUSED = "Refused";
+    public static final String REFUSED_WITH_BAN = "RefusedWithBan";
 }
