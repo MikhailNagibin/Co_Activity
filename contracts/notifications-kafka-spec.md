@@ -4,10 +4,10 @@
 - `notifications.email.v1`
 
 ## Producer
-- `core-service` (`NotificationService` in `NOTIFICATIONS_MODE=KAFKA`).
+- `core-service` (`NotificationService`)
 
 ## Consumer
-- `notifications-service` (`KafkaEmailConsumer`).
+- `notifications-service` (`KafkaEmailConsumer`)
 
 ## Payload schema (JSON)
 ```json
@@ -19,12 +19,13 @@
 ```
 
 ## Rules
-- `to` must be non-empty email string.
-- `subject` must be non-empty string.
-- `body` must be non-empty string.
-- Producer key: recipient email (`to`) to keep ordering per recipient.
+- `to` must be a non-empty email string.
+- `subject` must be a non-empty string.
+- `body` must be a non-empty string.
+- Producer key is recipient email (`to`) to keep ordering per recipient.
 
-## Delivery semantics (v1)
-- `core-service` waits for Kafka publish ack before marking outbox event as sent.
-- Consumer is at-least-once (duplicates are possible).
+## Delivery semantics
+- `login` verification waits for Kafka publish acknowledgement before `core-service` returns success.
+- Other notification emails are published after the main DB change and are best-effort.
+- Consumer is at-least-once, so duplicates are possible.
 - Email delivery should be idempotent on business level where possible.

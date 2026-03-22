@@ -2,7 +2,7 @@ package com.coactivity.service;
 
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
-import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -25,14 +25,14 @@ public class NotificationService {
   private static final String DEFAULT_NOTIFICATIONS_KAFKA_TOPIC = "notifications.email.v1";
   private static final long DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS = 5000L;
 
-  private final UserRepositoryImpl userRepository;
+  private final UserRepository userRepository;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   private KafkaTemplate<String, String> kafkaTemplate;
   private String notificationsKafkaTopic = DEFAULT_NOTIFICATIONS_KAFKA_TOPIC;
   private long notificationsKafkaSendTimeoutMs = DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS;
 
-  public NotificationService(UserRepositoryImpl userRepository) {
+  public NotificationService(UserRepository userRepository) {
     this.userRepository = userRepository;
   }
 
@@ -101,10 +101,11 @@ public class NotificationService {
       boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish membership accepted notification for userId={}", userId);
+        return false;
       }
       log.info("✅ Membership accepted notification sent to userId={}, email={}", userId,
           user.getLogin());
-      return delivered;
+      return true;
     } catch (Exception e) {
       log.error("❌ Failed to send membership accepted notification to userId={}, email={}", userId,
           user.getLogin(), e);
@@ -147,10 +148,11 @@ public class NotificationService {
       boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish membership rejected notification for userId={}", userId);
+        return false;
       }
       log.info("✅ Membership rejected notification sent to userId={}, email={}", userId,
           user.getLogin());
-      return delivered;
+      return true;
     } catch (Exception e) {
       log.error("❌ Failed to send membership rejected notification to userId={}, email={}", userId,
           user.getLogin(), e);
@@ -187,7 +189,11 @@ public class NotificationService {
         """, roomName);
 
     try {
-      publishEmailCommand(user.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
+      if (!delivered) {
+        log.warn("Failed to publish activity closed notification for userId={}", userId);
+        return;
+      }
       log.info("✅ Activity closed notification sent to userId={}, email={}", userId,
           user.getLogin());
     } catch (Exception e) {
@@ -225,7 +231,11 @@ public class NotificationService {
         """, roomName, requesterUsername);
 
     try {
-      publishEmailCommand(admin.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(admin.getLogin(), subject, message);
+      if (!delivered) {
+        log.warn("Failed to publish new join request notification for adminId={}", adminId);
+        return;
+      }
       log.info("✅ New join request notification sent to adminId={}, email={}", adminId,
           admin.getLogin());
     } catch (Exception e) {
@@ -234,8 +244,7 @@ public class NotificationService {
     }
   }
 
-  @Async("taskExecutor")
-  public void sendLoginVerificationCode(String userEmail, String verificationCode) {
+  public boolean sendLoginVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send login verification code to email={}", userEmail);
 
     String subject = "🔐 Your CoActivity verification code";
@@ -253,10 +262,16 @@ public class NotificationService {
         """, verificationCode);
 
     try {
-      publishEmailCommand(userEmail, subject, message);
+      boolean delivered = publishEmailCommand(userEmail, subject, message);
+      if (!delivered) {
+        log.warn("Failed to publish login verification code for email={}", userEmail);
+        return false;
+      }
       log.info("✅ Login verification code sent to email={}", userEmail);
+      return true;
     } catch (Exception e) {
       log.error("❌ Failed to send login verification code to email={}", userEmail, e);
+      return false;
     }
   }
 

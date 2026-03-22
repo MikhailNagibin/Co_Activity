@@ -9,6 +9,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.UserRepositoryImpl;
@@ -22,6 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -103,7 +107,9 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Always publishes Kafka email command for login verification")
   void sendLoginVerificationCode_publishesKafkaCommand() throws Exception {
-    notificationService.sendLoginVerificationCode(testUserEmail, "123456");
+    boolean delivered = notificationService.sendLoginVerificationCode(testUserEmail, "123456");
+
+    assertTrue(delivered);
 
     ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
     verify(kafkaTemplate, times(1)).send(eq(TOPIC), eq(testUserEmail), payloadCaptor.capture());
@@ -111,6 +117,18 @@ class NotificationServiceTest {
     JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
     assertTrue(payload.get("subject").asText().contains("verification code"));
     assertTrue(payload.get("body").asText().contains("123456"));
+  }
+
+  @Test
+  @DisplayName("Returns false for login verification when Kafka template is missing")
+  void sendLoginVerificationCode_returnsFalseWhenKafkaTemplateMissing() {
+    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
+
+    boolean delivered = notificationServiceWithoutKafka.sendLoginVerificationCode(testUserEmail,
+        "123456");
+
+    assertFalse(delivered);
   }
 
   @Test
@@ -126,5 +144,87 @@ class NotificationServiceTest {
         notificationServiceWithoutKafka.sendMembershipAcceptedSync(testUserId, "Chess Club");
 
     assertFalse(delivered);
+  }
+
+  @Test
+  @DisplayName("Logs warn without success message when membership rejected publish fails")
+  void sendMembershipRejectedSync_logsWarnWithoutSuccessWhenKafkaPublishFails() {
+    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
+
+    testUser.setNotifications(List.of(Notification.MEMBERSHIP_REJECTED));
+    when(userRepository.getUserById(testUserId)).thenReturn(testUser);
+
+    ListAppender<ILoggingEvent> logAppender = attachLogAppender();
+    try {
+      boolean delivered =
+          notificationServiceWithoutKafka.sendMembershipRejectedSync(testUserId, "Chess Club");
+
+      assertFalse(delivered);
+      assertTrue(containsLog(logAppender, "Failed to publish membership rejected notification"));
+      assertFalse(containsLog(logAppender, "Membership rejected notification sent"));
+    } finally {
+      detachLogAppender(logAppender);
+    }
+  }
+
+  @Test
+  @DisplayName("Logs warn without success message when activity closed publish fails")
+  void sendActivityClosed_logsWarnWithoutSuccessWhenKafkaPublishFails() {
+    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
+
+    testUser.setNotifications(List.of(Notification.ACTIVITY_CLOSED));
+    when(userRepository.getUserById(testUserId)).thenReturn(testUser);
+
+    ListAppender<ILoggingEvent> logAppender = attachLogAppender();
+    try {
+      notificationServiceWithoutKafka.sendActivityClosed(testUserId, "Chess Club");
+
+      assertTrue(containsLog(logAppender, "Failed to publish activity closed notification"));
+      assertFalse(containsLog(logAppender, "Activity closed notification sent"));
+    } finally {
+      detachLogAppender(logAppender);
+    }
+  }
+
+  @Test
+  @DisplayName("Logs warn without success message when new join request publish fails")
+  void sendNewJoinRequest_logsWarnWithoutSuccessWhenKafkaPublishFails() {
+    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
+
+    testUser.setNotifications(List.of(Notification.NEW_JOIN_REQUEST));
+    when(userRepository.getUserById(testUserId)).thenReturn(testUser);
+
+    ListAppender<ILoggingEvent> logAppender = attachLogAppender();
+    try {
+      notificationServiceWithoutKafka.sendNewJoinRequest(testUserId, "Chess Club", "alice");
+
+      assertTrue(containsLog(logAppender, "Failed to publish new join request notification"));
+      assertFalse(containsLog(logAppender, "New join request notification sent"));
+    } finally {
+      detachLogAppender(logAppender);
+    }
+  }
+
+  private ListAppender<ILoggingEvent> attachLogAppender() {
+    Logger logger = (Logger) LoggerFactory.getLogger(NotificationService.class);
+    ListAppender<ILoggingEvent> logAppender = new ListAppender<>();
+    logAppender.start();
+    logger.addAppender(logAppender);
+    return logAppender;
+  }
+
+  private void detachLogAppender(ListAppender<ILoggingEvent> logAppender) {
+    Logger logger = (Logger) LoggerFactory.getLogger(NotificationService.class);
+    logger.detachAppender(logAppender);
+    logAppender.stop();
+  }
+
+  private boolean containsLog(ListAppender<ILoggingEvent> logAppender, String fragment) {
+    return logAppender.list.stream()
+        .map(ILoggingEvent::getFormattedMessage)
+        .anyMatch(message -> message.contains(fragment));
   }
 }
