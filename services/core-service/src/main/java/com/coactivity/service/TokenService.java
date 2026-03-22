@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.service.dto.PendingVerification;
 import com.coactivity.service.dto.TokenPayload;
 import com.coactivity.service.exception.TokenValidationException;
 import io.jsonwebtoken.Claims;
@@ -9,16 +8,12 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.SecretKey;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,24 +27,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class TokenService {
 
-    private static final Logger log = LoggerFactory.getLogger(TokenService.class);
-
     private static final int DEFAULT_TOKEN_EXPIRATION_MINUTES = 30;
     private static final String DEFAULT_ISSUER = "coactivity-core";
     private static final String DEFAULT_AUDIENCE = "coactivity-api";
-    private static final String DEFAULT_SECRET_BASE64 =
-            "MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=";
-    /**
-     * Legacy compatibility map used by tests that still seed pending verifications via
-     * TokenService.
-     */
-    private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
     /**
      * In-memory revoked token ids (jti). Keeps logout behavior in a single instance deployment.
      */
-    private final Set<String> revokedTokenIds = ConcurrentHashMap.newKeySet();
-    @Value("${security.jwt.secret-base64:" + DEFAULT_SECRET_BASE64 + "}")
-    private String jwtSecretBase64 = DEFAULT_SECRET_BASE64;
+    private final Set<String> revokedTokenIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    @Value("${security.jwt.secret-base64:}")
+    private String jwtSecretBase64 = "";
     @Value("${security.jwt.issuer:" + DEFAULT_ISSUER + "}")
     private String jwtIssuer = DEFAULT_ISSUER;
     @Value("${security.jwt.audience:" + DEFAULT_AUDIENCE + "}")
@@ -90,25 +76,6 @@ public class TokenService {
         }
     }
 
-    /**
-     * Kept for backward compatibility. Access JWT is stateless and does not require registration.
-     */
-    public void registerToken(Integer userId, String token) {
-        // No-op by design for stateless JWT.
-    }
-
-    public void addPendingVerification(String login, PendingVerification pendingVerification) {
-        pendingVerifications.put(login, pendingVerification);
-    }
-
-    public Optional<PendingVerification> getPendingVerification(String login) {
-        return Optional.ofNullable(pendingVerifications.get(login));
-    }
-
-    public void removePendingVerification(String login) {
-        pendingVerifications.remove(login);
-    }
-
     public boolean isTokenActive(String token) {
         try {
             Claims claims = parseSignedClaims(token);
@@ -116,8 +83,7 @@ public class TokenService {
                 return false;
             }
 
-            String audience = claims.get("aud", String.class);
-            if (audience == null || !jwtAudience.equals(audience)) {
+            if (!audienceMatches(claims.get("aud"))) {
                 return false;
             }
 
@@ -138,6 +104,22 @@ public class TokenService {
         } catch (TokenValidationException e) {
             // Token is already invalid; nothing else to do.
         }
+    }
+
+    private boolean audienceMatches(Object rawAudience) {
+        if (rawAudience == null) {
+            return false;
+        }
+        if (rawAudience instanceof String audience) {
+            return jwtAudience.equals(audience);
+        }
+        if (rawAudience instanceof Collection<?> audiences) {
+            return audiences.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .anyMatch(jwtAudience::equals);
+        }
+        return false;
     }
 
     private Claims parseSignedClaims(String rawToken) {
@@ -168,13 +150,11 @@ public class TokenService {
             }
 
             try {
+                if (jwtSecretBase64 == null || jwtSecretBase64.isBlank()) {
+                    throw new TokenValidationException("JWT secret is not configured");
+                }
                 byte[] keyBytes = Decoders.BASE64.decode(jwtSecretBase64);
                 signingKey = Keys.hmacShaKeyFor(keyBytes);
-
-                if (DEFAULT_SECRET_BASE64.equals(jwtSecretBase64)) {
-                    log.warn(
-                            "Using default JWT secret. Set security.jwt.secret-base64 in env for non-local runs.");
-                }
                 return signingKey;
             } catch (Exception e) {
                 throw new TokenValidationException("Invalid JWT secret configuration", e);

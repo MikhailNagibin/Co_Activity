@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.util.Collection;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,13 +14,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtTokenService {
 
-  private static final String DEFAULT_SECRET_BASE64 =
-      "MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=";
   private static final String DEFAULT_ISSUER = "coactivity-core";
   private static final String DEFAULT_AUDIENCE = "coactivity-api";
 
-  @Value("${security.jwt.secret-base64:" + DEFAULT_SECRET_BASE64 + "}")
-  private String secretBase64 = DEFAULT_SECRET_BASE64;
+  @Value("${security.jwt.secret-base64:}")
+  private String secretBase64 = "";
 
   @Value("${security.jwt.issuer:" + DEFAULT_ISSUER + "}")
   private String issuer = DEFAULT_ISSUER;
@@ -57,8 +56,7 @@ public class JwtTokenService {
         throw new TokenValidationException("Token issuer mismatch");
       }
 
-      String tokenAudience = claims.get("aud", String.class);
-      if (tokenAudience == null || !audience.equals(tokenAudience)) {
+      if (!audienceMatches(claims.get("aud"))) {
         throw new TokenValidationException("Token audience mismatch");
       }
 
@@ -66,6 +64,22 @@ public class JwtTokenService {
     } catch (JwtException | IllegalArgumentException e) {
       throw new TokenValidationException("Invalid token", e);
     }
+  }
+
+  private boolean audienceMatches(Object rawAudience) {
+    if (rawAudience == null) {
+      return false;
+    }
+    if (rawAudience instanceof String tokenAudience) {
+      return audience.equals(tokenAudience);
+    }
+    if (rawAudience instanceof Collection<?> audiences) {
+      return audiences.stream()
+          .filter(String.class::isInstance)
+          .map(String.class::cast)
+          .anyMatch(audience::equals);
+    }
+    return false;
   }
 
   private SecretKey resolveSigningKey() {
@@ -76,6 +90,9 @@ public class JwtTokenService {
     synchronized (this) {
       if (signingKey != null) {
         return signingKey;
+      }
+      if (secretBase64 == null || secretBase64.isBlank()) {
+        throw new TokenValidationException("JWT secret is not configured");
       }
       byte[] keyBytes = Decoders.BASE64.decode(secretBase64);
       signingKey = Keys.hmacShaKeyFor(keyBytes);

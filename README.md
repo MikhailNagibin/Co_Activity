@@ -2,17 +2,23 @@
 
 Backend monorepo on Java 21 + Spring Boot + PostgreSQL + Kafka.
 
-Current local architecture:
+## Current Architecture
 
-- `core-service` handles main business logic.
-- `qa-service` serves Q&A API over HTTP.
-- `notifications-service` consumes Kafka email commands and sends SMTP messages.
-- Notification flow is fixed: `core-service -> Kafka -> notifications-service -> SMTP`.
+- `core-service` is the only public HTTP API.
+- `qa-service` is an internal HTTP microservice for Q&A.
+- `notifications-service` is a Kafka consumer for email delivery.
+- Canonical flow:
+  - `client -> core-service`
+  - `core-service -> qa-service` over internal HTTP
+  - `core-service -> Kafka -> notifications-service -> Mailpit/SMTP`
+
+This repo intentionally has one runtime path for each use case.
+There is no monolith fallback and no direct business HTTP API in `notifications-service`.
 
 ## Prerequisites
 
 - Docker Desktop with `docker compose`
-- Java 21 for local runs
+- Java 21
 - Maven wrapper `./mvnw`
 
 Quick checks:
@@ -32,27 +38,37 @@ docker compose version
 cp .env.example .env
 ```
 
-2. Start the full stack:
+2. Generate a JWT secret and put it into `.env`:
+
+```bash
+openssl rand -base64 32
+```
+
+3. Start the stack:
 
 ```bash
 docker compose up --build -d
 ```
 
-3. Check health:
+4. Check the public API:
 
 ```bash
 curl http://localhost:8080/actuator/health
-curl http://localhost:8081/actuator/health
-curl http://localhost:8082/actuator/health
 ```
 
-4. Open Mailpit UI for local email smoke tests:
+5. Check internal service health through Compose:
+
+```bash
+docker compose ps
+```
+
+6. Open Mailpit UI:
 
 ```text
 http://localhost:8025
 ```
 
-5. View logs:
+7. View logs:
 
 ```bash
 docker compose logs -f core-service
@@ -62,7 +78,7 @@ docker compose logs -f kafka
 docker compose logs -f postgres
 ```
 
-6. Stop:
+8. Stop:
 
 ```bash
 docker compose down
@@ -75,59 +91,58 @@ docker compose down -v
 docker compose up --build -d
 ```
 
-## Local Run
+## Public API Smoke Test
 
-Start infrastructure only:
+Only `core-service` is reachable from the host.
 
-```bash
-docker compose up -d postgres kafka qa-service notifications-service
-```
-
-Run `core-service` locally:
+Basic checks:
 
 ```bash
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5430/postgres_db \
-SPRING_DATASOURCE_USERNAME=postgres \
-SPRING_DATASOURCE_PASSWORD=postgres \
-SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
-QA_MODE=SERVICE \
-QA_SERVICE_BASE_URL=http://localhost:8081 \
-./mvnw -f services/core-service/pom.xml spring-boot:run
+curl http://localhost:8080/actuator/health
+curl http://localhost:8080/api/rooms
+curl http://localhost:8080/api/qa/questions
 ```
 
-Run services independently:
+## Mailpit Smoke Test
+
+The email flow is tested through the real business path: `core-service -> Kafka -> notifications-service`.
+
+1. Register a temporary user:
 
 ```bash
-./mvnw -f services/core-service/pom.xml spring-boot:run
-./mvnw -f services/qa-service/pom.xml spring-boot:run
-./mvnw -f services/notifications-service/pom.xml spring-boot:run
+TEST_EMAIL="student.$(date +%s)@example.com"
+
+curl -i -X POST http://localhost:8080/api/users \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"login\": \"${TEST_EMAIL}\",
+    \"userName\": \"mailpit-smoke\",
+    \"password\": \"Password123\",
+    \"dateOfBirth\": \"2000-01-01T00:00:00Z\",
+    \"city\": \"Moscow\",
+    \"country\": \"Russia\",
+    \"description\": \"Mailpit smoke test user\",
+    \"avatarId\": 1
+  }"
 ```
 
-## SMTP for Local Development
+2. Trigger login verification email:
 
-- Docker Compose uses `Mailpit` by default, so local email smoke tests do not depend on Gmail.
-- Local SMTP server is available on `localhost:1025`, and Mailpit UI is available on `localhost:8025`.
-- `SPRING_MAIL_*` variables are used only by `notifications-service`.
-- To switch from Mailpit to real Gmail, override `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`,
-  `SPRING_MAIL_SMTP_AUTH`, `SPRING_MAIL_SMTP_STARTTLS_ENABLE`,
-  `SPRING_MAIL_SMTP_STARTTLS_REQUIRED`, `SPRING_MAIL_USERNAME`, and `SPRING_MAIL_PASSWORD`.
-- For Gmail you need an app password, not your normal account password.
-- `notifications-service` health no longer depends on SMTP availability, so `/actuator/health` stays useful for local diagnostics.
-- Do not store a real Gmail app password in `.env`. Use one-off shell environment variables instead.
-
-Manual email endpoint for smoke tests:
-
-```text
-POST /api/notifications/email
+```bash
+curl -i -X POST http://localhost:8080/api/users/login \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"login\": \"${TEST_EMAIL}\",
+    \"password\": \"Password123\"
+  }"
 ```
 
-Local smoke test flow:
+Expected result:
 
-1. Send `POST http://localhost:8082/api/notifications/email`
-2. Open `http://localhost:8025`
-3. Confirm the message appears in Mailpit
+- `202 Accepted` from `/api/users/login`
+- a verification email appears in Mailpit at `http://localhost:8025`
 
-### Real Gmail Smoke Test
+## Real Gmail Smoke Test
 
 Preferred path:
 
@@ -137,45 +152,15 @@ Preferred path:
 
 What the script does:
 
-1. Prompts for a Gmail sender and app password without writing them to repo files
-2. Recreates only `notifications-service` with Gmail SMTP settings
-3. Stops `mailpit` to avoid false positives
-4. Checks `http://localhost:8082/actuator/health`
-5. Sends `POST /api/notifications/email`
-6. Shows recent `notifications-service` logs
+1. Prompts for Gmail sender and app password without writing secrets into repo files
+2. Rebuilds only `notifications-service` with Gmail SMTP settings
+3. Stops Mailpit to avoid false positives
+4. Waits for `core-service` and `notifications-service`
+5. Registers a temporary user through `core-service`
+6. Triggers `POST /api/users/login`
+7. Shows recent `core-service` and `notifications-service` logs
 
-Why the script is safer than a raw `curl` right after recreate:
-
-- It waits until `notifications-service` really answers `/actuator/health`
-- This avoids false failures like `curl: (56) Recv failure: Connection reset by peer` while Spring Boot is still starting
-
-Manual equivalent:
-
-```bash
-export SPRING_MAIL_HOST=smtp.gmail.com
-export SPRING_MAIL_PORT=587
-export SPRING_MAIL_SMTP_AUTH=true
-export SPRING_MAIL_SMTP_STARTTLS_ENABLE=true
-export SPRING_MAIL_SMTP_STARTTLS_REQUIRED=true
-export SPRING_MAIL_USERNAME='your@gmail.com'
-read -s "SPRING_MAIL_PASSWORD?Gmail app password: "
-export SPRING_MAIL_PASSWORD
-
-docker compose up --build -d --no-deps notifications-service
-docker compose stop mailpit
-
-curl -i http://localhost:8082/actuator/health
-
-curl -i -X POST http://localhost:8082/api/notifications/email \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "to": "your@gmail.com",
-    "subject": "CoActivity Gmail smoke test",
-    "body": "This is a direct SMTP smoke test from notifications-service"
-  }'
-
-docker compose logs notifications-service --tail=100
-```
+This checks the real production-like path through `core-service -> Kafka -> notifications-service`.
 
 Rollback to Mailpit:
 
@@ -192,28 +177,58 @@ docker compose up -d mailpit
 docker compose up -d --no-deps notifications-service
 ```
 
-Temporary simple path through `.env`:
+## Local Run
 
-1. Put Gmail values into `.env`
-2. Run `docker compose up --build -d --no-deps notifications-service`
-3. Run the same `curl` test from above
-4. Remove Gmail password from `.env` after the test
+If you run services locally, keep Docker only for infrastructure:
 
-This is simpler, but weaker from a security standpoint because the secret lives in a file on disk.
+```bash
+docker compose up -d postgres kafka mailpit
+```
 
-Expected results:
+Then run the services locally in separate terminals:
 
-- `204` from `POST /api/notifications/email` and a real message in Gmail means SMTP works.
-- `500` with `AuthenticationFailedException` or `535-5.7.8` means the password is wrong or is not an app password.
-- `500` with `MailConnectException`, timeout, or `Connection refused` means the container cannot reach `smtp.gmail.com:587`.
-- `200` on `/actuator/health` does not prove Gmail works because mail health is intentionally disabled.
+```bash
+./mvnw -f services/qa-service/pom.xml spring-boot:run
+```
+
+```bash
+SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
+./mvnw -f services/notifications-service/pom.xml spring-boot:run
+```
+
+```bash
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5430/postgres_db \
+SPRING_DATASOURCE_USERNAME=postgres \
+SPRING_DATASOURCE_PASSWORD=postgres \
+SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
+QA_SERVICE_BASE_URL=http://localhost:8081 \
+./mvnw -f services/core-service/pom.xml spring-boot:run
+```
+
+Why `QA_SERVICE_BASE_URL=http://localhost:8081` is required here:
+
+- in Docker Compose, `core-service` reaches `qa-service` by the internal hostname `qa-service`
+- in local runs, your host process must call `localhost:8081`
+
+## SMTP for Local Development
+
+- Docker Compose uses `Mailpit` by default.
+- `SPRING_MAIL_*` variables are used only by `notifications-service`.
+- `notifications-service` health does not depend on SMTP availability.
+- Do not store a real Gmail app password in `.env` unless you intentionally accept that trade-off.
 
 ## Tests
 
-Run core-service unit and integration tests:
+Run core-service tests:
 
 ```bash
 ./mvnw -f services/core-service/pom.xml test
+```
+
+Run qa-service tests:
+
+```bash
+./mvnw -f services/qa-service/pom.xml test
 ```
 
 Run notifications-service tests:
@@ -233,4 +248,5 @@ Run notifications-service tests:
 ## Notes
 
 - `services/core-service/src/main/resources/sql/init_tables.sql` is the single schema source for Docker init and tests.
-- There is no outbox flow anymore. If Kafka is unavailable, business changes in `core-service` still commit, but notification delivery can be lost in this version.
+- Notification delivery is asynchronous through Kafka.
+- Q&A remains synchronous through internal HTTP because reads and immediate answers fit HTTP better than Kafka request-reply in this project.

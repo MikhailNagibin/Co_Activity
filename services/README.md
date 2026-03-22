@@ -1,12 +1,12 @@
 # Service Modules
 
-This directory contains 3 equal service modules.
+This directory contains the three backend services.
 
-- `core-service` - auth, users/rooms/requests, outbox producer
-- `qa-service` - Q&A domain with JWT validation
-- `notifications-service` - email dispatch (HTTP + Kafka consumer)
+- `core-service` - the only public HTTP API; auth, users, rooms, join requests, facade for Q&A
+- `qa-service` - internal HTTP microservice for Q&A
+- `notifications-service` - Kafka consumer that sends email through Mailpit/SMTP
 
-Build/run examples:
+Build or run locally:
 
 ```bash
 ./mvnw -f services/core-service/pom.xml spring-boot:run
@@ -14,14 +14,12 @@ Build/run examples:
 ./mvnw -f services/notifications-service/pom.xml spring-boot:run
 ```
 
-Notifications endpoint:
+Before running `core-service` or `qa-service`, set `JWT_SECRET_BASE64` to your own Base64-encoded secret.
 
-- `POST /api/notifications/email`
+Canonical runtime flow:
 
-QA endpoints:
-
-- `POST /api/qa/questions`
-- `POST /api/qa/answers`
-- `GET /api/qa/questions`
-- `GET /api/qa/questions/category?categoryId=...`
-- `GET /api/qa/questions/{questionId}`
+```text
+client -> core-service
+core-service -> qa-service (HTTP)
+core-service -> Kafka -> notifications-service -> Mailpit/SMTP
+```

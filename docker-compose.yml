@@ -64,12 +64,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:?JWT_SECRET_BASE64 must be set}
       JWT_ISSUER: ${JWT_ISSUER:-coactivity-core}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-coactivity-api}
-      QA_SERVICE_PORT: 8081
-    ports:
-      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/8081'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   notifications-service:
@@ -93,9 +96,12 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
       NOTIFICATIONS_KAFKA_GROUP_ID: ${NOTIFICATIONS_KAFKA_GROUP_ID:-notifications-service-v1}
-      NOTIFICATIONS_SERVICE_PORT: 8082
-    ports:
-      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/8082'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   core-service:
@@ -109,16 +115,15 @@ services:
       kafka:
         condition: service_started
       qa-service:
-        condition: service_started
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:?JWT_SECRET_BASE64 must be set}
       JWT_ISSUER: ${JWT_ISSUER:-coactivity-core}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-coactivity-api}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-30}
-      QA_MODE: SERVICE
       QA_SERVICE_BASE_URL: http://qa-service:8081
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
