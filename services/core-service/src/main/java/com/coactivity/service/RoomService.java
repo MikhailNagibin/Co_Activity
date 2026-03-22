@@ -12,9 +12,9 @@ import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
-import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
-import com.coactivity.repository.impl.PictureRepositoryImpl;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
+import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.repository.PictureRepository;
+import com.coactivity.repository.RoomRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -29,14 +29,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class RoomService {
 
-  private final RoomRepositoryImpl roomRepository;
-  private final PictureRepositoryImpl pictureRepository;
-  private final BulletinBoardRepositoryImpl bulletinBoardRepository;
+  private final RoomRepository roomRepository;
+  private final PictureRepository pictureRepository;
+  private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
 
-  public RoomService(RoomRepositoryImpl roomRepository,
-      PictureRepositoryImpl pictureRepository,
-      BulletinBoardRepositoryImpl bulletinBoardRepository,
+  public RoomService(RoomRepository roomRepository,
+      PictureRepository pictureRepository,
+      BulletinBoardRepository bulletinBoardRepository,
       NotificationService notificationService) {
     this.roomRepository = roomRepository;
     this.pictureRepository = pictureRepository;
@@ -71,16 +71,18 @@ public class RoomService {
    */
   public List<RoomSummaryResponse> getRooms(Integer currentUserId, RoomFilter filter,
       RoomSort sortBy) {
+    validateCatalogFilter(filter);
     List<Room> rooms = roomRepository.getAllRooms();
     if (rooms.isEmpty()) {
       return Collections.emptyList();
     }
 
     return rooms.stream()
+        .filter(Room::isPublic)
         .filter(room -> filter == null || matchesFilter(room, filter))
-        .sorted(buildComparator(sortBy))
         .map(room -> mapRoomToSummaryResponse(room,
             currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
+        .sorted(buildSummaryComparator(sortBy))
         .collect(Collectors.toList());
   }
 
@@ -141,16 +143,13 @@ public class RoomService {
       throw new AuthorizationException("Only owners can delete rooms");
     }
 
-    // Notify all participants before deleting the room
-    if (room.getUsers() != null && !room.getUsers().isEmpty()) {
-      for (User user : room.getUsers().keySet()) {
-        if (user != null && user.getId() != null) {
-          notificationService.sendActivityClosed(user.getId(), room.getName());
-        }
-      }
-    }
+    List<Integer> participantIds = collectParticipantIds(room);
 
     roomRepository.deleteRoom(roomId);
+
+    for (Integer participantId : participantIds) {
+      notificationService.sendActivityClosed(participantId, room.getName());
+    }
   }
 
   private void validateRoomCreationRequest(RoomCreationRequest request) {
@@ -165,6 +164,12 @@ public class RoomService {
     }
     if (request.getMaximumNumberOfPeople() == null) {
       throw new ValidationException("Maximum number of people is required");
+    }
+  }
+
+  private void validateCatalogFilter(RoomFilter filter) {
+    if (filter != null && filter.hasLocationFilter()) {
+      throw new ValidationException("Filtering rooms by city or country is not supported");
     }
   }
 
@@ -196,22 +201,23 @@ public class RoomService {
       String description = room.getDescription() != null ? room.getDescription().toLowerCase() : "";
       return name.contains(query) || description.contains(query);
     }
-    // Room entity does not contain city/country fields, so these filters are ignored for now.
     return true;
   }
 
-  private Comparator<Room> buildComparator(RoomSort sortBy) {
+  private Comparator<RoomSummaryResponse> buildSummaryComparator(RoomSort sortBy) {
     RoomSort effectiveSort = sortBy != null ? sortBy : RoomSort.NEWEST;
     return switch (effectiveSort) {
       case POPULAR -> Comparator.comparingInt(
-              (Room room) -> room.getUsers() != null ? room.getUsers().size() : 0)
+              (RoomSummaryResponse response) ->
+                  response.getParticipantCount() != null ? response.getParticipantCount() : 0)
           .reversed();
       case NAME ->
-          Comparator.comparing(room -> room.getName() != null ? room.getName().toLowerCase() : "",
+          Comparator.comparing(
+              response -> response.getName() != null ? response.getName().toLowerCase() : "",
               Comparator.naturalOrder());
-      case UPCOMING -> Comparator.comparing(Room::getDateOfStartEvent,
+      case UPCOMING -> Comparator.comparing(RoomSummaryResponse::getDateOfStartEvent,
           Comparator.nullsLast(Comparator.naturalOrder()));
-      case NEWEST -> Comparator.comparing(Room::getId,
+      case NEWEST -> Comparator.comparing(RoomSummaryResponse::getId,
           Comparator.nullsLast(Comparator.reverseOrder()));
     };
   }
@@ -230,8 +236,8 @@ public class RoomService {
     response.setAgeRating(room.getAgeRating());
     response.setFrequency(room.getFrequency());
 
-    Map<User, Role> users = room.getUsers();
-    int participantCount = users != null ? users.size() : 0;
+    Map<User, Role> users = loadRoomUsers(room);
+    int participantCount = users.size();
     response.setParticipantCount(participantCount);
     response.setMaximumParticipants(room.getMaximumNumberOfPeople());
 
@@ -286,5 +292,24 @@ public class RoomService {
     response.setUpdatedAt(board.getUpdatedAt());
     response.setAuthor(mapUserToSummaryResponse(board.getAuthor()));
     return response;
+  }
+
+  private List<Integer> collectParticipantIds(Room room) {
+    List<Integer> participantIds = new ArrayList<>();
+    for (User user : loadRoomUsers(room).keySet()) {
+      if (user != null && user.getId() != null) {
+        participantIds.add(user.getId());
+      }
+    }
+    return participantIds;
+  }
+
+  private Map<User, Role> loadRoomUsers(Room room) {
+    if (room.getUsers() != null) {
+      return room.getUsers();
+    }
+
+    Map<User, Role> users = roomRepository.getUsersInRoom(room.getId());
+    return users != null ? users : Collections.emptyMap();
   }
 }
