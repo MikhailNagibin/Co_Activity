@@ -92,7 +92,6 @@ public class USBlock2Test {
         anotherUserId = anotherUser.getId();
 
         validToken = tokenService.createToken(testUserId);
-        tokenService.registerToken(testUserId, validToken);
     }
 
     private User createTestUser(String login, String username, String password) {

@@ -2,25 +2,28 @@ package com.coactivity.service;
 
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
-import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
+import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.QaServiceUnavailableException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.TokenValidationException;
 import com.coactivity.service.exception.ValidationException;
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
-import java.util.List;
-import java.util.Locale;
-
 /**
- * Routes Q&A requests either to local monolith service or external qa-service.
+ * Internal HTTP client for qa-service.
  */
 @Service
 public class QaGatewayService {
@@ -28,25 +31,20 @@ public class QaGatewayService {
   private static final ParameterizedTypeReference<List<QuestionResponse>> QUESTION_LIST_TYPE =
       new ParameterizedTypeReference<>() {
       };
+  private static final Duration QA_CONNECT_TIMEOUT = Duration.ofSeconds(2);
+  private static final Duration QA_READ_TIMEOUT = Duration.ofSeconds(3);
 
-  private final QAService localQaService;
   private final RestClient restClient;
-  private final QaMode mode;
 
-  public QaGatewayService(QAService localQaService,
-      @Value("${qa.mode:MONOLITH}") String mode,
-      @Value("${qa.service.base-url:http://localhost:8081}") String qaServiceBaseUrl) {
-    this.localQaService = localQaService;
-    this.restClient = RestClient.builder().baseUrl(qaServiceBaseUrl).build();
-    this.mode = QaMode.from(mode);
+  public QaGatewayService(
+      @Value("${qa.service.base-url:http://qa-service:8081}") String qaServiceBaseUrl) {
+    this.restClient = RestClient.builder()
+        .baseUrl(qaServiceBaseUrl)
+        .requestFactory(createRequestFactory())
+        .build();
   }
 
-  public QuestionResponse askQuestion(String authorizationHeader, Integer userId,
-      QuestionRequest request) {
-    if (mode == QaMode.MONOLITH) {
-      return localQaService.askQuestion(userId, request);
-    }
-
+  public QuestionResponse askQuestion(String authorizationHeader, QuestionRequest request) {
     try {
       return restClient.post()
           .uri("/api/qa/questions")
@@ -57,15 +55,12 @@ public class QaGatewayService {
           .body(QuestionResponse.class);
     } catch (RestClientResponseException ex) {
       throw translateRemoteException(ex);
+    } catch (RestClientException ex) {
+      throw translateTransportException(ex);
     }
   }
 
-  public AnswerResponse answerQuestion(String authorizationHeader, Integer userId,
-      AnswerRequest request) {
-    if (mode == QaMode.MONOLITH) {
-      return localQaService.answerQuestion(userId, request);
-    }
-
+  public AnswerResponse answerQuestion(String authorizationHeader, AnswerRequest request) {
     try {
       return restClient.post()
           .uri("/api/qa/answers")
@@ -76,14 +71,12 @@ public class QaGatewayService {
           .body(AnswerResponse.class);
     } catch (RestClientResponseException ex) {
       throw translateRemoteException(ex);
+    } catch (RestClientException ex) {
+      throw translateTransportException(ex);
     }
   }
 
   public List<QuestionResponse> getQuestions(Integer categoryId) {
-    if (mode == QaMode.MONOLITH) {
-      return localQaService.getQuestions(categoryId);
-    }
-
     try {
       if (categoryId == null) {
         return getAllQuestions();
@@ -97,14 +90,12 @@ public class QaGatewayService {
           .body(QUESTION_LIST_TYPE);
     } catch (RestClientResponseException ex) {
       throw translateRemoteException(ex);
+    } catch (RestClientException ex) {
+      throw translateTransportException(ex);
     }
   }
 
   public QuestionWithAnswersResponse getQuestionWithAnswers(Integer questionId) {
-    if (mode == QaMode.MONOLITH) {
-      return localQaService.getQuestionWithAnswers(questionId);
-    }
-
     try {
       return restClient.get()
           .uri("/api/qa/questions/{questionId}", questionId)
@@ -112,14 +103,12 @@ public class QaGatewayService {
           .body(QuestionWithAnswersResponse.class);
     } catch (RestClientResponseException ex) {
       throw translateRemoteException(ex);
+    } catch (RestClientException ex) {
+      throw translateTransportException(ex);
     }
   }
 
   public List<QuestionResponse> getAllQuestions() {
-    if (mode == QaMode.MONOLITH) {
-      return localQaService.getQuestions(null);
-    }
-
     try {
       return restClient.get()
           .uri("/api/qa/questions")
@@ -127,6 +116,8 @@ public class QaGatewayService {
           .body(QUESTION_LIST_TYPE);
     } catch (RestClientResponseException ex) {
       throw translateRemoteException(ex);
+    } catch (RestClientException ex) {
+      throw translateTransportException(ex);
     }
   }
 
@@ -138,8 +129,21 @@ public class QaGatewayService {
       case 401 -> new TokenValidationException(message, ex);
       case 403 -> new AuthorizationException(message);
       case 404 -> new ResourceNotFoundException(message, ex);
-      default -> new ValidationException(message, ex);
+      default -> new QaServiceUnavailableException(message, ex);
     };
+  }
+
+  private QaServiceUnavailableException translateTransportException(RestClientException ex) {
+    return new QaServiceUnavailableException("QA service is unavailable", ex);
+  }
+
+  private JdkClientHttpRequestFactory createRequestFactory() {
+    HttpClient httpClient = HttpClient.newBuilder()
+        .connectTimeout(QA_CONNECT_TIMEOUT)
+        .build();
+    JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+    requestFactory.setReadTimeout(QA_READ_TIMEOUT);
+    return requestFactory;
   }
 
   private String normalizeAuthorizationHeader(String authorizationHeader) {
@@ -151,21 +155,5 @@ public class QaGatewayService {
       return authorizationHeader;
     }
     return "Bearer " + authorizationHeader;
-  }
-
-  private enum QaMode {
-    MONOLITH,
-    SERVICE;
-
-    static QaMode from(String rawValue) {
-      if (rawValue == null || rawValue.isBlank()) {
-        return MONOLITH;
-      }
-      try {
-        return QaMode.valueOf(rawValue.trim().toUpperCase(Locale.ROOT));
-      } catch (IllegalArgumentException ex) {
-        return MONOLITH;
-      }
-    }
   }
 }

@@ -82,16 +82,13 @@ class JoinRequestControllerImplIntegrationTest {
 
     createTestUsers();
 
-    regularUserToken = createAndRegisterToken(regularUserId);
-    adminUserToken = createAndRegisterToken(adminUserId);
+    regularUserToken = createBearerToken(regularUserId);
+    adminUserToken = createBearerToken(adminUserId);
     createTestRoom();
   }
 
-  private String createAndRegisterToken(Integer userId) {
+  private String createBearerToken(Integer userId) {
     String token = tokenService.createToken(userId);
-
-    tokenService.registerToken(userId, token);
-
     return "Bearer " + token;
   }
 
@@ -236,7 +233,6 @@ class JoinRequestControllerImplIntegrationTest {
       roomId = createdRoom.getId();
 
       roomRepository.addUserToRoom(roomId, adminUserId, Role.ADMIN);
-      System.out.println(roomRepository.getUsersInRoom(roomId));
       createTestJoinRequests();
 
     } catch (Exception e) {
@@ -321,14 +317,10 @@ class JoinRequestControllerImplIntegrationTest {
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getPendingRequests(adminUserToken);
 
-      System.out.println(roomRepository.getUsersInRoom(roomId));
-
       assertEquals(HttpStatus.OK, response.getStatusCode());
       assertNotNull(response.getBody());
 
       List<JoinRequestResponse> requests = response.getBody();
-
-      System.out.println(requests);
       assertFalse(requests.isEmpty());
       assertTrue(requests.stream().allMatch(r ->
         r.getStatus() == RequestStatus.CONSIDERATION));
@@ -364,12 +356,6 @@ class JoinRequestControllerImplIntegrationTest {
         r.getRoomId().equals(roomId) &&
           r.getStatus() == RequestStatus.CONSIDERATION));
 
-      System.out.println("Found " + requests.size() + " pending requests for room " + roomId);
-      for (JoinRequestResponse request : requests) {
-        System.out.println("Request ID: " + request.getRequestId() +
-          ", User: " + request.getUsername() +
-          ", Room: " + request.getRoomName());
-      }
     }
 
     @Test
@@ -388,7 +374,6 @@ class JoinRequestControllerImplIntegrationTest {
     @DisplayName("Should accept pending join request")
     void processJoinRequest_Accept_Success() throws SQLException {
       Integer pendingRequestId = getPendingRequestId();
-      System.out.println("Processing request ID: " + pendingRequestId);
 
       ResponseEntity<Void> response =
         userController.processJoinRequest(adminUserToken, pendingRequestId, RequestStatus.ACCEPTED);
@@ -437,14 +422,13 @@ class JoinRequestControllerImplIntegrationTest {
       assertTrue(requests.stream().allMatch(r ->
         r.getUserId().equals(regularUserId)));
 
-      System.out.println("User " + regularUserId + " has " + requests.size() + " sent requests");
     }
 
     @Test
     @DisplayName("Should return empty list when user has no sent requests")
     void getSentRequests_NoSentRequests_ReturnsEmptyList() throws SQLException {
       Integer newUserId = createUser("norequests@test.com", "NoRequestsUser");
-      String newUserToken = createAndRegisterToken(newUserId);
+      String newUserToken = createBearerToken(newUserId);
 
       ResponseEntity<List<JoinRequestResponse>> response =
         userController.getSentRequests(newUserToken);
@@ -463,7 +447,6 @@ class JoinRequestControllerImplIntegrationTest {
     @DisplayName("Should cancel pending join request")
     void cancelRequest_PendingRequest_Success() throws SQLException {
       Integer pendingRequestId = getPendingRequestId();
-      System.out.println("Cancelling request ID: " + pendingRequestId);
 
       ResponseEntity<Void> response =
         userController.cancelRequest(regularUserToken, pendingRequestId);

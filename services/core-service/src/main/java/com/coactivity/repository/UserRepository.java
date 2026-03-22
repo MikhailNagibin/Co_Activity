@@ -2,6 +2,7 @@ package com.coactivity.repository;
 
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
 
 public interface UserRepository {
@@ -50,4 +51,10 @@ public interface UserRepository {
   User getUserById(Integer userId);
 
   User getUserByLogin(String login);
+
+  void updatePassword(Integer userId, String newPassword);
+
+  void setNotification(Integer id, Notification notification);
+
+  void removeNotification(Integer id, Notification notification);
 }

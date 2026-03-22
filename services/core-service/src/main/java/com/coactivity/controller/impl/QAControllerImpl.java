@@ -1,6 +1,5 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.controller.QAController;
 import com.coactivity.controller.dto.request.AnswerRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
@@ -9,6 +8,8 @@ import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.service.QaGatewayService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.exception.TokenValidationException;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Validated
 @RequestMapping("/api/qa")
-public class QAControllerImpl implements QAController {
+public class QAControllerImpl {
 
   private final QaGatewayService qaGatewayService;
   private final TokenService tokenService;
@@ -35,27 +36,24 @@ public class QAControllerImpl implements QAController {
     this.tokenService = tokenService;
   }
 
-  @Override
   @PostMapping("/questions")
   public ResponseEntity<QuestionResponse> askQuestion(
     @RequestHeader(name = "Authorization", required = false) String token,
-    @RequestBody QuestionRequest request) {
-    Integer userId = resolveAuthorizedUserId(token);
-    QuestionResponse response = qaGatewayService.askQuestion(token, userId, request);
+    @Valid @RequestBody QuestionRequest request) {
+    resolveAuthorizedUserId(token);
+    QuestionResponse response = qaGatewayService.askQuestion(token, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
-  @Override
   @PostMapping("/answers")
   public ResponseEntity<AnswerResponse> answerQuestion(
     @RequestHeader(name = "Authorization", required = false) String token,
-    @RequestBody AnswerRequest request) {
-    Integer userId = resolveAuthorizedUserId(token);
-    AnswerResponse response = qaGatewayService.answerQuestion(token, userId, request);
+    @Valid @RequestBody AnswerRequest request) {
+    resolveAuthorizedUserId(token);
+    AnswerResponse response = qaGatewayService.answerQuestion(token, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
-  @Override
   @GetMapping("/questions/category")
   public ResponseEntity<List<QuestionResponse>> getQuestions(
     @RequestParam(name = "categoryId", required = false) Integer categoryId) {
@@ -63,10 +61,9 @@ public class QAControllerImpl implements QAController {
     return ResponseEntity.ok(responses);
   }
 
-  @Override
   @GetMapping("/questions/{questionId}")
   public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
-    @PathVariable Integer questionId) {
+    @Positive @PathVariable Integer questionId) {
     QuestionWithAnswersResponse response = qaGatewayService.getQuestionWithAnswers(questionId);
     return ResponseEntity.ok(response);
   }

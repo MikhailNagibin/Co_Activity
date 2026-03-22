@@ -2,6 +2,8 @@ package com.coactivity.controller.advice;
 
 import com.coactivity.controller.dto.response.ApiErrorResponse;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.NotificationDeliveryException;
+import com.coactivity.service.exception.QaServiceUnavailableException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.TokenValidationException;
 import com.coactivity.service.exception.ValidationException;
@@ -49,6 +51,20 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiErrorResponse> handleValidation(ValidationException ex,
       HttpServletRequest request) {
     return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request, null);
+  }
+
+  @ExceptionHandler(NotificationDeliveryException.class)
+  public ResponseEntity<ApiErrorResponse> handleNotificationDelivery(
+      NotificationDeliveryException ex,
+      HttpServletRequest request) {
+    return buildResponse(ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request, null);
+  }
+
+  @ExceptionHandler(QaServiceUnavailableException.class)
+  public ResponseEntity<ApiErrorResponse> handleQaServiceUnavailable(
+      QaServiceUnavailableException ex,
+      HttpServletRequest request) {
+    return buildResponse(ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request, null);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -339,12 +339,6 @@ class RoomAdministrationIntegrationTest {
     participant2Token = "Bearer " + realTokenService.createToken(participant2Id);
     regularUserToken = "Bearer " + realTokenService.createToken(regularUserId);
 
-    // Register tokens
-    realTokenService.registerToken(ownerId, ownerToken.substring(7));
-    realTokenService.registerToken(adminId, adminToken.substring(7));
-    realTokenService.registerToken(participant1Id, participant1Token.substring(7));
-    realTokenService.registerToken(participant2Id, participant2Token.substring(7));
-    realTokenService.registerToken(regularUserId, regularUserToken.substring(7));
   }
 
   @Test

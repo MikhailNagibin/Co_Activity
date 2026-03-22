@@ -1,6 +1,5 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.controller.UserController;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
@@ -14,11 +13,16 @@ import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
+import com.coactivity.service.AuthService;
 import com.coactivity.service.JoinRequestService;
+import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
-import com.coactivity.service.UserWithRoomService;
 import com.coactivity.service.exception.TokenValidationException;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
@@ -38,144 +42,134 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @Validated
-public class UserControllerImpl implements UserController {
+public class UserControllerImpl {
 
-  private final UserProfileService userService;
+  private final UserProfileService userProfileService;
+  private final AuthService authService;
   private final TokenService tokenService;
-  private final UserWithRoomService userWithRoomService;
+  private final RoomMembershipService roomMembershipService;
   private final JoinRequestService joinRequestService;
 
-  public UserControllerImpl(UserProfileService userService, TokenService tokenService,
-      UserWithRoomService userWithRoomService, JoinRequestService joinRequestService) {
-    this.userService = userService;
+  public UserControllerImpl(UserProfileService userProfileService, AuthService authService,
+      TokenService tokenService, RoomMembershipService roomMembershipService,
+      JoinRequestService joinRequestService) {
+    this.userProfileService = userProfileService;
+    this.authService = authService;
     this.tokenService = tokenService;
-    this.userWithRoomService = userWithRoomService;
+    this.roomMembershipService = roomMembershipService;
     this.joinRequestService = joinRequestService;
   }
 
-  @Override
   @PostMapping
   public ResponseEntity<RegistrationResponse> registerUser(
-      @RequestBody UserRegistrationRequest request) {
-    RegistrationResponse response = userService.registerUser(request);
+    @Valid @RequestBody UserRegistrationRequest request) {
+    RegistrationResponse response = userProfileService.registerUser(request);
     URI location = Objects.requireNonNull(response != null && response.getUserId() != null
         ? URI.create("/api/users/" + response.getUserId())
         : URI.create("/api/users"));
     return ResponseEntity.created(location).body(response);
   }
 
-  @Override
   @PostMapping("/login")
-  public ResponseEntity<Void> loginUser(@RequestBody LoginRequest request) {
-    userService.loginUser(request);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<Void> loginUser(@Valid @RequestBody LoginRequest request) {
+    authService.loginUser(request);
+    return ResponseEntity.accepted().build();
   }
 
-  @Override
   @PostMapping("/login/verify")
   public ResponseEntity<LoginResponse> verifyLogin(
-      @RequestParam("login") String login,
-      @RequestParam("code") String verificationCode) {
-    LoginResponse response = userService.verifyLogin(login, verificationCode);
+      @NotBlank @RequestParam("login") String login,
+      @NotBlank @RequestParam("code") String verificationCode) {
+    LoginResponse response = authService.verifyLogin(login, verificationCode);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @PostMapping("/logout")
   public ResponseEntity<Void> logoutUser(
       @RequestHeader(name = "Authorization", required = false) String token) {
     String authToken = requireAuthorizedToken(token);
-    userService.logoutUser(authToken);
+    authService.logoutUser(authToken);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @GetMapping("/me")
   public ResponseEntity<UserProfileResponse> getUserProfile(
       @RequestHeader(name = "Authorization", required = false) String token) {
     String authToken = requireAuthorizedToken(token);
-    UserProfileResponse response = userService.getUserProfile(authToken);
+    UserProfileResponse response = userProfileService.getUserProfile(authToken);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @GetMapping("/{userId}")
   public ResponseEntity<UserSummaryResponse> getPublicUserProfileById(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer userId) {
+      @Positive @PathVariable Integer userId) {
     String authToken = requireAuthorizedToken(token);
-    UserSummaryResponse response = userService.getPublicUserProfileById(authToken, userId);
+    UserSummaryResponse response = userProfileService.getPublicUserProfileById(authToken, userId);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @PutMapping("/me")
   public ResponseEntity<UserProfileResponse> updateUserProfile(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @RequestBody UserProfileUpdateRequest request) {
+      @Valid @RequestBody UserProfileUpdateRequest request) {
     String authToken = requireAuthorizedToken(token);
-    userService.updateUserProfile(authToken, request);
-    UserProfileResponse response = userService.getUserProfile(authToken);
+    userProfileService.updateUserProfile(authToken, request);
+    UserProfileResponse response = userProfileService.getUserProfile(authToken);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @PutMapping("/me/password")
   public ResponseEntity<LoginResponse> updatePassword(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @RequestParam String currentPassword,
-      @RequestParam String newPassword) {
+      @NotBlank @RequestParam String currentPassword,
+      @NotBlank @RequestParam String newPassword) {
     String authToken = requireAuthorizedToken(token);
-    LoginResponse response = userService.updatePassword(authToken, currentPassword, newPassword);
+    LoginResponse response = authService.updatePassword(authToken, currentPassword, newPassword);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @PutMapping("/me/notifications")
   public ResponseEntity<NotificationSettingsResponse> configureNotificationSettings(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @RequestBody NotificationSettingsRequest request) {
+      @Valid @RequestBody NotificationSettingsRequest request) {
     String authToken = requireAuthorizedToken(token);
-    NotificationSettingsResponse response = userService.configureNotificationSettings(authToken,
+    NotificationSettingsResponse response = userProfileService.configureNotificationSettings(authToken,
         request);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteAccount(
       @RequestHeader(name = "Authorization", required = false) String token) {
     String authToken = requireAuthorizedToken(token);
-    userService.deleteAccount(authToken);
+    userProfileService.deleteAccount(authToken);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @PostMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> assignAdminRole(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
 
     Integer requesterId = resolveAuthorizedUserId(token);
     RoleAssignmentResponse response =
-        userWithRoomService.assignAdminRole(requesterId, roomId, userId);
+        roomMembershipService.assignAdminRole(requesterId, roomId, userId);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @DeleteMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> demoteAdminRole(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
     Integer requesterId = resolveAuthorizedUserId(token);
     RoleAssignmentResponse response =
-        userWithRoomService.demoteAdminRole(requesterId, roomId, userId);
+        roomMembershipService.demoteAdminRole(requesterId, roomId, userId);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @GetMapping("/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequests(
       @RequestHeader(name = "Authorization", required = false) String token) {
@@ -185,29 +179,26 @@ public class UserControllerImpl implements UserController {
     return ResponseEntity.ok(responses);
   }
 
-  @Override
   @GetMapping("/rooms/{roomId}/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequestsForRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer userId = resolveAuthorizedUserId(token);
     List<JoinRequestResponse> responses = joinRequestService.getPendingRequestsForRoom(userId,
         roomId);
     return ResponseEntity.ok(responses);
   }
 
-  @Override
   @PostMapping("/requests/{requestId}")
   public ResponseEntity<Void> processJoinRequest(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer requestId,
-      @RequestParam("action") RequestStatus action) {
+      @Positive @PathVariable Integer requestId,
+      @NotNull @RequestParam("action") RequestStatus action) {
     Integer userId = resolveAuthorizedUserId(token);
     joinRequestService.processJoinRequest(userId, requestId, action);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @GetMapping("/requests/sent")
   public ResponseEntity<List<JoinRequestResponse>> getSentRequests(
       @RequestHeader(name = "Authorization", required = false) String token) {
@@ -216,32 +207,29 @@ public class UserControllerImpl implements UserController {
     return ResponseEntity.ok(responses);
   }
 
-  @Override
   @DeleteMapping("/requests/{requestId}")
   public ResponseEntity<Void> cancelRequest(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer requestId) {
+      @Positive @PathVariable Integer requestId) {
     Integer userId = resolveAuthorizedUserId(token);
     joinRequestService.cancelRequest(userId, requestId);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @GetMapping("/banned-rooms")
   public ResponseEntity<List<RoomSummaryResponse>> getBanRooms(
       @RequestHeader(name = "Authorization", required = false) String token) {
     Integer userId = resolveAuthorizedUserId(token);
-    List<RoomSummaryResponse> rooms = userWithRoomService.getBanRooms(userId);
+    List<RoomSummaryResponse> rooms = roomMembershipService.getBanRooms(userId);
     return ResponseEntity.ok(rooms);
   }
 
-  @Override
   @GetMapping("/rooms/{roomId}/membership")
   public ResponseEntity<Boolean> isUserInRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer userId = resolveAuthorizedUserId(token);
-    Boolean result = userWithRoomService.isUserInRoom(userId, roomId);
+    Boolean result = roomMembershipService.isUserInRoom(userId, roomId);
     return ResponseEntity.ok(result);
   }
 

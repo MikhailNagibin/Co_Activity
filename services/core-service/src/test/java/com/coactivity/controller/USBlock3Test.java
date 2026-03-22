@@ -103,7 +103,6 @@ public class USBlock3Test {
 
 
         validToken = tokenService.createToken(testUserId);
-        tokenService.registerToken(testUserId, validToken);
     }
 
     private User createTestUser(String login, String username, String password) {

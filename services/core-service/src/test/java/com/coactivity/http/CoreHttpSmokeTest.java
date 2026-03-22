@@ -2,6 +2,8 @@ package com.coactivity.http;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -19,13 +21,18 @@ import com.coactivity.controller.impl.QAControllerImpl;
 import com.coactivity.controller.impl.RoomControllerImpl;
 import com.coactivity.controller.impl.UserControllerImpl;
 import com.coactivity.domain.Category;
+import com.coactivity.service.AuthService;
 import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.QaGatewayService;
+import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
-import com.coactivity.service.UserWithRoomService;
+import com.coactivity.service.dto.TokenPayload;
+import com.coactivity.service.exception.NotificationDeliveryException;
+import com.coactivity.service.exception.QaServiceUnavailableException;
+import com.coactivity.service.exception.ValidationException;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +63,7 @@ class CoreHttpSmokeTest {
   private TokenService tokenService;
 
   @MockBean
-  private UserWithRoomService userWithRoomService;
+  private RoomMembershipService roomMembershipService;
 
   @MockBean
   private BulletinBoardService bulletinBoardService;
@@ -65,7 +72,10 @@ class CoreHttpSmokeTest {
   private QaGatewayService qaGatewayService;
 
   @MockBean
-  private UserProfileService userService;
+  private UserProfileService userProfileService;
+
+  @MockBean
+  private AuthService authService;
 
   @MockBean
   private JoinRequestService joinRequestService;
@@ -114,7 +124,7 @@ class CoreHttpSmokeTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.message").value("Authorization token is required"));
 
-    verifyNoInteractions(userService);
+    verifyNoInteractions(userProfileService);
   }
 
   @Test
@@ -140,5 +150,82 @@ class CoreHttpSmokeTest {
         .andExpect(jsonPath("$.message").value("Authorization token is required"));
 
     verifyNoInteractions(roomService);
+  }
+
+  @Test
+  @DisplayName("POST /api/rooms/createRoom should return 400 when category is invalid")
+  void createRoomReturnsBadRequestWhenCategoryIsInvalid() throws Exception {
+    when(tokenService.isTokenActive("valid-token")).thenReturn(true);
+    when(tokenService.decodeToken("valid-token"))
+        .thenReturn(new TokenPayload(1, Instant.parse("2030-01-01T00:00:00Z")));
+    doThrow(new ValidationException("Category not found: UnknownCategory"))
+        .when(roomService)
+        .createRoom(any(), any());
+
+    mockMvc.perform(post("/api/rooms/createRoom")
+            .header("Authorization", "Bearer valid-token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": true,
+                  "category": "UnknownCategory",
+                  "name": "Morning Run",
+                  "description": "HTTP smoke test room",
+                  "maximumNumberOfPeople": 5,
+                  "chatLink": "https://example.com/chat",
+                  "dateOfStartEvent": "2030-01-01T10:00:00Z",
+                  "dateOfEndEvent": "2030-01-01T12:00:00Z",
+                  "frequency": null,
+                  "ageRating": 18
+                }
+                """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Category not found: UnknownCategory"));
+  }
+
+  @Test
+  @DisplayName("POST /api/users/login should return 202 when verification flow is accepted")
+  void loginReturnsAcceptedWhenVerificationFlowStarts() throws Exception {
+    mockMvc.perform(post("/api/users/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "login": "student@example.com",
+                  "password": "Password123"
+                }
+                """))
+        .andExpect(status().isAccepted());
+
+    verify(authService).loginUser(any());
+  }
+
+  @Test
+  @DisplayName("POST /api/users/login should return 503 when verification code cannot be delivered")
+  void loginReturnsServiceUnavailableWhenVerificationCodeDeliveryFails() throws Exception {
+    doThrow(new NotificationDeliveryException("Unable to deliver verification code"))
+        .when(authService)
+        .loginUser(any());
+
+    mockMvc.perform(post("/api/users/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "login": "student@example.com",
+                  "password": "Password123"
+                }
+                """))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.message").value("Unable to deliver verification code"));
+  }
+
+  @Test
+  @DisplayName("GET /api/qa/questions should return 503 when qa-service is unavailable")
+  void getQuestionsReturnsServiceUnavailableWhenQaServiceIsDown() throws Exception {
+    when(qaGatewayService.getAllQuestions())
+        .thenThrow(new QaServiceUnavailableException("QA service is unavailable"));
+
+    mockMvc.perform(get("/api/qa/questions"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.message").value("QA service is unavailable"));
   }
 }

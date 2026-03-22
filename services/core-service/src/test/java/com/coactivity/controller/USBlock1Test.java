@@ -8,6 +8,7 @@ import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.impl.UserControllerImpl;
 import com.coactivity.domain.User;
 import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.service.AuthService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.dto.PendingVerification;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -31,7 +33,6 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
@@ -62,6 +63,9 @@ public class USBlock1Test {
     private TokenService tokenService;
 
     @Autowired
+    private AuthService authService;
+
+    @Autowired
     private UserRepositoryImpl userRepository;
 
     @MockBean
@@ -89,7 +93,6 @@ public class USBlock1Test {
         testUserId = testUser.getId();
 
         validToken = tokenService.createToken(testUserId);
-        tokenService.registerToken(testUserId, validToken);
     }
 
     private User createTestUser(String login, String username, String password) {
@@ -124,14 +127,19 @@ public class USBlock1Test {
 
         ResponseEntity<Void> response = userController.loginUser(request);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
     }
 
     @Test
     void US103_verifyLogin() {
         String login = "testuser@example.com";
         String verificationCode = "123456";
-        tokenService.addPendingVerification(login, new PendingVerification(Objects.requireNonNull(userRepository.getUserByLogin(login)).getId(), verificationCode, Instant.now().plus(10, ChronoUnit.MINUTES)));
+        @SuppressWarnings("unchecked")
+        var pendingVerifications = (java.util.Map<String, PendingVerification>)
+            ReflectionTestUtils.getField(authService, "pendingVerifications");
+        pendingVerifications.put(login,
+            new PendingVerification(Objects.requireNonNull(userRepository.getUserByLogin(login)).getId(),
+                verificationCode, Instant.now().plus(10, ChronoUnit.MINUTES)));
 
         ResponseEntity<LoginResponse> response = userController.verifyLogin(login, verificationCode);
 

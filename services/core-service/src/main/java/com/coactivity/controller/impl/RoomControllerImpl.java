@@ -1,6 +1,5 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.controller.RoomController;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
@@ -12,10 +11,13 @@ import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.Role;
 import com.coactivity.service.BulletinBoardService;
+import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import com.coactivity.service.TokenService;
-import com.coactivity.service.UserWithRoomService;
 import com.coactivity.service.exception.TokenValidationException;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
@@ -36,29 +38,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/rooms")
 @Validated
-public class RoomControllerImpl implements RoomController {
+public class RoomControllerImpl {
 
   private final RoomService roomService;
   private final TokenService tokenService;
-  private final UserWithRoomService userWithRoomService;
+  private final RoomMembershipService roomMembershipService;
   private final BulletinBoardService bulletinBoardService;
 
   public RoomControllerImpl(RoomService roomService,
       TokenService tokenService,
-      UserWithRoomService userWithRoomService,
+      RoomMembershipService roomMembershipService,
       BulletinBoardService bulletinBoardService) {
     this.roomService = roomService;
     this.tokenService = tokenService;
-    this.userWithRoomService = userWithRoomService;
+    this.roomMembershipService = roomMembershipService;
     this.bulletinBoardService = bulletinBoardService;
   }
 
-  @Override
   @PostMapping("/createRoom")
   public ResponseEntity<RoomCreationResponse> createRoom(
 
       @RequestHeader(name = "Authorization", required = false) String token,
-      @RequestBody RoomCreationRequest request) {
+      @Valid @RequestBody RoomCreationRequest request) {
 
     Integer ownerId = resolveAuthorizedUserId(token);
     RoomCreationResponse response = roomService.createRoom(ownerId, request);
@@ -68,12 +69,11 @@ public class RoomControllerImpl implements RoomController {
     return ResponseEntity.created(location).body(response);
   }
 
-  @Override
   @PutMapping("/{roomId}/bulletin")
   public ResponseEntity<BulletinBoardResponse> updateBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @RequestBody String newContent) {
+      @Positive @PathVariable Integer roomId,
+      @NotBlank @RequestBody String newContent) {
 
     Integer authorId = resolveAuthorizedUserId(token);
     BulletinBoardResponse response =
@@ -81,98 +81,89 @@ public class RoomControllerImpl implements RoomController {
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @DeleteMapping("/{roomId}/bulletin")
   public ResponseEntity<Void> deleteBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer requesterId = resolveAuthorizedUserId(token);
     bulletinBoardService.deleteBulletinBoard(roomId, requesterId);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @GetMapping
   public ResponseEntity<List<RoomSummaryResponse>> getRooms(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @ModelAttribute RoomFilter filter,
+      @Valid @ModelAttribute RoomFilter filter,
       @RequestParam(name = "sortBy", required = false) RoomSort sortBy) {
     Integer currentUserId = resolveOptionalUserId(token);
     List<RoomSummaryResponse> rooms = roomService.getRooms(currentUserId, filter, sortBy);
     return ResponseEntity.ok(rooms);
   }
 
-  @Override
   @GetMapping("/{roomId}")
-  public ResponseEntity<RoomDetailedResponse> getRoomById(@PathVariable Integer roomId,
+  public ResponseEntity<RoomDetailedResponse> getRoomById(@Positive @PathVariable Integer roomId,
       @RequestHeader(name = "Authorization", required = false) String token) {
     Integer currentUserId = resolveOptionalUserId(token);
     RoomDetailedResponse response = roomService.getRoomById(roomId, currentUserId);
     return ResponseEntity.ok(response);
   }
 
-  @Override
   @GetMapping("/me")
   public ResponseEntity<List<RoomDetailedResponse>> getUserRooms(
       @RequestHeader(name = "Authorization", required = false) String token) {
     Integer currentUserId = resolveAuthorizedUserId(token);
-    List<RoomDetailedResponse> rooms = userWithRoomService.getUserRooms(currentUserId);
+    List<RoomDetailedResponse> rooms = roomMembershipService.getUserRooms(currentUserId);
     return ResponseEntity.ok(rooms);
   }
 
-  @Override
   @PostMapping("/{roomId}/join")
   public ResponseEntity<Void> joinRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
-    userWithRoomService.joinRoom(currentUserId, roomId);
+    roomMembershipService.joinRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @PostMapping("/{roomId}/leave")
   public ResponseEntity<Void> leaveRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
-    userWithRoomService.leaveRoom(currentUserId, roomId);
+    roomMembershipService.leaveRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @DeleteMapping("/{roomId}")
   public ResponseEntity<Void> deleteRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId) {
+      @Positive @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     roomService.deleteRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
   }
 
-  @Override
   @GetMapping("/{roomId}/participants")
   public ResponseEntity<List<RoomParticipantResponse>> getRoomParticipants(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
+      @Positive @PathVariable Integer roomId,
       @RequestParam(name = "role", required = false) Role roleFilter) {
 
     Integer currentUserId = resolveAuthorizedUserId(token);
     List<RoomParticipantResponse> participants =
-        userWithRoomService.getRoomParticipants(currentUserId, roomId, roleFilter);
+        roomMembershipService.getRoomParticipants(currentUserId, roomId, roleFilter);
 
     return ResponseEntity.ok(participants);
   }
 
-  @Override
   @GetMapping("/{roomId}/participants/{userId}")
   public ResponseEntity<MembershipVerificationResponse> isUserInRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable Integer roomId,
-      @PathVariable Integer userId) {
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     MembershipVerificationResponse response =
-        userWithRoomService.verifyUserMembership(currentUserId, roomId, userId);
+        roomMembershipService.verifyUserMembership(currentUserId, roomId, userId);
     return ResponseEntity.ok(response);
   }
 
