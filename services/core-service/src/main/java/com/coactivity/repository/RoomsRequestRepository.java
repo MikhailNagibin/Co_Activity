@@ -2,6 +2,7 @@ package com.coactivity.repository;
 
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.RoomsRequest;
+import java.sql.Connection;
 import java.util.List;
 
 public interface RoomsRequestRepository {
@@ -55,4 +56,8 @@ public interface RoomsRequestRepository {
    * @return запрос или {@code null}, если не найден
    */
   RoomsRequest getRequestById(int requestId);
+
+  RoomsRequest updateRequestInTransaction(Connection connection, int requestId, RequestStatus status);
+
+  RoomsRequest getRequestByUserAndRoom(int userId, int roomId);
 }

@@ -84,12 +84,11 @@ public class UserRepositoryImpl implements UserRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to create user with login: " + request.getLogin(), e);
     } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to hash password for user creation", e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Failed to create user: insert returned no id");
   }
 
   @Override
@@ -143,8 +142,7 @@ public class UserRepositoryImpl implements UserRepository {
       return;
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to update user with id: " + userId, e);
     }
   }
 
@@ -180,8 +178,7 @@ public class UserRepositoryImpl implements UserRepository {
       }
       connection.commit();
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete user with id: " + userId, e);
     }
   }
 
@@ -201,8 +198,7 @@ public class UserRepositoryImpl implements UserRepository {
       }
 
     } catch (SQLException | NoSuchAlgorithmException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get user by login credentials", e);
     }
     return null;
   }
@@ -221,8 +217,7 @@ public class UserRepositoryImpl implements UserRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get user by login: " + login, e);
     }
     return null;
   }
@@ -241,8 +236,7 @@ public class UserRepositoryImpl implements UserRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get user with id: " + userId, e);
     }
     return null;
   }
@@ -259,8 +253,8 @@ public class UserRepositoryImpl implements UserRepository {
       statement.setString(2, notification.toString());
       statement.executeUpdate();
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException(
+          "Failed to enable notification " + notification + " for user " + id, e);
     }
   }
 
@@ -277,8 +271,8 @@ public class UserRepositoryImpl implements UserRepository {
       statement.executeUpdate();
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException(
+          "Failed to disable notification " + notification + " for user " + id, e);
     }
   }
 
@@ -290,11 +284,10 @@ public class UserRepositoryImpl implements UserRepository {
       statement.setInt(2, userId);
       int affectedRows = statement.executeUpdate();
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("User not found for password update: " + userId);
       }
     } catch (SQLException | NoSuchAlgorithmException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to update password for user: " + userId, e);
     }
   }
 
@@ -328,8 +321,7 @@ public class UserRepositoryImpl implements UserRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get rooms for user: " + userId, e);
     }
     return rooms;
   }
@@ -352,8 +344,7 @@ public class UserRepositoryImpl implements UserRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get notifications for user: " + userId, e);
     }
     return notifications;
   }
@@ -370,8 +361,7 @@ public class UserRepositoryImpl implements UserRepository {
       }
       return rooms;
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get user ids", e);
     }
   }
 }

@@ -50,10 +50,9 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to create answer for question: " + questionId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Failed to create answer: insert returned no id");
   }
 
   @Override
@@ -79,8 +78,7 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get answers for question: " + questionId, e);
     }
     return answers;
   }
@@ -96,11 +94,10 @@ public class AnswerRepositoryImpl implements AnswerRepository {
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("Answer not found with id: " + answer.getId());
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete answer with id: " + answer.getId(), e);
     }
   }
 }

@@ -39,9 +39,9 @@ public class PictureRepositoryImpl implements PictureRepository {
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to create picture for room: " + roomId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Failed to create picture: insert returned no id");
   }
 
   @Override
@@ -61,7 +61,7 @@ public class PictureRepositoryImpl implements PictureRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get pictures for room: " + roomId, e);
     }
     return pictures;
   }
@@ -77,11 +77,10 @@ public class PictureRepositoryImpl implements PictureRepository {
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("Picture not found with id: " + photoId);
       }
     } catch (SQLException e) {
-
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete picture with id: " + photoId, e);
     }
   }
 

@@ -1,14 +1,15 @@
 package com.coactivity.service;
 
+import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
-import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
-import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.repository.RoomRepository;
+import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -28,15 +29,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class JoinRequestService {
 
-  private final RoomRepositoryImpl roomRepository;
-  private final RoomsRequestRepositoryImpl roomsRequestRepository;
-  private final UserRepositoryImpl userRepository;
+  private final DataRepository dataRepository;
+  private final RoomRepository roomRepository;
+  private final RoomsRequestRepository roomsRequestRepository;
+  private final UserRepository userRepository;
   private final NotificationService notificationService;
 
-  public JoinRequestService(RoomRepositoryImpl roomRepository,
-      RoomsRequestRepositoryImpl roomsRequestRepository,
-      UserRepositoryImpl userRepository,
+  public JoinRequestService(DataRepository dataRepository,
+      RoomRepository roomRepository,
+      RoomsRequestRepository roomsRequestRepository,
+      UserRepository userRepository,
       NotificationService notificationService) {
+    this.dataRepository = dataRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.userRepository = userRepository;
@@ -182,26 +186,36 @@ public class JoinRequestService {
   private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
 
-    int currentParticipants = roomRepository.getRoomParticipantCount(roomId);
-    if (currentParticipants >= room.getMaximumNumberOfPeople()) {
-      throw new ValidationException("Room capacity exceeded");
-    }
+    dataRepository.inTransaction(connection -> {
+      int currentParticipants = roomRepository.getRoomParticipantCountInTransaction(connection,
+          roomId);
+      if (currentParticipants >= room.getMaximumNumberOfPeople()) {
+        throw new ValidationException("Room capacity exceeded");
+      }
 
-    if (!roomRepository.isUserInMembers(roomId, requesterId)) {
-      roomRepository.addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
-    }
-    roomsRequestRepository.updateRequest(requestId, RequestStatus.ACCEPTED);
+      if (!roomRepository.isUserInMembersInTransaction(connection, roomId, requesterId)) {
+        roomRepository.addUserToRoomInTransaction(connection, roomId, requesterId,
+            Role.PARTICIPANT);
+      }
 
-    // Send notification to the user
+      roomsRequestRepository.updateRequestInTransaction(connection, requestId,
+          RequestStatus.ACCEPTED);
+      return null;
+    });
+
     notificationService.sendMembershipAccepted(requesterId, room.getName());
   }
 
   private void refuseWithBan(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
-    roomRepository.addUserBan(roomId, requesterId);
-    roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
 
-    // Send notification to the user
+    dataRepository.inTransaction(connection -> {
+      roomRepository.addUserBanInTransaction(connection, roomId, requesterId);
+      roomsRequestRepository.updateRequestInTransaction(connection, requestId,
+          RequestStatus.REFUSED_WITH_BAN);
+      return null;
+    });
+
     notificationService.sendMembershipRejected(requesterId, room.getName());
   }
 
@@ -210,12 +224,12 @@ public class JoinRequestService {
    * returns false if the role cannot be determined.
    */
   private boolean hasModerationRights(Integer userId, Integer roomId) {
-    try {
-      Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
-      return role == Role.OWNER || role == Role.ADMIN;
-    } catch (Exception e) {
+    if (!roomRepository.isUserInMembers(roomId, userId)) {
       return false;
     }
+
+    Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
+    return role == Role.OWNER || role == Role.ADMIN;
   }
 
   private void ensureModerationRights(Integer userId, Integer roomId) {

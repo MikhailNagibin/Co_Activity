@@ -6,9 +6,9 @@ import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
-import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
-import com.coactivity.repository.impl.RoomRepositoryImpl;
-import com.coactivity.repository.impl.UserRepositoryImpl;
+import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.repository.RoomRepository;
+import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -17,13 +17,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class BulletinBoardService {
 
-  private final BulletinBoardRepositoryImpl bulletinBoardRepository;
-  private final RoomRepositoryImpl roomRepository;
-  private final UserRepositoryImpl userRepository;
+  private final BulletinBoardRepository bulletinBoardRepository;
+  private final RoomRepository roomRepository;
+  private final UserRepository userRepository;
 
-  public BulletinBoardService(BulletinBoardRepositoryImpl bulletinBoardRepository,
-      RoomRepositoryImpl roomRepository,
-      UserRepositoryImpl userRepository) {
+  public BulletinBoardService(BulletinBoardRepository bulletinBoardRepository,
+      RoomRepository roomRepository,
+      UserRepository userRepository) {
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.roomRepository = roomRepository;
     this.userRepository = userRepository;

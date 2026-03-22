@@ -48,9 +48,9 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create question for user: " + userId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Failed to create question: insert returned no id");
   }
 
   public Integer getCategoryIdByName(String categoryName) {
@@ -70,7 +70,6 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       return null;
 
     } catch (SQLException e) {
-      System.err.println("Error getting category ID by name: " + e.getMessage());
       throw new RuntimeException("Database error while getting category ID", e);
     }
   }
@@ -154,7 +153,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         questions.add(question);
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get questions", e);
     }
     return questions;
   }
@@ -172,11 +171,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         if (resultSet.next()) {
           return mapResultSetToQuestion(resultSet);
         } else {
-          throw new RuntimeException();
+          throw new RuntimeException("Question not found with id: " + questionId);
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get question with id: " + questionId, e);
     }
   }
 
@@ -199,9 +198,9 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to update question with id: " + questionId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Question not found with id: " + questionId);
   }
 
   @Override
@@ -217,11 +216,11 @@ public class QuestionRepositoryImpl implements QuestionRepository {
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("Question not found with id: " + questionId);
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete question with id: " + questionId, e);
     }
   }
 
@@ -232,13 +231,9 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     try (Connection connection = dataRepository.getDataSource().getConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, questionId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException();
-      }
+      statement.executeUpdate();
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete answers for question: " + questionId, e);
     }
   }
 
@@ -262,7 +257,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get questions for category id: " + categoryId, e);
     }
     return questions;
   }
@@ -287,7 +282,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get questions for user: " + userId, e);
     }
     return questions;
   }
@@ -310,7 +305,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to check question existence for id: " + questionId, e);
     }
     return false;
   }
@@ -330,7 +325,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         return resultSet.getInt(1);
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get questions count", e);
     }
     return 0;
   }

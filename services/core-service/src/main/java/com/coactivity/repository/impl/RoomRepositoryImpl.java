@@ -8,6 +8,7 @@ import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.UserRepository;
+import com.coactivity.service.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -36,45 +37,43 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   @Override
   public Room createRoom(Integer ownerId, RoomCreationRequest request) {
+    Integer roomId = dataRepository.inTransaction(connection -> {
+      String sql = """
+          INSERT INTO Rooms (is_active, is_public, chat_link, category_id, name, description, start_date, end_date,
+                              age_rating, frequency, maximum_number_of_people)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          RETURNING id
+          """;
 
-    String sql = """
-        INSERT INTO Rooms (is_active, is_public, chat_link, category_id, name, description, start_date, end_date,
-                            age_rating, frequency, maximum_number_of_people)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-        """;
+      try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setBoolean(1, true);
+        statement.setBoolean(2, request.getIsPublic());
+        statement.setString(3, request.getChatLink());
+        statement.setInt(4, getCategoryIdByNameInTransaction(connection, request.getCategory()));
+        statement.setString(5, request.getName());
+        statement.setString(6, request.getDescription());
+        statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
+            Timestamp.from(request.getDateOfStartEvent()) : null);
+        statement.setTimestamp(8, request.getDateOfEndEvent() != null ?
+            Timestamp.from(request.getDateOfEndEvent()) : null);
+        statement.setInt(9, request.getAgeRating());
+        statement.setTimestamp(10, request.getFrequency() != null ?
+            Timestamp.from(request.getFrequency()) : null);
+        statement.setInt(11, request.getMaximumNumberOfPeople());
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setBoolean(1, true);
-      statement.setBoolean(2, request.getIsPublic());
-      statement.setString(3, request.getChatLink());
-      statement.setInt(4, getCategoryIdByName(request.getCategory()));
-      statement.setString(5, request.getName());
-      statement.setString(6, request.getDescription());
-      statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
-          Timestamp.from(request.getDateOfStartEvent()) : null);
-      statement.setTimestamp(8, request.getDateOfEndEvent() != null ?
-          Timestamp.from(request.getDateOfEndEvent()) : null);
-      statement.setInt(9, request.getAgeRating());
-      statement.setTimestamp(10, request.getFrequency() != null ?
-          Timestamp.from(request.getFrequency()) : null);
-      statement.setInt(11, request.getMaximumNumberOfPeople());
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          Integer roomId = resultSet.getInt("id");
-          addUserToRoom(roomId, ownerId, Role.OWNER);
-          return getRoomById(roomId);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          if (resultSet.next()) {
+            Integer createdRoomId = resultSet.getInt("id");
+            addUserToRoomInTransaction(connection, createdRoomId, ownerId, Role.OWNER);
+            return createdRoomId;
+          }
         }
       }
 
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
-    }
-    throw new RuntimeException();
+      throw new RuntimeException("Failed to create room");
+    });
+
+    return getRoomById(roomId);
   }
 
   @Override
@@ -92,63 +91,16 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get room with id: " + roomId, e);
     }
     return null;
   }
 
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Role role) {
-    // Сначала проверяем, не забанен ли пользователь в этой комнате
-    if (isUserBannedInRoom(roomId, userId)) {
-      throw new IllegalStateException("User is banned from this room");
-    }
-
-    // Проверяем, не состоит ли пользователь уже в комнате
-    if (isUserInMembers(roomId, userId)) {
-      throw new IllegalStateException("User is already a member of this room");
-    }
-
-    // Проверяем, существует ли комната
-    Room room = getRoomById(roomId);
-    if (room == null) {
-      throw new IllegalArgumentException("Room with id " + roomId + " does not exist");
-    }
-
-    String sql = """
-        INSERT INTO Rooms_members (room_id, user_id, role_id)
-        VALUES (?, ?, (SELECT id FROM Roles WHERE LOWER(role) = LOWER(?)))
-        """;
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-      statement.setString(3, role.name());
-
-      int affectedRows = statement.executeUpdate();
-//      connection.commit();
-      if (affectedRows == 0) {
-        throw new RuntimeException("Failed to add user to room line 131");
-      }
-
-      // Логирование успешного добавления - оставляем, но НЕ кидаем исключение!
-      System.out.println("User " + userId + " added to room " + roomId + " with role " + role);
-
-      // Для отладки можно добавить (без throw):
-      System.out.println("Current users in room: " + getUsersInRoom(roomId));
-
+    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+      addUserToRoomInTransaction(connection, roomId, userId, role);
     } catch (SQLException e) {
-      System.err.println("Error adding user to room: " + e.getMessage());
-      // Более специфичное исключение в зависимости от ошибки
-      if (e.getMessage().contains("foreign key constraint")) {
-        throw new IllegalArgumentException("User or room does not exist", e);
-      } else if (e.getMessage().contains("unique constraint") ||
-          e.getMessage().contains("duplicate key")) {
-        throw new IllegalStateException("User is already a member of this room", e);
-      }
       throw new RuntimeException("Failed to add user to room", e);
     }
   }
@@ -168,9 +120,27 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println("Error checking user ban: " + e.getMessage());
       throw new RuntimeException("Failed to check user ban status", e);
     }
+    return false;
+  }
+
+  public boolean isUserBannedInTransaction(Connection connection, Integer roomId, Integer userId) {
+    String sql = "SELECT EXISTS(SELECT 1 FROM Bans WHERE room_id = ? AND user_id = ?)";
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getBoolean(1);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to check user ban status", e);
+    }
+
     return false;
   }
 
@@ -185,9 +155,26 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println("Error getting participant count: " + e.getMessage());
       throw new RuntimeException("Failed to get room participant count", e);
     }
+    return 0;
+  }
+
+  public int getRoomParticipantCountInTransaction(Connection connection, Integer roomId) {
+    String sql = "SELECT COUNT(*) FROM Rooms_members WHERE room_id = ?";
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getInt(1);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to get room participant count", e);
+    }
+
     return 0;
   }
 
@@ -200,50 +187,29 @@ public class RoomRepositoryImpl implements RoomRepository {
       statement.setInt(2, userId);
       int affectedRows = statement.executeUpdate();
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException(
+            "User " + userId + " is not a member of room " + roomId);
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException(
+          "Failed to remove user " + userId + " from room " + roomId, e);
     }
   }
 
   public void addUserBan(Integer roomId, Integer userId) {
-    String sql = """
-        INSERT INTO Bans (room_id, user_id)
-        VALUES (?, ?)
-        ON CONFLICT (user_id, room_id) DO NOTHING
-        """;
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-      statement.executeUpdate();
+    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+      addUserBanInTransaction(connection, roomId, userId);
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to add user ban", e);
     }
   }
 
   @Override
   public void deleteRoom(Integer roomId) {
-    deleteAllWithRooms(roomId);
-    String sql = "DELETE FROM Rooms WHERE id = ?";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException();
-      }
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
-    }
+    dataRepository.inTransaction(connection -> {
+      deleteRoomInTransaction(connection, roomId);
+      return null;
+    });
   }
 
   /**
@@ -251,25 +217,12 @@ public class RoomRepositoryImpl implements RoomRepository {
    *
    * @param roomId
    */
-  private void deleteAllWithRooms(Integer roomId) {
-    String sql = """
-        DELETE FROM BulletinBoard where room_id = ?;
-        DELETE FROM Bans WHERE room_id = ?;
-        DELETE FROM Rooms_requests WHERE room_id = ?;
-        DELETE FROM Rooms_members WHERE room_id = ?;
-        DELETE FROM Pictures WHERE room_id = ?;
-        """;
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      for (int i = 1; i <= 5; i++) {
-        statement.setInt(i, roomId);
-      }
-      statement.execute();
-
-    } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
-    }
+  private void deleteAllWithRoomsInTransaction(Connection connection, Integer roomId) {
+    deleteByRoomId(connection, "DELETE FROM BulletinBoard WHERE room_id = ?", roomId);
+    deleteByRoomId(connection, "DELETE FROM Bans WHERE room_id = ?", roomId);
+    deleteByRoomId(connection, "DELETE FROM Rooms_requests WHERE room_id = ?", roomId);
+    deleteByRoomId(connection, "DELETE FROM Rooms_members WHERE room_id = ?", roomId);
+    deleteByRoomId(connection, "DELETE FROM Pictures WHERE room_id = ?", roomId);
   }
 
   private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
@@ -316,7 +269,6 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println("Error getting users in room: " + e.getMessage());
       throw new RuntimeException("Failed to get room users", e);
     }
     return usersInRoom;
@@ -340,8 +292,7 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get bans for room: " + roomId, e);
     }
     return bans;
   }
@@ -365,9 +316,32 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println("Error checking if user is in room members: " + e.getMessage());
       throw new RuntimeException("Failed to check room membership", e);
     }
+    return false;
+  }
+
+  public boolean isUserInMembersInTransaction(Connection connection, Integer roomId, Integer userId) {
+    String sql = """
+        SELECT EXISTS(
+            SELECT 1 FROM Rooms_members
+            WHERE room_id = ? AND user_id = ?
+        )
+        """;
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getBoolean(1);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to check room membership", e);
+    }
+
     return false;
   }
 
@@ -391,8 +365,8 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException(
+          "Failed to check whether user " + userId + " owns room " + roomId, e);
     }
     return false;
   }
@@ -413,11 +387,12 @@ public class RoomRepositoryImpl implements RoomRepository {
       if (affectedRows > 0) {
         return;
       } else {
-        throw new RuntimeException();
+        throw new RuntimeException(
+            "Room membership not found for user " + userId + " in room " + roomId);
       }
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException(
+          "Failed to update role for user " + userId + " in room " + roomId, e);
     }
   }
 
@@ -439,10 +414,8 @@ public class RoomRepositoryImpl implements RoomRepository {
           int roleId = resultSet.getInt("role_id");
 
           if (resultSet.wasNull() || roleFromDb == null) {
-            System.err.println(
-                "WARNING: role_id = " + roleId + " but no matching role in Roles table");
-            // Возвращаем роль по умолчанию
-            return Role.PARTICIPANT;
+            throw new RuntimeException(
+                "Role mapping not found for role_id " + roleId + " in room " + roomId);
           }
 
           return Role.valueOf(roleFromDb.toUpperCase());
@@ -451,7 +424,6 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException | IllegalArgumentException e) {
-      System.err.println(e.getMessage());
       throw new RuntimeException("Error getting user role", e);
     }
   }
@@ -469,19 +441,25 @@ public class RoomRepositoryImpl implements RoomRepository {
       }
       return rooms;
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get rooms", e);
     }
   }
 
   public int getCategoryIdByName(String categoryName) {
+    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+      return getCategoryIdByNameInTransaction(connection, categoryName);
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to retrieve category ID", e);
+    }
+  }
+
+  public int getCategoryIdByNameInTransaction(Connection connection, String categoryName) {
     String sql = """
         SELECT id FROM Categories
         WHERE LOWER(name) = LOWER(?);
         """;
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, categoryName);
 
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -490,9 +468,108 @@ public class RoomRepositoryImpl implements RoomRepository {
         }
       }
     } catch (SQLException e) {
-      System.err.println("Error getting category ID by name: " + e.getMessage());
       throw new RuntimeException("Failed to retrieve category ID", e);
     }
-    return -1;
+
+    throw new ValidationException("Category not found: " + categoryName);
+  }
+
+  public void addUserToRoomInTransaction(Connection connection, Integer roomId, Integer userId,
+      Role role) {
+    if (isUserBannedInTransaction(connection, roomId, userId)) {
+      throw new IllegalStateException("User is banned from this room");
+    }
+
+    if (isUserInMembersInTransaction(connection, roomId, userId)) {
+      throw new IllegalStateException("User is already a member of this room");
+    }
+
+    if (!roomExistsInTransaction(connection, roomId)) {
+      throw new IllegalArgumentException("Room with id " + roomId + " does not exist");
+    }
+
+    String sql = """
+        INSERT INTO Rooms_members (room_id, user_id, role_id)
+        VALUES (?, ?, (SELECT id FROM Roles WHERE LOWER(role) = LOWER(?)))
+        """;
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+      statement.setString(3, role.name());
+
+      int affectedRows = statement.executeUpdate();
+      if (affectedRows == 0) {
+        throw new RuntimeException("Failed to add user to room");
+      }
+    } catch (SQLException e) {
+      String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+      if (message.contains("foreign key constraint")) {
+        throw new IllegalArgumentException("User or room does not exist", e);
+      }
+      if (message.contains("unique constraint") || message.contains("duplicate key")) {
+        throw new IllegalStateException("User is already a member of this room", e);
+      }
+      throw new RuntimeException("Failed to add user to room", e);
+    }
+  }
+
+  public void addUserBanInTransaction(Connection connection, Integer roomId, Integer userId) {
+    String sql = """
+        INSERT INTO Bans (room_id, user_id)
+        VALUES (?, ?)
+        ON CONFLICT (user_id, room_id) DO NOTHING
+        """;
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.setInt(2, userId);
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to add user ban", e);
+    }
+  }
+
+  public void deleteRoomInTransaction(Connection connection, Integer roomId) {
+    deleteAllWithRoomsInTransaction(connection, roomId);
+
+    String sql = "DELETE FROM Rooms WHERE id = ?";
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      int affectedRows = statement.executeUpdate();
+
+      if (affectedRows == 0) {
+        throw new RuntimeException("Room not found with id: " + roomId);
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to delete room", e);
+    }
+  }
+
+  private boolean roomExistsInTransaction(Connection connection, Integer roomId) {
+    String sql = "SELECT EXISTS(SELECT 1 FROM Rooms WHERE id = ?)";
+
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (resultSet.next()) {
+          return resultSet.getBoolean(1);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to verify room existence", e);
+    }
+
+    return false;
+  }
+
+  private void deleteByRoomId(Connection connection, String sql, Integer roomId) {
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setInt(1, roomId);
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to delete room related records", e);
+    }
   }
 }

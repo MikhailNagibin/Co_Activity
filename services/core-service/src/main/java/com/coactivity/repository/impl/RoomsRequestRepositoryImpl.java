@@ -68,11 +68,8 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error creating request: " + e.getMessage());
-      // Добавляем дополнительную информацию об ошибке
-      System.err.println("SQL: " + sql);
-      System.err.println("Parameters: userId=" + userId + ", roomId=" + roomId + ", statusId=" + statusId);
-      throw new RuntimeException("Failed to create rooms request: " + e.getMessage(), e);
+      throw new RuntimeException(
+          "Failed to create join request for user " + userId + " and room " + roomId, e);
     }
     throw new RuntimeException("Failed to create rooms request - no result returned");
   }
@@ -93,8 +90,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting status by ID: " + e.getMessage());
-      throw new RuntimeException("Failed to get status for id: " + statusId, e);
+      throw new RuntimeException("Failed to get request status for id: " + statusId, e);
     }
 
     throw new RuntimeException("Status not found for id: " + statusId);
@@ -116,9 +112,8 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting status ID: " + e.getMessage());
-      System.err.println("Looking for status: " + status.toDatabaseValue());
-      throw new RuntimeException("Failed to get status ID for: " + status.toDatabaseValue(), e);
+      throw new RuntimeException(
+          "Failed to get request status id for: " + status.toDatabaseValue(), e);
     }
 
     // Попробуем найти статус по имени без учета регистра
@@ -140,8 +135,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting status ID (case insensitive): " + e.getMessage());
-      throw new RuntimeException("Failed to get status ID for: " + statusValue, e);
+      throw new RuntimeException("Failed to get request status id for: " + statusValue, e);
     }
 
     throw new RuntimeException("Status not found: " + statusValue);
@@ -149,6 +143,15 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
 
   @Override
   public RoomsRequest updateRequest(int requestId, RequestStatus status) {
+    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+      return updateRequestInTransaction(connection, requestId, status);
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to update request with id: " + requestId, e);
+    }
+  }
+
+  public RoomsRequest updateRequestInTransaction(Connection connection, int requestId,
+      RequestStatus status) {
     String sql = """
             WITH updated AS (
                 UPDATE rooms_requests
@@ -166,9 +169,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
             JOIN RequestStatuses rs ON rs.id = u.status_id
             """;
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-         PreparedStatement statement = connection.prepareStatement(sql)) {
-
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, status.toDatabaseValue());
       statement.setInt(2, requestId);
 
@@ -179,7 +180,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error updating request: " + e.getMessage());
       throw new RuntimeException("Failed to update request with id: " + requestId, e);
     }
     throw new RuntimeException("Request not found with id: " + requestId);
@@ -200,7 +200,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error deleting request: " + e.getMessage());
       throw new RuntimeException("Failed to delete request with id: " + requestId, e);
     }
   }
@@ -233,7 +232,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting room requests: " + e.getMessage());
       throw new RuntimeException("Failed to get requests for room: " + roomId, e);
     }
     return requests;
@@ -267,7 +265,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting user requests: " + e.getMessage());
       throw new RuntimeException("Failed to get requests for user: " + userId, e);
     }
     return requests;
@@ -298,7 +295,6 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting request by id: " + e.getMessage());
       throw new RuntimeException("Failed to get request with id: " + requestId, e);
     }
     return null;
@@ -329,8 +325,8 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println("Error getting request by user and room: " + e.getMessage());
-      throw new RuntimeException("Failed to get request for user: " + userId + " and room: " + roomId, e);
+      throw new RuntimeException(
+          "Failed to get request for user " + userId + " and room " + roomId, e);
     }
     return null;
   }

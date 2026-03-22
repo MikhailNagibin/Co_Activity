@@ -47,10 +47,9 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to create bulletin board for room: " + roomId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Failed to create bulletin board: insert returned no id");
   }
 
   @Override
@@ -76,10 +75,9 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to update bulletin board for room: " + roomId, e);
     }
-    throw new RuntimeException();
+    throw new RuntimeException("Bulletin board not found for room: " + roomId);
   }
 
   @Override
@@ -98,7 +96,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to get bulletin board for room: " + roomId, e);
     }
     return null;
   }
@@ -114,12 +112,11 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       int affectedRows = statement.executeUpdate();
 
       if (affectedRows == 0) {
-        throw new RuntimeException();
+        throw new RuntimeException("Bulletin board not found for room: " + roomId);
       }
 
     } catch (SQLException e) {
-      System.err.println(e.getMessage());
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to delete bulletin board for room: " + roomId, e);
     }
   }
 
@@ -140,7 +137,7 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
       }
 
     } catch (SQLException e) {
-      throw new RuntimeException();
+      throw new RuntimeException("Failed to check bulletin board for room: " + roomId, e);
     }
   }
 
