@@ -1,11 +1,13 @@
 import AppHeader from '../components/AppHeader.jsx'
 import ActivityCard from '../components/ActivityCard.jsx'
 import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { ApiError } from '../api/httpClient.js'
 import { getRooms } from '../services/roomsService.js'
 import { mapRoomsToActivityCards } from '../services/uiMappers.js'
 
 function MainPage() {
+  const location = useLocation()
   const [activities, setActivities] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -44,7 +46,7 @@ function MainPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [location.key])
 
   return (
     <>
@@ -76,6 +78,10 @@ function MainPage() {
         </select>
 
         <button type="button">Фильтры</button>
+
+        <Link className="main-create-activity-btn" to="/create-room">
+          Создать активность
+        </Link>
 
         <section className="cards">
           {isLoading ? <p>Загрузка активностей...</p> : null}

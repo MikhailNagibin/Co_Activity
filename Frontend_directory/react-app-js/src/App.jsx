@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import DefaultCard0 from './pages/DefaultCard0.jsx'
 import DefaultQuestion0 from './pages/DefaultQuestion0.jsx'
+import CreateRoomPage from './pages/CreateRoomPage.jsx'
 import MainPage from './pages/MainPage.jsx'
 import QADataPage from './pages/QADataPage.jsx'
 import SignIn from './pages/SignIn.jsx'
@@ -16,6 +17,7 @@ function App() {
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/sign-up" element={<SignUp />} />
       <Route path="/main" element={<MainPage />} />
+      <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/qa" element={<QADataPage />} />
       <Route path="/cards/default-0" element={<DefaultCard0 />} />
       <Route path="/questions/default-0" element={<DefaultQuestion0 />} />

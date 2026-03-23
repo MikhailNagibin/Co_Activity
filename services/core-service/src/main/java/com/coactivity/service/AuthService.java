@@ -16,12 +16,23 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final Duration VERIFICATION_CODE_TTL = Duration.ofMinutes(10);
+
+    /**
+     * If true and Kafka/email publish fails, login still succeeds and the code is logged at WARN
+     * (for local dev without Kafka). Disable in production.
+     */
+    @Value("${auth.login.allow-without-kafka-delivery:false}")
+    private boolean allowWithoutKafkaDelivery;
 
     private final UserRepository userRepository;
     private final TokenService tokenService;
@@ -56,8 +67,14 @@ public class AuthService {
             boolean delivered = notificationService.sendLoginVerificationCode(request.getLogin(),
                     verificationCode);
             if (!delivered) {
-                pendingVerifications.remove(normalizedLogin);
-                throw new NotificationDeliveryException("Unable to deliver verification code");
+                if (allowWithoutKafkaDelivery) {
+                    log.warn(
+                            "Login verification code for {}: {} (Kafka/email publish failed; allow-without-kafka-delivery=true)",
+                            request.getLogin(), verificationCode);
+                } else {
+                    pendingVerifications.remove(normalizedLogin);
+                    throw new NotificationDeliveryException("Unable to deliver verification code");
+                }
             }
         } catch (AuthorizationException | NotificationDeliveryException e) {
             throw e;

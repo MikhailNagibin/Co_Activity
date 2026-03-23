@@ -5,6 +5,14 @@ import AuthLayout from '../components/AuthLayout.jsx'
 import { ApiError } from '../api/httpClient.js'
 import { register } from '../services/authService.js'
 
+/** Backend: Instant (ISO-8601), e.g. 2000-01-01T00:00:00Z */
+function birthDateInputToInstant(isoDate) {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return null
+  }
+  return `${isoDate}T00:00:00Z`
+}
+
 function SignUp() {
   const [formData, setFormData] = useState({
     email: '',
@@ -35,15 +43,37 @@ function SignUp() {
       return
     }
 
+    const email = formData.email.trim()
+    const userName = formData.nickname.trim()
+
+    if (!email) {
+      setErrorMessage('Укажите почту')
+      return
+    }
+    if (userName.length < 2 || userName.length > 20) {
+      setErrorMessage('Имя пользователя: от 2 до 20 символов')
+      return
+    }
+    if (formData.password.length < 8 || formData.password.length > 128) {
+      setErrorMessage('Пароль: от 8 до 128 символов')
+      return
+    }
+
+    const dateOfBirth = birthDateInputToInstant(formData.birthDate)
+    if (!dateOfBirth) {
+      setErrorMessage('Укажите дату рождения')
+      return
+    }
+
+    /** Matches core-service UserRegistrationRequest */
     const payload = {
-      email: formData.email,
-      login: formData.nickname,
-      nickname: formData.nickname,
+      login: email,
+      userName,
       password: formData.password,
-      birthDate: formData.birthDate,
-      country: formData.country,
-      city: formData.city,
-      about: formData.about,
+      dateOfBirth,
+      city: formData.city.trim() || undefined,
+      country: formData.country.trim() || undefined,
+      description: formData.about.trim() || undefined,
     }
 
     setIsSubmitting(true)
@@ -62,13 +92,7 @@ function SignUp() {
       })
     } catch (error) {
       if (error instanceof ApiError) {
-        const detailsText =
-          typeof error.details === 'string'
-            ? ` (${error.details})`
-            : error.details
-              ? ` (${JSON.stringify(error.details)})`
-              : ''
-        setErrorMessage(`${error.message}${detailsText}`)
+        setErrorMessage(error.message)
       } else {
         setErrorMessage('Не удалось создать аккаунт. Попробуйте снова.')
       }

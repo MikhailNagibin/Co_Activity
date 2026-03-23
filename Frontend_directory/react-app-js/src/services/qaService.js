@@ -4,7 +4,10 @@ export function getQuestions() {
   return get('/qa/questions')
 }
 
-export function getQuestionsByCategory(category) {
-  const encodedCategory = encodeURIComponent(category)
-  return get(`/qa/questions/category?category=${encodedCategory}`)
+/**
+ * @param {number} categoryId - matches core-service QAControllerImpl: ?categoryId=
+ */
+export function getQuestionsByCategory(categoryId) {
+  const id = encodeURIComponent(String(categoryId))
+  return get(`/qa/questions/category?categoryId=${id}`)
 }

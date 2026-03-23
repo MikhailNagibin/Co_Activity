@@ -84,6 +84,9 @@ public class UserRepositoryImpl implements UserRepository {
         }
       }
     } catch (SQLException e) {
+      if ("23505".equals(e.getSQLState())) {
+        throw new RuntimeException("User with this login or username already exists", e);
+      }
       throw new RuntimeException("Failed to create user with login: " + request.getLogin(), e);
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("Failed to hash password for user creation", e);

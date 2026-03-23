@@ -197,6 +197,15 @@ Why `QA_SERVICE_BASE_URL=http://localhost:8081` is required here:
 - `notifications-service` health does not depend on SMTP availability.
 - Use a Yandex app password, not the main account password.
 
+### Login code email does not arrive
+
+The flow is `core-service → Kafka → notifications-service → SMTP`. A `202` from `POST /api/users/login` only means the command was published to Kafka; the inbox depends on the rest of the chain.
+
+1. **Fill `.env`** with `SPRING_MAIL_USERNAME` and `SPRING_MAIL_PASSWORD` (Yandex app password). Empty values are common: Kafka succeeds but no email is sent.
+2. **Run `notifications-service`** (`docker compose ps` / `docker compose logs notifications-service`). On startup it logs an **ERROR** if SMTP credentials are missing.
+3. **Kafka address**: for JVM on the host, use `SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092` (see compose port mapping). Wrong broker → consumer never reads messages.
+4. **No mail server at all**: set `AUTH_LOGIN_ALLOW_WITHOUT_KAFKA=true` for `core-service` and read the OTP from **core-service** logs (development only; see `AuthService`).
+
 ## Tests
 
 Run core-service tests:

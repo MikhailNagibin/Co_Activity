@@ -1,4 +1,4 @@
-import { get, post } from '../api/httpClient.js'
+import { ApiError, get, post } from '../api/httpClient.js'
 import { setAccessToken } from '../api/tokenStorage.js'
 
 export function register(userData) {
@@ -14,9 +14,11 @@ export async function verifyCode({ login, code }) {
   const codeParam = encodeURIComponent(code)
   const payload = await post(`/users/login/verify?login=${loginParam}&code=${codeParam}`)
 
-  if (payload?.token) {
-    setAccessToken(payload.token)
+  const token = payload?.token
+  if (!token || typeof token !== 'string') {
+    throw new ApiError('Сервер не вернул токен. Повторите вход.', 200, null)
   }
+  setAccessToken(token)
 
   return payload
 }

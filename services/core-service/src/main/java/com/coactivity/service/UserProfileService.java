@@ -37,7 +37,10 @@ public class UserProfileService {
       User createdUser = userRepository.createUser(request);
       return new RegistrationResponse(createdUser.getId(), createdUser.getUserName());
     } catch (Exception e) {
-      throw new ValidationException("Unable to register user", e);
+      String message = e.getMessage() != null && !e.getMessage().isBlank()
+          ? e.getMessage()
+          : "Unable to register user";
+      throw new ValidationException(message, e);
     }
   }
 

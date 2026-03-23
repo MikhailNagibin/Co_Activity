@@ -2,6 +2,7 @@ package com.coactivity.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -62,6 +63,38 @@ class AuthServiceTest {
         (Map<String, ?>) ReflectionTestUtils.getField(authService, "pendingVerifications");
 
     assertFalse(pendingVerifications.containsKey(login));
+    verify(notificationService).sendLoginVerificationCode(eq(login), anyString());
+  }
+
+  @Test
+  void loginUserKeepsPendingVerificationWhenKafkaFailsAndDevFlagEnabled() {
+    String login = "student@example.com";
+    User user = new User(
+        7,
+        login,
+        "student",
+        "hashedPassword",
+        Instant.parse("2000-01-01T00:00:00Z"),
+        "Russia",
+        "Moscow",
+        "About",
+        1,
+        List.of(),
+        List.of());
+
+    when(userRepository.getUser(login, "Password123")).thenReturn(user);
+    when(notificationService.sendLoginVerificationCode(eq(login), anyString())).thenReturn(false);
+
+    LoginRequest request = new LoginRequest(login, "Password123");
+
+    ReflectionTestUtils.setField(authService, "allowWithoutKafkaDelivery", true);
+    authService.loginUser(request);
+
+    @SuppressWarnings("unchecked")
+    Map<String, ?> pendingVerifications =
+        (Map<String, ?>) ReflectionTestUtils.getField(authService, "pendingVerifications");
+
+    assertTrue(pendingVerifications.containsKey(login.toLowerCase()));
     verify(notificationService).sendLoginVerificationCode(eq(login), anyString());
   }
 }
