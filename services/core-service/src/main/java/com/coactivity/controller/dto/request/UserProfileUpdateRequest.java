@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserProfileUpdateRequest {
 
-  @Size(min = 2, max = 50)
+  @Size(min = 2, max = 20)
   private String username;
 
   @Past

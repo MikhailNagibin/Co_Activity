@@ -33,14 +33,6 @@ public class UserProfileService {
   }
 
   public RegistrationResponse registerUser(UserRegistrationRequest request) {
-    if (request == null
-        || isBlank(request.getLogin())
-        || isBlank(request.getUserName())
-        || isBlank(request.getPassword())
-        || request.getDateOfBirth() == null) {
-      throw new ValidationException("Invalid registration data");
-    }
-
     try {
       User createdUser = userRepository.createUser(request);
       return new RegistrationResponse(createdUser.getId(), createdUser.getUserName());

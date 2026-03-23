@@ -85,7 +85,7 @@ public class NotificationService {
       return true;
     }
 
-    String subject = "🎉 Welcome to " + roomName + "!";
+    String subject = "Welcome to " + roomName + "!";
     String message = String.format("""
          Hello!
 
@@ -103,11 +103,11 @@ public class NotificationService {
         log.warn("Failed to publish membership accepted notification for userId={}", userId);
         return false;
       }
-      log.info("✅ Membership accepted notification sent to userId={}, email={}", userId,
+      log.info("Membership accepted email command published to Kafka for userId={}, email={}", userId,
           user.getLogin());
       return true;
     } catch (Exception e) {
-      log.error("❌ Failed to send membership accepted notification to userId={}, email={}", userId,
+      log.error("Failed to send membership accepted notification to userId={}, email={}", userId,
           user.getLogin(), e);
       return false;
     }
@@ -131,7 +131,7 @@ public class NotificationService {
       return true;
     }
 
-    String subject = "❌ Membership request update for " + roomName;
+    String subject = "Membership request update for " + roomName;
     String message = String.format("""
          Hello!
 
@@ -150,11 +150,11 @@ public class NotificationService {
         log.warn("Failed to publish membership rejected notification for userId={}", userId);
         return false;
       }
-      log.info("✅ Membership rejected notification sent to userId={}, email={}", userId,
+      log.info("Membership rejected email command published to Kafka for userId={}, email={}", userId,
           user.getLogin());
       return true;
     } catch (Exception e) {
-      log.error("❌ Failed to send membership rejected notification to userId={}, email={}", userId,
+      log.error("Failed to send membership rejected notification to userId={}, email={}", userId,
           user.getLogin(), e);
       return false;
     }
@@ -194,10 +194,10 @@ public class NotificationService {
         log.warn("Failed to publish activity closed notification for userId={}", userId);
         return;
       }
-      log.info("✅ Activity closed notification sent to userId={}, email={}", userId,
+      log.info("Activity closed email command published to Kafka for userId={}, email={}", userId,
           user.getLogin());
     } catch (Exception e) {
-      log.error("❌ Failed to send activity closed notification to userId={}, email={}", userId,
+      log.error("Failed to send activity closed notification to userId={}, email={}", userId,
           user.getLogin(), e);
     }
   }
@@ -218,7 +218,7 @@ public class NotificationService {
       return;
     }
 
-    String subject = "📥 New join request for " + roomName;
+    String subject = "New join request for " + roomName;
     String message = String.format("""
         Hello Room Administrator!
 
@@ -236,10 +236,10 @@ public class NotificationService {
         log.warn("Failed to publish new join request notification for adminId={}", adminId);
         return;
       }
-      log.info("✅ New join request notification sent to adminId={}, email={}", adminId,
+      log.info("New join request email command published to Kafka for adminId={}, email={}", adminId,
           admin.getLogin());
     } catch (Exception e) {
-      log.error("❌ Failed to send new join request notification to adminId={}, email={}", adminId,
+      log.error("Failed to send new join request notification to adminId={}, email={}", adminId,
           admin.getLogin(), e);
     }
   }
@@ -247,7 +247,7 @@ public class NotificationService {
   public boolean sendLoginVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send login verification code to email={}", userEmail);
 
-    String subject = "🔐 Your CoActivity verification code";
+    String subject = "Your CoActivity verification code";
     String message = String.format("""
         Hello!
 
@@ -267,10 +267,10 @@ public class NotificationService {
         log.warn("Failed to publish login verification code for email={}", userEmail);
         return false;
       }
-      log.info("✅ Login verification code sent to email={}", userEmail);
+      log.info("Login verification email command published to Kafka for email={}", userEmail);
       return true;
     } catch (Exception e) {
-      log.error("❌ Failed to send login verification code to email={}", userEmail, e);
+      log.error("Failed to send login verification code to email={}", userEmail, e);
       return false;
     }
   }

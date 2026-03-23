@@ -10,7 +10,7 @@ Backend monorepo on Java 21 + Spring Boot + PostgreSQL + Kafka.
 - Canonical flow:
   - `client -> core-service`
   - `core-service -> qa-service` over internal HTTP
-  - `core-service -> Kafka -> notifications-service -> Mailpit/SMTP`
+  - `core-service -> Kafka -> notifications-service -> Yandex SMTP`
 
 This repo intentionally has one runtime path for each use case.
 There is no monolith fallback and no direct business HTTP API in `notifications-service`.
@@ -62,13 +62,7 @@ curl http://localhost:8080/actuator/health
 docker compose ps
 ```
 
-6. Open Mailpit UI:
-
-```text
-http://localhost:8025
-```
-
-7. View logs:
+6. View logs:
 
 ```bash
 docker compose logs -f core-service
@@ -78,7 +72,7 @@ docker compose logs -f kafka
 docker compose logs -f postgres
 ```
 
-8. Stop:
+7. Stop:
 
 ```bash
 docker compose down
@@ -103,9 +97,23 @@ curl http://localhost:8080/api/rooms
 curl http://localhost:8080/api/qa/questions
 ```
 
-## Mailpit Smoke Test
+## Yandex SMTP Smoke Test
 
 The email flow is tested through the real business path: `core-service -> Kafka -> notifications-service`.
+
+Before the test, make sure:
+
+- IMAP/SMTP access is enabled in Yandex Mail settings
+- you created a Yandex app password for Mail
+- `SPRING_MAIL_USERNAME` and `SPRING_MAIL_PASSWORD` in `.env` are filled in
+
+Preferred path:
+
+```bash
+./scripts/yandex-smoke-test.sh
+```
+
+Manual path:
 
 1. Register a temporary user:
 
@@ -116,12 +124,12 @@ curl -i -X POST http://localhost:8080/api/users \
   -H 'Content-Type: application/json' \
   -d "{
     \"login\": \"${TEST_EMAIL}\",
-    \"userName\": \"mailpit-smoke\",
+    \"userName\": \"yandex-smoke\",
     \"password\": \"Password123\",
     \"dateOfBirth\": \"2000-01-01T00:00:00Z\",
     \"city\": \"Moscow\",
     \"country\": \"Russia\",
-    \"description\": \"Mailpit smoke test user\",
+    \"description\": \"Yandex SMTP smoke test user\",
     \"avatarId\": 1
   }"
 ```
@@ -140,49 +148,14 @@ curl -i -X POST http://localhost:8080/api/users/login \
 Expected result:
 
 - `202 Accepted` from `/api/users/login`
-- a verification email appears in Mailpit at `http://localhost:8025`
-
-## Real Gmail Smoke Test
-
-Preferred path:
-
-```bash
-./scripts/gmail-smoke-test.sh
-```
-
-What the script does:
-
-1. Prompts for Gmail sender and app password without writing secrets into repo files
-2. Rebuilds only `notifications-service` with Gmail SMTP settings
-3. Stops Mailpit to avoid false positives
-4. Waits for `core-service` and `notifications-service`
-5. Registers a temporary user through `core-service`
-6. Triggers `POST /api/users/login`
-7. Shows recent `core-service` and `notifications-service` logs
-
-This checks the real production-like path through `core-service -> Kafka -> notifications-service`.
-
-Rollback to Mailpit:
-
-```bash
-unset SPRING_MAIL_HOST
-unset SPRING_MAIL_PORT
-unset SPRING_MAIL_SMTP_AUTH
-unset SPRING_MAIL_SMTP_STARTTLS_ENABLE
-unset SPRING_MAIL_SMTP_STARTTLS_REQUIRED
-unset SPRING_MAIL_USERNAME
-unset SPRING_MAIL_PASSWORD
-
-docker compose up -d mailpit
-docker compose up -d --no-deps notifications-service
-```
+- a verification email appears in the target Yandex inbox or spam folder
 
 ## Local Run
 
 If you run services locally, keep Docker only for infrastructure:
 
 ```bash
-docker compose up -d postgres kafka mailpit
+docker compose up -d postgres kafka
 ```
 
 Then run the services locally in separate terminals:
@@ -192,6 +165,13 @@ Then run the services locally in separate terminals:
 ```
 
 ```bash
+SPRING_MAIL_HOST=smtp.yandex.ru \
+SPRING_MAIL_PORT=587 \
+SPRING_MAIL_SMTP_AUTH=true \
+SPRING_MAIL_SMTP_STARTTLS_ENABLE=true \
+SPRING_MAIL_SMTP_STARTTLS_REQUIRED=true \
+SPRING_MAIL_USERNAME=your-mail@yandex.ru \
+SPRING_MAIL_PASSWORD=your-app-password \
 SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
 ./mvnw -f services/notifications-service/pom.xml spring-boot:run
 ```
@@ -212,10 +192,10 @@ Why `QA_SERVICE_BASE_URL=http://localhost:8081` is required here:
 
 ## SMTP for Local Development
 
-- Docker Compose uses `Mailpit` by default.
+- Docker Compose uses Yandex SMTP by default.
 - `SPRING_MAIL_*` variables are used only by `notifications-service`.
 - `notifications-service` health does not depend on SMTP availability.
-- Do not store a real Gmail app password in `.env` unless you intentionally accept that trade-off.
+- Use a Yandex app password, not the main account password.
 
 ## Tests
 

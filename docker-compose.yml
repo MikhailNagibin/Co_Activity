@@ -44,14 +44,6 @@ services:
       - "29092:29092"
     restart: unless-stopped
 
-  mailpit:
-    image: axllent/mailpit:v1.26
-    container_name: coactivity_mailpit
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    restart: unless-stopped
-
   qa-service:
     container_name: coactivity_qa_service
     build:
@@ -83,14 +75,12 @@ services:
     depends_on:
       kafka:
         condition: service_started
-      mailpit:
-        condition: service_started
     environment:
-      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-mailpit}
-      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
-      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-false}
-      SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-false}
-      SPRING_MAIL_SMTP_STARTTLS_REQUIRED: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:-false}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.yandex.ru}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-true}
+      SPRING_MAIL_SMTP_STARTTLS_REQUIRED: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:-true}
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092

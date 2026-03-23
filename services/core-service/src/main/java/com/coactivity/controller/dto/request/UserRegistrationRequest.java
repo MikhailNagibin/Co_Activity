@@ -21,7 +21,7 @@ public class UserRegistrationRequest {
   private String login;
 
   @NotBlank
-  @Size(min = 2, max = 50)
+  @Size(min = 2, max = 20)
   private String userName;
 
   @NotBlank

@@ -4,7 +4,7 @@ This directory contains the three backend services.
 
 - `core-service` - the only public HTTP API; auth, users, rooms, join requests, facade for Q&A
 - `qa-service` - internal HTTP microservice for Q&A
-- `notifications-service` - Kafka consumer that sends email through Mailpit/SMTP
+- `notifications-service` - Kafka consumer that sends email through Yandex SMTP
 
 Build or run locally:
 
@@ -21,5 +21,5 @@ Canonical runtime flow:
 ```text
 client -> core-service
 core-service -> qa-service (HTTP)
-core-service -> Kafka -> notifications-service -> Mailpit/SMTP
+core-service -> Kafka -> notifications-service -> Yandex SMTP
 ```
