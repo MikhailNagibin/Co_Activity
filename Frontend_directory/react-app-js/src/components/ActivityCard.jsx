@@ -21,7 +21,7 @@ function ActivityCard({ item }) {
       <p>{item.date}</p>
       <p>{item.capacity}</p>
       <div className="activity-card-author">
-        <span aria-hidden="true">👤</span>
+        <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
         <h5>{item.author}</h5>
       </div>
     </article>

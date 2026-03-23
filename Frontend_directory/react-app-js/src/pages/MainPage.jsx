@@ -1,40 +1,51 @@
 import AppHeader from '../components/AppHeader.jsx'
 import ActivityCard from '../components/ActivityCard.jsx'
-
-const activities = [
-  {
-    title: 'Баскетбол в центре города',
-    description: 'Нужны игроки для отличного матча kjnfv',
-    location: 'Москва, Ленинский проспект, д. 17',
-    date: '11.03.2026',
-    capacity: 'Набрано 6/20',
-    author: 'Alex Ivanov',
-    image: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800',
-    linkTo: '/cards/default-0',
-  },
-  {
-    title: 'Баскетбол в центре города',
-    description:
-      'Нужны игроки для отличного матча kjndjkvndklvjnksldmckjscfhyuewivhjncdslkjvnslkd;vmklsnfv',
-    location: 'Москва, Ленинский проспект, д. 17',
-    date: '11.03.2026',
-    capacity: 'Набрано 6/20',
-    author: 'Alex Ivanov',
-    image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800',
-  },
-  {
-    title: 'Баскетбол в центре города',
-    description:
-      'Нужны игроки для отличного матча kjndjkvndklvjnksldmckjscfhyuewivhjncdslkjvnslkd;vmklsnfv',
-    location: 'Москва, Ленинский проспект, д. 17',
-    date: '11.03.2026',
-    capacity: 'Набрано 6/20',
-    author: 'Alex Ivanov',
-    image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
-  },
-]
+import { useEffect, useState } from 'react'
+import { ApiError } from '../api/httpClient.js'
+import { getRooms } from '../services/roomsService.js'
+import { mapRoomsToActivityCards } from '../services/uiMappers.js'
 
 function MainPage() {
+  const [activities, setActivities] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRooms = async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const payload = await getRooms()
+        if (!isMounted) {
+          return
+        }
+        setActivities(mapRoomsToActivityCards(payload))
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+        if (error instanceof ApiError) {
+          setErrorMessage(error.message)
+        } else {
+          setErrorMessage('Не удалось загрузить активности')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadRooms()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   return (
     <>
       <AppHeader activeTab="main" />
@@ -46,7 +57,7 @@ function MainPage() {
       <main className="main-page-content">
         <div className="search-wrapper">
           <button className="search-button" type="button" aria-label="Поиск">
-            🔍
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           </button>
           <input placeholder="Поиск активностей..." type="text" />
         </div>
@@ -67,9 +78,16 @@ function MainPage() {
         <button type="button">Фильтры</button>
 
         <section className="cards">
-          {activities.map((item, index) => (
-            <ActivityCard key={`${item.title}-${index}`} item={item} />
-          ))}
+          {isLoading ? <p>Загрузка активностей...</p> : null}
+          {!isLoading && errorMessage ? <p style={{ color: '#b00020' }}>{errorMessage}</p> : null}
+          {!isLoading && !errorMessage && activities.length === 0 ? (
+            <p>Пока нет активностей</p>
+          ) : null}
+          {!isLoading && !errorMessage
+            ? activities.map((item, index) => (
+                <ActivityCard key={item.id ?? `${item.title}-${index}`} item={item} />
+              ))
+            : null}
         </section>
       </main>
     </>

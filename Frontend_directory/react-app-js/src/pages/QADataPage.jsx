@@ -1,36 +1,55 @@
 import AppHeader from '../components/AppHeader.jsx'
 import QuestionPreview from '../components/QuestionPreview.jsx'
-
-const questionTemplate = {
-  author: 'Alex Ivanov',
-  createdAt: '02.03.2026 18:24',
-  title: 'Как начать изучать язык программирования Java новичку?',
-  description:
-    'Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как джава, то больше...',
-  tags: ['java', 'программирование', 'it', 'python'],
-  answersCount: 3,
-}
-
-const questions = [
-  { ...questionTemplate, linkTo: '/questions/default-0' },
-  { ...questionTemplate },
-  { ...questionTemplate },
-  { ...questionTemplate },
-]
-
-const keywordTags = [
-  'java',
-  'программирование',
-  'баскетбол',
-  'футбол',
-  'начинающий',
-  'it',
-  'python',
-  'математика',
-  'Дейкстра',
-]
+import { useEffect, useState } from 'react'
+import { ApiError } from '../api/httpClient.js'
+import { getQuestions } from '../services/qaService.js'
+import { mapQuestionsToPreview } from '../services/uiMappers.js'
 
 function QADataPage() {
+  const [questions, setQuestions] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadQuestions = async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const payload = await getQuestions()
+        if (!isMounted) {
+          return
+        }
+        setQuestions(mapQuestionsToPreview(payload))
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+        if (error instanceof ApiError) {
+          setErrorMessage(error.message)
+        } else {
+          setErrorMessage('Не удалось загрузить вопросы')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadQuestions()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const keywordTags = Array.from(
+    new Set(questions.flatMap((question) => question.tags).filter((tag) => tag.trim() !== '')),
+  ).slice(0, 15)
+
   return (
     <>
       <AppHeader activeTab="qa" />
@@ -44,7 +63,7 @@ function QADataPage() {
       <main className="main-page-content qa-page-content">
         <div className="search-wrapper">
           <button className="search-button" type="button" aria-label="Поиск">
-            🔍
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           </button>
           <input placeholder="Поиск активностей..." type="text" />
         </div>
@@ -66,18 +85,27 @@ function QADataPage() {
         <div className="keywords-row">
           <h2>Ключевые слова:</h2>
           <section className="tags">
-            {keywordTags.map((tag) => (
-              <button key={tag} type="button">
-                {tag}
-              </button>
-            ))}
+            {keywordTags.length === 0 ? (
+              <em>Нет данных по ключевым словам</em>
+            ) : (
+              keywordTags.map((tag) => (
+                <button key={tag} type="button">
+                  {tag}
+                </button>
+              ))
+            )}
           </section>
         </div>
 
         <section className="questions">
-          {questions.map((item, index) => (
-            <QuestionPreview key={`${item.title}-${index}`} item={item} />
-          ))}
+          {isLoading ? <p>Загрузка вопросов...</p> : null}
+          {!isLoading && errorMessage ? <p style={{ color: '#b00020' }}>{errorMessage}</p> : null}
+          {!isLoading && !errorMessage && questions.length === 0 ? <p>Пока нет вопросов</p> : null}
+          {!isLoading && !errorMessage
+            ? questions.map((item, index) => (
+                <QuestionPreview key={item.id ?? `${item.title}-${index}`} item={item} />
+              ))
+            : null}
         </section>
       </main>
     </>

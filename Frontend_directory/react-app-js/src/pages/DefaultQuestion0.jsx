@@ -31,9 +31,10 @@ function DefaultQuestion0() {
 
         <article id="specific-question">
           <div className="question-author-col">
-            <div className="question-avatar question-avatar-lg" aria-hidden="true">
-              👤
-            </div>
+            <i
+              className="fa-regular fa-circle-user question-avatar question-avatar-lg"
+              aria-hidden="true"
+            ></i>
             <h3>Alex Ivanov</h3>
             <em>02.03.2026 18:24</em>
           </div>
@@ -66,9 +67,7 @@ function DefaultQuestion0() {
               key={`${answer.author}-${answer.date}`}
             >
               <div className="account-part-of-article">
-                <div className="question-avatar" aria-hidden="true">
-                  👤
-                </div>
+                <i className="fa-regular fa-circle-user question-avatar" aria-hidden="true"></i>
                 <h4>{answer.author}</h4>
                 <em>{answer.date}</em>
               </div>

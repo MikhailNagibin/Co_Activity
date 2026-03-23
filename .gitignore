@@ -37,3 +37,4 @@ src/main/resources/config.json
 .env
 .env.local
 .env.*.local
+extra_tools/

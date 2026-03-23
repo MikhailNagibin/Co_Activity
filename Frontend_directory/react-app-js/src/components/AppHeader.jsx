@@ -21,9 +21,7 @@ function AppHeader({
           Вопросы-ответы
         </Link>
       </h4>
-      <span className="fa-regular fa-moon" aria-hidden="true">
-        🌙
-      </span>
+      <i className="fa-regular fa-moon" aria-hidden="true"></i>
       <button type="button" className="header-auth-button">
         <Link className="header-auth-link" to={authActionTo}>
           {authActionLabel}

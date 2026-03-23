@@ -22,7 +22,7 @@ function DefaultCard0() {
               <h2>Организатор</h2>
               <hr />
               <div className="organizer-row">
-                <span aria-hidden="true">👤</span>
+                <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
                 <h2>Alex Ivanov</h2>
               </div>
             </article>

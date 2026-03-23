@@ -4,6 +4,10 @@ function AuthField({
   name,
   placeholder,
   inlineRight = null,
+  value,
+  onChange,
+  autoComplete,
+  disabled = false,
 }) {
   return (
     <div>
@@ -11,9 +15,15 @@ function AuthField({
         <h3>{label}</h3>
         {inlineRight}
       </div>
-      <form action="">
-        <input type={type} name={name} placeholder={placeholder} />
-      </form>
+      <input
+        type={type}
+        name={name}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        disabled={disabled}
+      />
     </div>
   )
 }

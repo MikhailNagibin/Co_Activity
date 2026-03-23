@@ -12,9 +12,7 @@ function QuestionPreview({ item }) {
   return (
     <article className="question-item">
       <div className="question-author-col">
-        <div className="question-avatar" aria-hidden="true">
-          👤
-        </div>
+        <i className="fa-regular fa-circle-user question-avatar" aria-hidden="true"></i>
         <h4>{item.author}</h4>
         <em>{item.createdAt}</em>
       </div>
