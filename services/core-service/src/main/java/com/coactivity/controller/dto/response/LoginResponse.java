@@ -1,0 +1,19 @@
+package com.coactivity.controller.dto.response;
+
+import com.coactivity.domain.User;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoginResponse {
+
+  private String token;
+
+  private Integer userId;
+
+  private String userName;
+}
+

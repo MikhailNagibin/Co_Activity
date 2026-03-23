@@ -1,5 +1,6 @@
 HELP.md
 target/
+**/target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -33,8 +34,10 @@ build/
 .vscode/
 
 ### Configs ###
-src/main/resources/config.json
+services/core-service/src/main/resources/config.json
 .env
 .env.local
 .env.*.local
-extra_tools/
+
+
+extra_tools
