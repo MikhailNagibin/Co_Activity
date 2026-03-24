@@ -2,6 +2,7 @@
 
 ## Topic
 - `notifications.email.v1`
+- default DLT: `notifications.email.v1.dlt`
 
 ## Producer
 - `core-service` (`NotificationService`)
@@ -29,3 +30,5 @@
 - Other notification emails are published after the main DB change and are best-effort.
 - Consumer is at-least-once, so duplicates are possible.
 - Email delivery should be idempotent on business level where possible.
+- `MailException` is retried and, after retries are exhausted, the original record is published to DLT.
+- Invalid JSON or DTO validation failures are not retried and are published to DLT immediately.

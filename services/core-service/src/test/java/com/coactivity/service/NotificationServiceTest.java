@@ -49,7 +49,7 @@ class NotificationServiceTest {
     userRepository = Mockito.mock(UserRepositoryImpl.class);
     kafkaTemplate = Mockito.mock(KafkaTemplate.class);
 
-    notificationService = new NotificationService(userRepository);
+    notificationService = new NotificationService(userRepository, objectMapper);
     notificationService.setKafkaTemplate(kafkaTemplate);
     notificationService.setNotificationsKafkaTopic(TOPIC);
 
@@ -122,7 +122,8 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Returns false for login verification when Kafka template is missing")
   void sendLoginVerificationCode_returnsFalseWhenKafkaTemplateMissing() {
-    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    NotificationService notificationServiceWithoutKafka =
+        new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
     boolean delivered = notificationServiceWithoutKafka.sendLoginVerificationCode(testUserEmail,
@@ -134,7 +135,8 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Returns false when Kafka template is missing")
   void sendMembershipAcceptedSync_returnsFalseWhenKafkaTemplateMissing() {
-    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    NotificationService notificationServiceWithoutKafka =
+        new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
     testUser.setNotifications(List.of(Notification.MEMBERSHIP_ACCEPTED));
@@ -149,7 +151,8 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Logs warn without success message when membership rejected publish fails")
   void sendMembershipRejectedSync_logsWarnWithoutSuccessWhenKafkaPublishFails() {
-    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    NotificationService notificationServiceWithoutKafka =
+        new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
     testUser.setNotifications(List.of(Notification.MEMBERSHIP_REJECTED));
@@ -171,7 +174,8 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Logs warn without success message when activity closed publish fails")
   void sendActivityClosed_logsWarnWithoutSuccessWhenKafkaPublishFails() {
-    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    NotificationService notificationServiceWithoutKafka =
+        new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
     testUser.setNotifications(List.of(Notification.ACTIVITY_CLOSED));
@@ -191,7 +195,8 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Logs warn without success message when new join request publish fails")
   void sendNewJoinRequest_logsWarnWithoutSuccessWhenKafkaPublishFails() {
-    NotificationService notificationServiceWithoutKafka = new NotificationService(userRepository);
+    NotificationService notificationServiceWithoutKafka =
+        new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
     testUser.setNotifications(List.of(Notification.NEW_JOIN_REQUEST));

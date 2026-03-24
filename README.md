@@ -7,6 +7,7 @@ Backend monorepo on Java 21 + Spring Boot + PostgreSQL + Kafka.
 - `core-service` is the only public HTTP API.
 - `qa-service` is an internal HTTP microservice for Q&A.
 - `notifications-service` is a Kafka consumer for email delivery.
+- failed notification records are redirected to a DLT topic after retries or immediately for invalid payloads.
 - Canonical flow:
   - `client -> core-service`
   - `core-service -> qa-service` over internal HTTP

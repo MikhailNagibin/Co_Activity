@@ -32,23 +32,35 @@ public class KafkaEmailConsumer {
       topics = "${notifications.kafka.topic:notifications.email.v1}",
       groupId = "${notifications.kafka.group-id:notifications-service-v1}")
   public void consumeEmailCommand(String payload) {
+    SendEmailRequest request = deserializeAndValidate(payload);
     try {
-      SendEmailRequest request = objectMapper.readValue(payload, SendEmailRequest.class);
-      Set<ConstraintViolation<SendEmailRequest>> violations = validator.validate(request);
-      if (!violations.isEmpty()) {
-        log.error("Rejecting invalid Kafka email command: {}",
-            violations.stream()
-                .map(ConstraintViolation::getMessage)
-                .collect(Collectors.joining(", ")));
-        return;
-      }
       emailService.sendEmail(request);
       log.info("Kafka email command delivered to {}", request.to());
     } catch (MailException e) {
       log.error("Failed to deliver Kafka email command: {}", payload, e);
       throw e;
+    }
+  }
+
+  private SendEmailRequest deserializeAndValidate(String payload) {
+    final SendEmailRequest request;
+    try {
+      request = objectMapper.readValue(payload, SendEmailRequest.class);
     } catch (Exception e) {
       log.error("Rejecting invalid Kafka email command payload: {}", payload, e);
+      throw new InvalidEmailCommandException("Kafka email command payload is not valid JSON", e);
     }
+
+    Set<ConstraintViolation<SendEmailRequest>> violations = validator.validate(request);
+    if (!violations.isEmpty()) {
+      String violationMessage = violations.stream()
+          .map(ConstraintViolation::getMessage)
+          .collect(Collectors.joining(", "));
+      log.error("Rejecting invalid Kafka email command: {}", violationMessage);
+      throw new InvalidEmailCommandException(
+          "Kafka email command violates DTO constraints: " + violationMessage);
+    }
+
+    return request;
   }
 }

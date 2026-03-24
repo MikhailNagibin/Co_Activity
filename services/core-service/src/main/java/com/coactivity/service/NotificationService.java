@@ -26,14 +26,15 @@ public class NotificationService {
   private static final long DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS = 5000L;
 
   private final UserRepository userRepository;
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper;
 
   private KafkaTemplate<String, String> kafkaTemplate;
   private String notificationsKafkaTopic = DEFAULT_NOTIFICATIONS_KAFKA_TOPIC;
   private long notificationsKafkaSendTimeoutMs = DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS;
 
-  public NotificationService(UserRepository userRepository) {
+  public NotificationService(UserRepository userRepository, ObjectMapper objectMapper) {
     this.userRepository = userRepository;
+    this.objectMapper = objectMapper;
   }
 
   @Autowired(required = false)

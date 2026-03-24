@@ -21,6 +21,7 @@ import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.RoomsRequestRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.exception.ValidationException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ import org.springframework.kafka.support.SendResult;
 class NotificationIntegrationTest {
 
   private static final String TOPIC = "notifications.email.v1";
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private RoomRepositoryImpl roomRepository;
   private RoomsRequestRepositoryImpl roomsRequestRepository;
@@ -66,7 +68,7 @@ class NotificationIntegrationTest {
     kafkaTemplate = Mockito.mock(KafkaTemplate.class);
     transactionConnection = Mockito.mock(Connection.class);
 
-    notificationService = new NotificationService(userRepository);
+    notificationService = new NotificationService(userRepository, objectMapper);
     notificationService.setKafkaTemplate(kafkaTemplate);
     notificationService.setNotificationsKafkaTopic(TOPIC);
 

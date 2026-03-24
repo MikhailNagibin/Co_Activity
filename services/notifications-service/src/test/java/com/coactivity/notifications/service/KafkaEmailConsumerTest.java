@@ -1,7 +1,8 @@
 package com.coactivity.notifications.service;
 
-import static org.mockito.Mockito.never;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.coactivity.notifications.dto.SendEmailRequest;
@@ -45,7 +46,8 @@ class KafkaEmailConsumerTest {
   void shouldSkipMalformedPayload() {
     KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator);
 
-    consumer.consumeEmailCommand("not-json");
+    assertThrows(InvalidEmailCommandException.class,
+        () -> consumer.consumeEmailCommand("not-json"));
     verify(emailService, never()).sendEmail(org.mockito.ArgumentMatchers.any());
   }
 
@@ -59,7 +61,8 @@ class KafkaEmailConsumerTest {
         "body"
     );
 
-    consumer.consumeEmailCommand(objectMapper.writeValueAsString(request));
+    assertThrows(InvalidEmailCommandException.class,
+        () -> consumer.consumeEmailCommand(objectMapper.writeValueAsString(request)));
 
     verify(emailService, never()).sendEmail(org.mockito.ArgumentMatchers.any());
   }
@@ -77,7 +80,7 @@ class KafkaEmailConsumerTest {
         .when(emailService)
         .sendEmail(request);
 
-    org.junit.jupiter.api.Assertions.assertThrows(MailSendException.class,
+    assertThrows(MailSendException.class,
         () -> consumer.consumeEmailCommand(objectMapper.writeValueAsString(request)));
   }
 }
