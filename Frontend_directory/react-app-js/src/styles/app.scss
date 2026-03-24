@@ -519,3 +519,99 @@ body {
     background-color: rgb(36, 36, 36);
   }
 }
+
+.create-question-counter {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: rgb(80, 80, 80);
+}
+
+.profile-page {
+  padding: 12px 5em 3em;
+  width: 100%;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.profile-panel {
+  background-color: rgb(191, 194, 197);
+  border: 1px solid rgb(136, 134, 134);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  input,
+  textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 7px;
+    border: 1px solid #767676;
+    background-color: #fff;
+    font-size: small;
+  }
+}
+
+.profile-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+
+  input {
+    width: auto;
+  }
+}
+
+.profile-links {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+
+  button {
+    text-align: left;
+    padding: 10px;
+    border: 1px solid #767676;
+    border-radius: 7px;
+    background-color: #fff;
+  }
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-delete-btn {
+  margin-top: 8px;
+  padding: 12px 20px;
+  background-color: #9b0f0f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: small;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: #7d0a0a;
+  }
+}
+
+.profile-success {
+  color: #146c43;
+  margin: 8px 0 0;
+}

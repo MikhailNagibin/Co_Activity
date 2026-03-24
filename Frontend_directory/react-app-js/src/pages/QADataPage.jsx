@@ -1,7 +1,9 @@
 import AppHeader from '../components/AppHeader.jsx'
 import QuestionPreview from '../components/QuestionPreview.jsx'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ApiError } from '../api/httpClient.js'
+import { getAccessToken } from '../api/tokenStorage.js'
 import { getQuestions } from '../services/qaService.js'
 import { mapQuestionsToPreview } from '../services/uiMappers.js'
 
@@ -9,6 +11,7 @@ function QADataPage() {
   const [questions, setQuestions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const hasToken = Boolean(getAccessToken())
 
   useEffect(() => {
     let isMounted = true
@@ -81,6 +84,11 @@ function QADataPage() {
           <option value="others">Другое</option>
         </select>
         <button type="button">Фильтры</button>
+        {hasToken ? (
+          <Link className="main-create-activity-btn" to="/qa/new">
+            Задать вопрос
+          </Link>
+        ) : null}
 
         <div className="keywords-row">
           <h2>Ключевые слова:</h2>

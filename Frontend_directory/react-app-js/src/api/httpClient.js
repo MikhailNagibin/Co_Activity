@@ -159,3 +159,11 @@ export function get(path, options = {}) {
 export function post(path, body, options = {}) {
   return apiRequest(path, { ...options, method: 'POST', body })
 }
+
+export function put(path, body, options = {}) {
+  return apiRequest(path, { ...options, method: 'PUT', body })
+}
+
+export function del(path, options = {}) {
+  return apiRequest(path, { ...options, method: 'DELETE' })
+}

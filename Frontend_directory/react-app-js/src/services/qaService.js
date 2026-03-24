@@ -1,7 +1,11 @@
-import { get } from '../api/httpClient.js'
+import { get, post } from '../api/httpClient.js'
 
 export function getQuestions() {
   return get('/qa/questions')
+}
+
+export function createQuestion(payload, options = {}) {
+  return post('/qa/questions', payload, { ...options, withAuth: true })
 }
 
 /**

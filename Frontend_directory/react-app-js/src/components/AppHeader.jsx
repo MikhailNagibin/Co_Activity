@@ -1,12 +1,16 @@
 import { Link } from 'react-router-dom'
+import { getAccessToken } from '../api/tokenStorage.js'
 
 function AppHeader({
   authActionLabel = 'Войти',
   authActionTo = '/sign-in',
   activeTab = null,
 }) {
+  const hasToken = Boolean(getAccessToken())
   const activityClass = activeTab === 'main' ? 'nav-link-active' : 'nav-link-muted'
   const qaClass = activeTab === 'qa' ? 'nav-link-active' : 'nav-link-muted'
+  const actionLabel = hasToken ? 'Профиль' : authActionLabel
+  const actionTo = hasToken ? '/profile' : authActionTo
 
   return (
     <header id="main-header">
@@ -23,8 +27,8 @@ function AppHeader({
       </h4>
       <i className="fa-regular fa-moon" aria-hidden="true"></i>
       <button type="button" className="header-auth-button">
-        <Link className="header-auth-link" to={authActionTo}>
-          {authActionLabel}
+        <Link className="header-auth-link" to={actionTo}>
+          {actionLabel}
         </Link>
       </button>
     </header>
