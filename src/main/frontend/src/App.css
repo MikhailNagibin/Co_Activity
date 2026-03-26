@@ -1,0 +1,113 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  background-color: rgb(237, 234, 234);
+  min-height: 800px;
+}
+
+#main-header {
+  background-color: rgb(237, 234, 234);
+  height: 50px;
+  width: 100%;
+  padding: 10px 5em 0 5em;
+  display: flex;
+  align-items: baseline;
+  gap: 19px;
+  position: fixed;
+  border-bottom: 1px solid rgb(77, 77, 77);
+}
+
+.gray-elem {
+  color: rgb(136, 112, 112);
+}
+
+#main-header .fa-moon {
+  margin-left: auto;
+  margin-right: 10px;
+  font-size: 20px;
+  padding: 5px;
+  border-radius: 9px;
+  line-height: 1;
+}
+
+#main-header .fa-moon:hover {
+  background-color: rgb(201, 189, 189);
+}
+
+#main-header button {
+  background-color: black;
+  color: white;
+  flex-basis: 90px;
+  height: 30px;
+}
+
+#main-header button a {
+  text-decoration: none;
+}
+
+.nav-link-muted {
+  color: rgb(116, 113, 113);
+  text-decoration: none;
+}
+
+.nav-link-muted:hover {
+  text-decoration: underline;
+}
+
+button {
+  border-radius: 6px;
+  border: none;
+}
+
+.virtual-elem {
+  padding-top: 66px;
+}
+
+.sign-field {
+  margin: 10px auto;
+  padding: 20px;
+  text-align: center;
+  border: 1.5px solid black;
+  width: 50%;
+}
+
+.sign-field > section {
+  text-align: left;
+}
+
+.sign-field > section input,
+.sign-field > section button,
+.sign-field > section textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.sign-field section > * {
+  margin-bottom: 15px;
+}
+
+.field-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.field-head--between {
+  justify-content: space-between;
+}
+
+.split-fields {
+  display: flex;
+  gap: 16px;
+}
+
+.split-fields > * {
+  flex: 1;
+}

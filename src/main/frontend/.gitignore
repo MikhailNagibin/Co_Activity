@@ -1,0 +1,11 @@
+# Frontend build
+src/main/frontend/dist/
+src/main/frontend/node_modules/
+target/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store

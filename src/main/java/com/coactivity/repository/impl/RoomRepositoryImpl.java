@@ -33,7 +33,11 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   @Override
   public Room createRoom(Integer ownerId, RoomCreationRequest request) {
-    Category category = categoryRepository.findByName(request.getCategory().toUpperCase())
+    for (Category cur : getAllCategories()) {
+      System.out.println(cur.getName());
+    }
+    System.out.println(request.getCategory());
+    Category category = categoryRepository.findByName(request.getCategory().toLowerCase())
         .orElseThrow(() -> new IllegalArgumentException("Category not found: " + request.getCategory()));
 
     Room room = new Room();
@@ -259,5 +263,32 @@ public class RoomRepositoryImpl implements RoomRepository {
     return categoryRepository.findByName(categoryName.toUpperCase())
         .map(Category::getId)
         .orElse(-1);
+  }
+
+  /**
+   * Получить все категории из базы данных
+   * @return список всех категорий
+   */
+  public List<Category> getAllCategories() {
+    return entityManager.createQuery("SELECT c FROM Category c ORDER BY c.id", Category.class)
+        .getResultList();
+  }
+
+  /**
+   * Получить категорию по имени (без учета регистра)
+   * @param name название категории
+   * @return Optional с категорией или пустой Optional
+   */
+  public Optional<Category> getCategoryByName(String name) {
+    try {
+      Category category = entityManager.createQuery(
+              "SELECT c FROM Category c WHERE LOWER(c.name) = LOWER(:name)",
+              Category.class)
+          .setParameter("name", name)
+          .getSingleResult();
+      return Optional.of(category);
+    } catch (NoResultException e) {
+      return Optional.empty();
+    }
   }
 }

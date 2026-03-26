@@ -16,17 +16,12 @@ import com.coactivity.service.RoomService;
 import com.coactivity.service.TokenService;
 import com.coactivity.service.UserWithRoomService;
 import com.coactivity.service.exception.TokenValidationException;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -38,7 +33,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/rooms")
-@Validated
 public class RoomControllerImpl implements RoomController {
 
   private final RoomService roomService;
@@ -47,9 +41,9 @@ public class RoomControllerImpl implements RoomController {
   private final BulletinBoardService bulletinBoardService;
 
   public RoomControllerImpl(RoomService roomService,
-      TokenService tokenService,
-      UserWithRoomService userWithRoomService,
-      BulletinBoardService bulletinBoardService) {
+                            TokenService tokenService,
+                            UserWithRoomService userWithRoomService,
+                            BulletinBoardService bulletinBoardService) {
     this.roomService = roomService;
     this.tokenService = tokenService;
     this.userWithRoomService = userWithRoomService;
@@ -59,9 +53,8 @@ public class RoomControllerImpl implements RoomController {
   @Override
   @PostMapping("/createRoom")
   public ResponseEntity<RoomCreationResponse> createRoom(
-
       @RequestHeader(name = "Authorization", required = false) String token,
-      @Valid @RequestBody RoomCreationRequest request) {
+      @RequestBody RoomCreationRequest request) {
 
     Integer ownerId = resolveAuthorizedUserId(token);
     RoomCreationResponse response = roomService.createRoom(ownerId, request);
@@ -75,8 +68,8 @@ public class RoomControllerImpl implements RoomController {
   @PutMapping("/{roomId}/bulletin")
   public ResponseEntity<BulletinBoardResponse> updateBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId,
-      @RequestBody @NotBlank String newContent) {
+      @PathVariable Integer roomId,
+      @RequestBody String newContent) {
 
     Integer authorId = resolveAuthorizedUserId(token);
     BulletinBoardResponse response =
@@ -88,7 +81,7 @@ public class RoomControllerImpl implements RoomController {
   @DeleteMapping("/{roomId}/bulletin")
   public ResponseEntity<Void> deleteBulletinBoard(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId) {
+      @PathVariable Integer roomId) {
     resolveAuthorizedUserId(token);
     bulletinBoardService.deleteBulletinBoard(roomId);
     return ResponseEntity.noContent().build();
@@ -98,7 +91,7 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping
   public ResponseEntity<List<RoomSummaryResponse>> getRooms(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @Valid @ModelAttribute RoomFilter filter,
+      RoomFilter filter,
       @RequestParam(name = "sortBy", required = false) RoomSort sortBy) {
     Integer currentUserId = resolveOptionalUserId(token);
     List<RoomSummaryResponse> rooms = roomService.getRooms(currentUserId, filter, sortBy);
@@ -107,7 +100,8 @@ public class RoomControllerImpl implements RoomController {
 
   @Override
   @GetMapping("/{roomId}")
-  public ResponseEntity<RoomDetailedResponse> getRoomById(@PathVariable @Positive Integer roomId,
+  public ResponseEntity<RoomDetailedResponse> getRoomById(
+      @PathVariable Integer roomId,
       @RequestHeader(name = "Authorization", required = false) String token) {
     Integer currentUserId = resolveOptionalUserId(token);
     RoomDetailedResponse response = roomService.getRoomById(roomId, currentUserId);
@@ -127,7 +121,7 @@ public class RoomControllerImpl implements RoomController {
   @PostMapping("/{roomId}/join")
   public ResponseEntity<Void> joinRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId) {
+      @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     userWithRoomService.joinRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
@@ -137,7 +131,7 @@ public class RoomControllerImpl implements RoomController {
   @PostMapping("/{roomId}/leave")
   public ResponseEntity<Void> leaveRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId) {
+      @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     userWithRoomService.leaveRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
@@ -147,7 +141,7 @@ public class RoomControllerImpl implements RoomController {
   @DeleteMapping("/{roomId}")
   public ResponseEntity<Void> deleteRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId) {
+      @PathVariable Integer roomId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     roomService.deleteRoom(currentUserId, roomId);
     return ResponseEntity.noContent().build();
@@ -157,7 +151,7 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping("/{roomId}/participants")
   public ResponseEntity<List<RoomParticipantResponse>> getRoomParticipants(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId,
+      @PathVariable Integer roomId,
       @RequestParam(name = "role", required = false) Role roleFilter) {
 
     Integer currentUserId = resolveAuthorizedUserId(token);
@@ -171,8 +165,8 @@ public class RoomControllerImpl implements RoomController {
   @GetMapping("/{roomId}/participants/{userId}")
   public ResponseEntity<MembershipVerificationResponse> isUserInRoom(
       @RequestHeader(name = "Authorization", required = false) String token,
-      @PathVariable @Positive Integer roomId,
-      @PathVariable @Positive Integer userId) {
+      @PathVariable Integer roomId,
+      @PathVariable Integer userId) {
     Integer currentUserId = resolveAuthorizedUserId(token);
     MembershipVerificationResponse response =
         userWithRoomService.verifyUserMembership(currentUserId, roomId, userId);
