@@ -125,7 +125,7 @@ class JoinRequestControllerImplIntegrationTest {
           }
         }
       } else {
-        throw new RuntimeException("init_tables.sql not found");
+        throw new RuntimeException("init_complete.sql not found");
       }
 
       insertRequestStatuses(connection);

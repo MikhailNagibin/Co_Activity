@@ -21,16 +21,11 @@ import com.coactivity.service.exception.ValidationException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
-/**
- * Handles user profile operations including registration, profile management, and account
- * lifecycle.
- */
 @Service
 public class UserProfileService {
 
@@ -43,7 +38,7 @@ public class UserProfileService {
   private final SecureRandom secureRandom = new SecureRandom();
 
   public UserProfileService(UserRepositoryImpl userRepository, TokenService tokenService,
-      NotificationService notificationService) {
+                            NotificationService notificationService) {
     this.userRepository = userRepository;
     this.tokenService = tokenService;
     this.notificationService = notificationService;
@@ -62,11 +57,17 @@ public class UserProfileService {
       throw new ValidationException("Invalid registration data");
     }
 
+    // Проверка на существующего пользователя
+    User existingUser = userRepository.getUserByLogin(request.getLogin());
+    if (existingUser != null) {
+      throw new ValidationException("User with this email already exists");
+    }
+
     try {
       User createdUser = userRepository.createUser(request);
       return new RegistrationResponse(createdUser.getId(), createdUser.getUserName());
     } catch (Exception e) {
-      throw new ValidationException("Unable to register user", e);
+      throw new ValidationException("Unable to register user: " + e.getMessage(), e);
     }
   }
 
@@ -85,8 +86,12 @@ public class UserProfileService {
       pendingVerifications.put(normalizeLogin(request.getLogin()),
           new PendingVerification(user.getId(), verificationCode,
               Instant.now().plus(VERIFICATION_CODE_TTL)));
+      String test = generateVerificationCode();
+      System.out.println("=== VERIFICATION CODE for " + request.getLogin() + ": " + verificationCode);
+      pendingVerifications.put(normalizeLogin(request.getLogin()),
+          new PendingVerification(user.getId(), verificationCode, Instant.now().plus(VERIFICATION_CODE_TTL)));
 
-      notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
+//      notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
     } catch (AuthorizationException e) {
       throw e;
     } catch (Exception e) {
@@ -110,7 +115,7 @@ public class UserProfileService {
       pendingVerifications.remove(normalizedLogin);
       throw new ValidationException("Verification code expired");
     }
-
+    System.out.println(pending + " " + pendingVerifications);
     if (!pending.code().equals(verificationCode)) {
       throw new AuthorizationException("Invalid verification code");
     }
@@ -136,18 +141,16 @@ public class UserProfileService {
     if (isBlank(token) || !tokenService.isTokenActive(token)) {
       throw new TokenValidationException("Invalid or expired token");
     }
-
     tokenService.invalidateToken(token);
   }
 
-  public LoginResponse updatePassword(String token, String currentPassword,
-      String newPassword) {
+  public LoginResponse updatePassword(String token, String currentPassword, String newPassword) {
     Integer userId = requireAuthenticatedUser(token);
     if (isBlank(currentPassword) || isBlank(newPassword)) {
       throw new ValidationException("Password values must not be empty");
     }
     if (currentPassword.equals(newPassword)) {
-                  throw new ValidationException("New password must be different from current password");
+      throw new ValidationException("New password must be different from current password");
     }
 
     try {
@@ -238,7 +241,7 @@ public class UserProfileService {
   }
 
   public NotificationSettingsResponse configureNotificationSettings(String token,
-      NotificationSettingsRequest request) {
+                                                                    NotificationSettingsRequest request) {
     Integer userId = requireAuthenticatedUser(token);
     if (request == null) {
       throw new ValidationException("Notification settings are required");
@@ -284,12 +287,17 @@ public class UserProfileService {
       boolean activityClosed = false;
       boolean newJoinRequest = false;
 
-      for (UserNotification notification : user.getNotifications()) {
-        switch (notification.getNotification().getDescription()) {
-          case ("membershipAccepted") -> membershipAccepted = true;
-          case ("membershipRejected") -> membershipRejected = true;
-          case ("activityClosed") -> activityClosed = true;
-          case ("newJoinRequest") -> newJoinRequest = true;
+      if (user.getNotifications() != null) {
+        for (UserNotification userNotification : user.getNotifications()) {
+          Notification notif = userNotification.getNotification();
+          if (notif != null && notif.getName() != null) {
+            switch (notif.getName()) {
+              case "membershipAccepted" -> membershipAccepted = true;
+              case "membershipRejected" -> membershipRejected = true;
+              case "activityClosed" -> activityClosed = true;
+              case "newJoinRequest" -> newJoinRequest = true;
+            }
+          }
         }
       }
       return new NotificationSettingsResponse(

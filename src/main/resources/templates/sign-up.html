@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация - CoActivity</title>
+    <link rel="stylesheet" th:href="@{/css/sign-in-up-style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<header id="main-header">
+    <h1>CoActivity</h1>
+    <h4 class="gray-elem">
+        <a th:href="@{/main}" style="color: rgb(116, 113, 113);">Активности</a>
+    </h4>
+    <h4 class="gray-elem">
+        <a th:href="@{/qa-page}" style="color: rgb(116, 113, 113);">Вопросы-ответы</a>
+    </h4>
+    <i class="fa-regular fa-moon"></i>
+    <button><a th:href="@{/sign-in}" style="color: white;">Войти</a></button>
+</header>
+
+<div class="virtual-elem"></div>
+
+<fieldset class="sign-field">
+    <h2>Создайте аккаунт</h2>
+    <h4 class="gray-elem">Присоединяйтесь к сообществу CoActivity</h4>
+    <br />
+    <hr />
+    <br />
+
+    <div>
+        <section>
+            <div>
+                <h3>Почта *</h3>
+                <input type="email" id="email" placeholder="example@mail.com" required>
+            </div>
+
+            <div>
+                <h3>Имя пользователя *</h3>
+                <input type="text" id="username" placeholder="Как к вам обращаться" required>
+            </div>
+
+            <div>
+                <h3>Пароль *</h3>
+                <input type="password" id="password" placeholder="Минимум 8 символов" required>
+            </div>
+
+            <div>
+                <h3>Подтвердите пароль *</h3>
+                <input type="password" id="confirm-password" placeholder="Повторите пароль" required>
+            </div>
+
+            <div>
+                <h3>Дата рождения *</h3>
+                <input type="date" id="birth-date" required>
+            </div>
+
+            <div>
+                <h3>Страна</h3>
+                <input type="text" id="country" placeholder="Ваша страна">
+            </div>
+
+            <div>
+                <h3>Город</h3>
+                <input type="text" id="city" placeholder="Ваш город">
+            </div>
+
+            <div>
+                <h3>О себе</h3>
+                <textarea id="about" rows="3" placeholder="Расскажите о своих интересах, увлечениях..."></textarea>
+            </div>
+
+            <button id="register-btn" type="button" style="background-color: black; color: white; padding: 12px;">Зарегистрироваться</button>
+        </section>
+    </div>
+
+    <hr />
+    <br />
+
+    <h3>Уже есть аккаунт? <a th:href="@{/sign-in}">Войти</a></h3>
+    <div id="error-message" style="color: red; margin-top: 10px;"></div>
+</fieldset>
+
+<script th:src="@{/js/api.js}" type="module"></script>
+<script th:src="@{/js/register.js}" type="module"></script>
+</body>
+</html>

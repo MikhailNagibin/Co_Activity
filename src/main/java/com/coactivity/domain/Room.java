@@ -60,5 +60,5 @@ public class Room {
   private List<RoomMember> members;
 
   @OneToMany(mappedBy = "room", cascade = CascadeType.ALL)
-  private List<User> bans;
+  private List<Ban> bans;
 }

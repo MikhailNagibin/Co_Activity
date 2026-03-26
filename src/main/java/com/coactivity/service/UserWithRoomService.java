@@ -132,8 +132,8 @@ public class UserWithRoomService {
 
         for (Room room : rooms) {
             if (room.getBans() != null) {
-                for (User ban : room.getBans()) {
-                    if (ban.getId().equals(userId)) {
+                for (Ban ban : room.getBans()) {
+                    if (ban.getUser().getId().equals(userId)) {
                         RoomSummaryResponse response = mapRoomToSummaryResponse(room, requesterId);
                         bannedRooms.add(response);
                         break;

@@ -31,7 +31,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -76,7 +75,7 @@ public class USBlock1Test {
     @BeforeEach
     void setUp() throws SQLException {
         try (Connection conn = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
+            ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_complete.sql"));
         }
         for (Integer userId : userRepository.getAllUsers()) {
             userRepository.deleteUser(userId);

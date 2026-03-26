@@ -79,7 +79,7 @@ public class USBlock3Test {
     @BeforeEach
     void setUp() throws SQLException {
         try (Connection conn = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_tables.sql"));
+            ScriptUtils.executeSqlScript(conn, new ClassPathResource("sql/init_complete.sql"));
         }
         for (Integer userId : userRepository.getAllUsers()) {
             userRepository.deleteUser(userId);

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - CoActivity</title>
+    <link rel="stylesheet" th:href="@{/css/sign-in-up-style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<header id="main-header">
+    <h1>CoActivity</h1>
+    <h4 class="gray-elem">
+        <a th:href="@{/main}" style="color: rgb(116, 113, 113);">Активности</a>
+    </h4>
+    <h4 class="gray-elem">
+        <a th:href="@{/qa-page}" style="color: rgb(116, 113, 113);">Вопросы-ответы</a>
+    </h4>
+    <i class="fa-regular fa-moon"></i>
+    <button><a th:href="@{/sign-in}" style="color: white;">Войти</a></button>
+</header>
+
+<div class="virtual-elem"></div>
+
+<fieldset class="sign-field">
+    <h2>Войти в CoActivity</h2>
+    <h4 class="gray-elem">Введите свои данные для входа</h4>
+    <br />
+    <hr />
+    <br />
+
+    <div id="login-step1">
+        <section>
+            <div>
+                <h3>Почта</h3>
+                <input type="email" id="email" placeholder="Введите почту">
+            </div>
+
+            <div>
+                <h3>Пароль</h3>
+                <input type="password" id="password" placeholder="Введите пароль">
+            </div>
+
+            <button id="login-submit-btn" style="background-color: black; color: white; padding: 12px;">Войти</button>
+        </section>
+    </div>
+
+    <div id="verify-step" style="display: none;">
+        <section>
+            <div>
+                <h3>Код подтверждения</h3>
+                <p>Мы отправили код на <span id="email-display"></span></p>
+                <input type="number" id="verification-code" placeholder="Введите 5-значный код">
+            </div>
+
+            <button id="verify-submit-btn" style="background-color: black; color: white; padding: 12px;">Подтвердить</button>
+            <button id="back-to-login-btn" style="padding: 12px;">Назад</button>
+        </section>
+    </div>
+
+    <hr />
+    <br />
+
+    <h3>У вас нет аккаунта? <a th:href="@{/sign-up}">Зарегистрироваться</a></h3>
+    <div id="error-message" style="color: red; margin-top: 10px;"></div>
+</fieldset>
+
+<!-- В конце body, перед закрывающим тегом -->
+<script th:src="@{/js/api.js}" type="module"></script>
+<script th:src="@{/js/auth.js}" type="module"></script>
+</body>
+</html>

@@ -3,21 +3,17 @@ package com.coactivity.repository.impl;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.*;
-import com.coactivity.repository.impl.NotificationRepository;
 import com.coactivity.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Repository
 @Transactional
@@ -26,12 +22,9 @@ public class UserRepositoryImpl implements UserRepository {
     @PersistenceContext
     private EntityManager entityManager;
 
-    private final RoomRepositoryImpl roomRepository;
     private final NotificationRepository notificationRepository;
 
-    public UserRepositoryImpl(@Lazy RoomRepositoryImpl roomRepository,
-                              NotificationRepository notificationRepository) {
-        this.roomRepository = roomRepository;
+    public UserRepositoryImpl(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
     }
 
@@ -127,8 +120,6 @@ public class UserRepositoryImpl implements UserRepository {
         User user = entityManager.find(User.class, userId);
         if (user != null) {
             entityManager.remove(user);
-        } else {
-            throw new RuntimeException("No user did not delete");
         }
     }
 
@@ -147,6 +138,7 @@ public class UserRepositoryImpl implements UserRepository {
         }
     }
 
+    @Override
     public User getUserByLogin(String login) {
         try {
             return entityManager.createQuery(
@@ -204,28 +196,18 @@ public class UserRepositoryImpl implements UserRepository {
         }
     }
 
-    private List<Room> getUserRooms(Integer userId) {
-        return entityManager.createQuery(
-                "SELECT rm.room FROM RoomMember rm WHERE rm.user.id = :userId",
-                Room.class)
-            .setParameter("userId", userId)
-            .getResultList();
-    }
-
-    private List<Notification> getUserNotifications(Integer userId) {
-        return entityManager.createQuery(
-                "SELECT un.notification FROM UserNotification un WHERE un.user.id = :userId",
-                Notification.class)
-            .setParameter("userId", userId)
-            .getResultList();
-    }
-
+    @Override
     public List<Integer> getAllUsers() {
-        return entityManager.createQuery("SELECT u.id FROM User u", Integer.class)
-            .getResultList();
+        try {
+            return entityManager.createQuery("SELECT u.id FROM User u", Integer.class)
+                .getResultList();
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 
-    public void printAllCategories() {
+    @Override
+    public void printAllCategories() throws java.sql.SQLException {
         List<Category> categories = entityManager.createQuery(
                 "SELECT c FROM Category c ORDER BY c.id",
                 Category.class)

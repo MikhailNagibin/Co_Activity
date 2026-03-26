@@ -1,0 +1,126 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: small;
+    background-color: rgb(237, 234, 234);
+    min-height: 1000px;
+}
+
+#main-header {
+    background-color: rgb(237, 234, 234);
+    height: 50px;
+    width: 100%;
+    padding: 10px 5em 0% 5em;
+    display: flex;
+    align-items: baseline;
+    gap: 19px;
+    position: fixed;
+    border-bottom: 1px solid rgb(77, 77, 77);
+}
+
+.gray-elem {
+    color: rgb(136, 112, 112);
+}
+#main-header i {
+    margin-left: 860px;
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+#main-header button {
+    background-color: black;
+    color: white;
+    flex-basis: 90px;
+    height: 30px;
+
+}
+
+button {
+    border-radius: 6px;
+}
+
+.fa-moon {
+    padding: 5px;
+    border-radius: 9px;
+}
+.fa-moon:hover {
+    background-color: rgb(201, 189, 189);
+}
+
+
+
+
+
+
+.search-wrapper {
+    flex-grow: 10;
+    position: relative;
+}
+.search-button {
+    position: absolute;
+    margin: 12px 0px 10px 12px;
+    background: none;
+    border: none;
+}
+
+main {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px 5em 2px 3.5em;
+    display: flex;
+    flex-flow: row wrap;
+    gap: 20px;
+    
+}
+
+main select {
+    flex-basis: 90px; 
+    flex-grow: 1; 
+    border-radius: 8px;
+}
+
+.tags {
+    width: 80%;
+    display: flex;
+    flex: row wrap;
+    gap: 10px;
+}
+
+.tags button {
+    border: 0.3px solid gray;
+    border-radius: 4px;
+    padding: 3px 10px;
+}
+
+.tags button:hover {
+    background-color: rgb(159, 155, 155);
+}
+.tags button:visited {
+    background-color: rgb(159, 155, 155);
+}
+
+.questions {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+}
+.questions article {
+    width: 100%;
+    display: flex;
+    gap: 20px;
+    padding: 17px;
+    background-color: rgb(191, 194, 197);
+    border: 1px solid rgb(137, 133, 133);
+    border-radius: 5px;
+}
+
+.questions button {
+    border: 0.2px solid gray;
+    border-radius: 3px;
+    padding: 2px 7px;
+}

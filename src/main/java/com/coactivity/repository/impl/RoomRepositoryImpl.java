@@ -2,18 +2,15 @@ package com.coactivity.repository.impl;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.*;
-import com.coactivity.repository.impl.CategoryRepository;
-import com.coactivity.repository.impl.RoleRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.UserRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 @Transactional
@@ -101,21 +98,15 @@ public class RoomRepositoryImpl implements RoomRepository {
     member.setRole(role);
 
     entityManager.persist(member);
-
-    System.out.println("User " + userId + " added to room " + roomId + " with role " + role.getName());
   }
 
   @Override
   public void removeUserFromRoom(Integer roomId, Integer userId) {
-    int deletedCount = entityManager.createQuery(
+    entityManager.createQuery(
             "DELETE FROM RoomMember rm WHERE rm.room.id = :roomId AND rm.user.id = :userId")
         .setParameter("roomId", roomId)
         .setParameter("userId", userId)
         .executeUpdate();
-
-    if (deletedCount == 0) {
-      throw new RuntimeException("User not found in room members");
-    }
   }
 
   public void addUserBan(Integer roomId, Integer userId) {
@@ -140,8 +131,6 @@ public class RoomRepositoryImpl implements RoomRepository {
     Room room = entityManager.find(Room.class, roomId);
     if (room != null) {
       entityManager.remove(room);
-    } else {
-      throw new RuntimeException("Room not found with id: " + roomId);
     }
   }
 
@@ -180,10 +169,10 @@ public class RoomRepositoryImpl implements RoomRepository {
     return result;
   }
 
-  private List<User> getBannedUsers(Integer roomId) {
+  private List<Ban> getBannedUsers(Integer roomId) {
     return entityManager.createQuery(
-            "SELECT b.user FROM Ban b WHERE b.room.id = :roomId",
-            User.class)
+            "SELECT b FROM Ban b WHERE b.room.id = :roomId",
+            Ban.class)
         .setParameter("roomId", roomId)
         .getResultList();
   }
@@ -198,6 +187,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     return count > 0;
   }
 
+  @Override
   public boolean isUserInMembers(Integer roomId, Integer userId) {
     Long count = entityManager.createQuery(
             "SELECT COUNT(rm) FROM RoomMember rm WHERE rm.room.id = :roomId AND rm.user.id = :userId",
@@ -230,17 +220,13 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   public void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role) {
-    int updatedCount = entityManager.createQuery(
+    entityManager.createQuery(
             "UPDATE RoomMember rm SET rm.role = :role " +
                 "WHERE rm.room.id = :roomId AND rm.user.id = :userId")
         .setParameter("role", role)
         .setParameter("roomId", roomId)
         .setParameter("userId", userId)
         .executeUpdate();
-
-    if (updatedCount == 0) {
-      throw new RuntimeException("Failed to update role");
-    }
   }
 
   public Role getUserRoleByRoomId(Integer roomId, Integer userId) {

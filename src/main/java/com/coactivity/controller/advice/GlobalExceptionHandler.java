@@ -70,6 +70,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex,
       HttpServletRequest request) {
+    System.out.println(ex);
     return buildResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR, request,
         null);
   }
@@ -85,4 +86,6 @@ public class GlobalExceptionHandler {
         details);
     return ResponseEntity.status(status).body(body);
   }
+
+
 }
