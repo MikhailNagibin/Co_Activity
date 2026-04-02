@@ -4,49 +4,61 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
-import com.coactivity.DataRepository;
-import com.coactivity.repository.UserRepository;
+import com.coactivity.persistence.core.entity.CategoryEntity;
+import com.coactivity.persistence.core.repository.BanJpaRepository;
+import com.coactivity.persistence.core.repository.BulletinBoardJpaRepository;
+import com.coactivity.persistence.core.repository.CategoryLookupRepository;
+import com.coactivity.persistence.core.repository.PictureJpaRepository;
+import com.coactivity.persistence.core.repository.RoleLookupRepository;
+import com.coactivity.persistence.core.repository.RoomJpaRepository;
+import com.coactivity.persistence.core.repository.RoomMemberJpaRepository;
+import com.coactivity.persistence.core.repository.RoomsRequestJpaRepository;
+import com.coactivity.persistence.core.repository.UserJpaRepository;
 import com.coactivity.service.exception.ValidationException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import javax.sql.DataSource;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-@DisplayName("RoomRepository category validation tests")
+@DisplayName("RoomRepository category lookup tests")
 class RoomRepositoryImplTest {
 
-  private DataSource dataSource;
-  private Connection connection;
-  private PreparedStatement statement;
-  private ResultSet resultSet;
+  private CategoryLookupRepository categoryLookupRepository;
   private RoomRepositoryImpl roomRepository;
 
   @BeforeEach
-  void setUp() throws Exception {
-    dataSource = Mockito.mock(DataSource.class);
-    connection = Mockito.mock(Connection.class);
-    statement = Mockito.mock(PreparedStatement.class);
-    resultSet = Mockito.mock(ResultSet.class);
+  void setUp() {
+    categoryLookupRepository = Mockito.mock(CategoryLookupRepository.class);
 
-    when(dataSource.getConnection()).thenReturn(connection);
-    when(connection.prepareStatement(Mockito.anyString())).thenReturn(statement);
-    when(statement.executeQuery()).thenReturn(resultSet);
+    roomRepository = new RoomRepositoryImpl(
+        Mockito.mock(RoomJpaRepository.class),
+        Mockito.mock(RoomMemberJpaRepository.class),
+        Mockito.mock(BanJpaRepository.class),
+        categoryLookupRepository,
+        Mockito.mock(RoleLookupRepository.class),
+        Mockito.mock(UserJpaRepository.class),
+        Mockito.mock(RoomsRequestJpaRepository.class),
+        Mockito.mock(BulletinBoardJpaRepository.class),
+        Mockito.mock(PictureJpaRepository.class));
+  }
 
-    DataRepository dataRepository = new DataRepository(dataSource);
-    QuestionRepositoryImpl questionRepository = Mockito.mock(QuestionRepositoryImpl.class);
-    UserRepository userRepository = Mockito.mock(UserRepository.class);
+  @Test
+  @DisplayName("getCategoryIdByName should return category id when lookup exists")
+  void getCategoryIdByNameReturnsId() {
+    CategoryEntity entity = new CategoryEntity();
+    entity.setId(7);
+    entity.setName("Sport");
+    when(categoryLookupRepository.findByNameIgnoreCase("Sport")).thenReturn(Optional.of(entity));
 
-    roomRepository = new RoomRepositoryImpl(dataRepository, questionRepository, userRepository);
+    assertEquals(7, roomRepository.getCategoryIdByName("SPORT"));
   }
 
   @Test
   @DisplayName("getCategoryIdByName should throw validation error when category does not exist")
-  void getCategoryIdByNameThrowsValidationWhenCategoryMissing() throws Exception {
-    when(resultSet.next()).thenReturn(false);
+  void getCategoryIdByNameThrowsValidationWhenCategoryMissing() {
+    when(categoryLookupRepository.findByNameIgnoreCase("UnknownCategory"))
+        .thenReturn(Optional.empty());
 
     ValidationException exception = assertThrows(ValidationException.class,
         () -> roomRepository.getCategoryIdByName("UnknownCategory"));

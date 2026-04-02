@@ -4,7 +4,6 @@ import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
-import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
 
@@ -55,8 +54,6 @@ public interface RoomRepository {
    */
   boolean isUserInMembers(Integer roomId, Integer userId);
 
-  boolean isUserInMembersInTransaction(Connection connection, Integer roomId, Integer userId);
-
   /**
    * Removes the specified user from the room membership list.
    *
@@ -69,8 +66,6 @@ public interface RoomRepository {
 
   int getRoomParticipantCount(Integer roomId);
 
-  int getRoomParticipantCountInTransaction(Connection connection, Integer roomId);
-
   Map<User, Role> getUsersInRoom(Integer roomId);
 
   void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role);
@@ -78,8 +73,4 @@ public interface RoomRepository {
   Role getUserRoleByRoomId(Integer roomId, Integer userId);
 
   void addUserBan(Integer roomId, Integer userId);
-
-  void addUserToRoomInTransaction(Connection connection, Integer roomId, Integer userId, Role role);
-
-  void addUserBanInTransaction(Connection connection, Integer roomId, Integer userId);
 }

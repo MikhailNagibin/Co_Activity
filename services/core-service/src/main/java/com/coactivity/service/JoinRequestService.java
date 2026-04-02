@@ -1,6 +1,5 @@
 package com.coactivity.service;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
@@ -10,6 +9,7 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
+import com.coactivity.service.event.JoinRequestDecisionEvent;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -17,48 +17,33 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Manages administrative review and user tracking of room membership requests.
- * <p>
- * Couples repository-layer access with business validation: administrators can inspect and process
- * pending requests, while users can monitor and cancel their own submissions.
- * </p>
- */
 @Service
 public class JoinRequestService {
 
-  private final DataRepository dataRepository;
   private final RoomRepository roomRepository;
   private final RoomsRequestRepository roomsRequestRepository;
   private final UserRepository userRepository;
-  private final NotificationService notificationService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
-  public JoinRequestService(DataRepository dataRepository,
-      RoomRepository roomRepository,
+  public JoinRequestService(RoomRepository roomRepository,
       RoomsRequestRepository roomsRequestRepository,
       UserRepository userRepository,
-      NotificationService notificationService) {
-    this.dataRepository = dataRepository;
+      ApplicationEventPublisher applicationEventPublisher) {
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.userRepository = userRepository;
-    this.notificationService = notificationService;
+    this.applicationEventPublisher = applicationEventPublisher;
   }
 
-  /**
-   * Lists pending join requests across every private room moderated by the given user.
-   *
-   * @param userId administrator identifier
-   * @return pending requests for all moderated rooms
-   */
   public List<JoinRequestResponse> getPendingRequests(Integer userId) {
     Integer adminId = requireUserId(userId);
     User admin = getExistingUser(adminId);
 
     List<Room> managedRooms = admin.getRooms();
-
     if (managedRooms == null || managedRooms.isEmpty()) {
       return Collections.emptyList();
     }
@@ -77,15 +62,7 @@ public class JoinRequestService {
     return responses;
   }
 
-  /**
-   * Lists pending requests for a particular room, verifying moderator rights.
-   *
-   * @param userId moderator identifier
-   * @param roomId room identifier
-   * @return pending requests for the room
-   */
-  public List<JoinRequestResponse> getPendingRequestsForRoom(Integer userId,
-      Integer roomId) {
+  public List<JoinRequestResponse> getPendingRequestsForRoom(Integer userId, Integer roomId) {
     Integer moderatorId = requireUserId(userId);
     Room room = getExistingRoom(roomId);
     ensureModerationRights(moderatorId, room.getId());
@@ -95,15 +72,8 @@ public class JoinRequestService {
     return responses;
   }
 
-  /**
-   * Applies the requested action to a join request (accept, refuse, refuse with ban).
-   *
-   * @param userId    moderator identifier
-   * @param requestId join request identifier
-   * @param action    desired outcome
-   */
-  public void processJoinRequest(Integer userId, Integer requestId,
-      RequestStatus action) {
+  @Transactional
+  public void processJoinRequest(Integer userId, Integer requestId, RequestStatus action) {
     Integer moderatorId = requireUserId(userId);
     Integer effectiveRequestId = requireRequestId(requestId);
     RequestStatus effectiveAction = requireAction(action);
@@ -121,19 +91,13 @@ public class JoinRequestService {
       case REFUSED -> {
         roomsRequestRepository.updateRequest(effectiveRequestId, RequestStatus.REFUSED);
         Room room = getExistingRoom(roomId);
-        notificationService.sendMembershipRejected(requesterId, room.getName());
+        publishJoinRequestDecision(requesterId, room.getName(), RequestStatus.REFUSED);
       }
       case REFUSED_WITH_BAN -> refuseWithBan(effectiveRequestId, roomId, requesterId);
       default -> throw new ValidationException("Unsupported join request action");
     }
   }
 
-  /**
-   * Returns all join requests created by the specified user.
-   *
-   * @param userId requester identifier
-   * @return request history for the user
-   */
   public List<JoinRequestResponse> getSentRequests(Integer userId) {
     Integer requesterId = requireUserId(userId);
     getExistingUser(requesterId);
@@ -152,12 +116,6 @@ public class JoinRequestService {
     return responses;
   }
 
-  /**
-   * Cancels a pending join request initiated by the user.
-   *
-   * @param userId    requester identifier
-   * @param requestId join request identifier
-   */
   public void cancelRequest(Integer userId, Integer requestId) {
     Integer requesterId = requireUserId(userId);
     Integer effectiveRequestId = requireRequestId(requestId);
@@ -185,44 +143,32 @@ public class JoinRequestService {
 
   private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
+    int currentParticipants = roomRepository.getRoomParticipantCount(roomId);
+    if (currentParticipants >= room.getMaximumNumberOfPeople()) {
+      throw new ValidationException("Room capacity exceeded");
+    }
 
-    dataRepository.inTransaction(connection -> {
-      int currentParticipants = roomRepository.getRoomParticipantCountInTransaction(connection,
-          roomId);
-      if (currentParticipants >= room.getMaximumNumberOfPeople()) {
-        throw new ValidationException("Room capacity exceeded");
-      }
+    if (!roomRepository.isUserInMembers(roomId, requesterId)) {
+      roomRepository.addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
+    }
 
-      if (!roomRepository.isUserInMembersInTransaction(connection, roomId, requesterId)) {
-        roomRepository.addUserToRoomInTransaction(connection, roomId, requesterId,
-            Role.PARTICIPANT);
-      }
-
-      roomsRequestRepository.updateRequestInTransaction(connection, requestId,
-          RequestStatus.ACCEPTED);
-      return null;
-    });
-
-    notificationService.sendMembershipAccepted(requesterId, room.getName());
+    roomsRequestRepository.updateRequest(requestId, RequestStatus.ACCEPTED);
+    publishJoinRequestDecision(requesterId, room.getName(), RequestStatus.ACCEPTED);
   }
 
   private void refuseWithBan(Integer requestId, Integer roomId, Integer requesterId) {
     Room room = getExistingRoom(roomId);
-
-    dataRepository.inTransaction(connection -> {
-      roomRepository.addUserBanInTransaction(connection, roomId, requesterId);
-      roomsRequestRepository.updateRequestInTransaction(connection, requestId,
-          RequestStatus.REFUSED_WITH_BAN);
-      return null;
-    });
-
-    notificationService.sendMembershipRejected(requesterId, room.getName());
+    roomRepository.addUserBan(roomId, requesterId);
+    roomsRequestRepository.updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
+    publishJoinRequestDecision(requesterId, room.getName(), RequestStatus.REFUSED_WITH_BAN);
   }
 
-  /**
-   * Returns true if the user has moderation rights (OWNER or ADMIN) in the room. Never throws;
-   * returns false if the role cannot be determined.
-   */
+  private void publishJoinRequestDecision(Integer requesterId, String roomName,
+      RequestStatus action) {
+    applicationEventPublisher.publishEvent(
+        new JoinRequestDecisionEvent(requesterId, roomName, action));
+  }
+
   private boolean hasModerationRights(Integer userId, Integer roomId) {
     if (!roomRepository.isUserInMembers(roomId, userId)) {
       return false;

@@ -2,204 +2,148 @@ package com.coactivity.qa.repository;
 
 import com.coactivity.qa.domain.Category;
 import com.coactivity.qa.dto.response.UserSummaryResponse;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import com.coactivity.qa.persistence.QaLookupMapper;
+import com.coactivity.qa.persistence.entity.QaAnswerEntity;
+import com.coactivity.qa.persistence.entity.QaCategoryEntity;
+import com.coactivity.qa.persistence.entity.QaQuestionEntity;
+import com.coactivity.qa.persistence.entity.QaUserEntity;
+import com.coactivity.qa.persistence.repository.QaAnswerJpaRepository;
+import com.coactivity.qa.persistence.repository.QaCategoryJpaRepository;
+import com.coactivity.qa.persistence.repository.QaQuestionJpaRepository;
+import com.coactivity.qa.persistence.repository.QaUserJpaRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional(readOnly = true)
 public class QaRepository {
 
-  private final JdbcTemplate jdbcTemplate;
+  private final QaCategoryJpaRepository categoryJpaRepository;
+  private final QaQuestionJpaRepository questionJpaRepository;
+  private final QaAnswerJpaRepository answerJpaRepository;
+  private final QaUserJpaRepository userJpaRepository;
 
-  public QaRepository(JdbcTemplate jdbcTemplate) {
-    this.jdbcTemplate = jdbcTemplate;
+  public QaRepository(QaCategoryJpaRepository categoryJpaRepository,
+      QaQuestionJpaRepository questionJpaRepository,
+      QaAnswerJpaRepository answerJpaRepository,
+      QaUserJpaRepository userJpaRepository) {
+    this.categoryJpaRepository = categoryJpaRepository;
+    this.questionJpaRepository = questionJpaRepository;
+    this.answerJpaRepository = answerJpaRepository;
+    this.userJpaRepository = userJpaRepository;
   }
 
   public Optional<Integer> findCategoryIdByName(String categoryName) {
-    String normalized = toDbCategoryName(categoryName);
-    String sql = "SELECT id FROM Categories WHERE LOWER(name) = LOWER(?)";
-    try {
-      Integer id = jdbcTemplate.queryForObject(sql, Integer.class, normalized);
-      return Optional.ofNullable(id);
-    } catch (EmptyResultDataAccessException e) {
-      return Optional.empty();
-    }
+    String normalized = QaLookupMapper.toDbCategoryName(categoryName);
+    return categoryJpaRepository.findByNameIgnoreCase(normalized)
+        .map(QaCategoryEntity::getId);
   }
 
   public Optional<QuestionEntity> findQuestionById(Integer questionId) {
-    String sql = """
-        SELECT q.id, q.owner, q.question, q.category_id, c.name AS category_name
-        FROM Questions q
-        JOIN Categories c ON c.id = q.category_id
-        WHERE q.id = ?
-        """;
-    List<QuestionEntity> rows = jdbcTemplate.query(sql, this::mapQuestion, questionId);
-    if (rows.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.of(rows.getFirst());
+    return questionJpaRepository.findById(questionId)
+        .map(this::mapQuestion);
   }
 
   public List<QuestionEntity> findQuestions(Integer categoryId) {
     if (categoryId != null) {
-      String sql = """
-          SELECT q.id, q.owner, q.question, q.category_id, c.name AS category_name
-          FROM Questions q
-          JOIN Categories c ON c.id = q.category_id
-          WHERE q.category_id = ?
-          ORDER BY q.id
-          """;
-      return jdbcTemplate.query(sql, this::mapQuestion, categoryId);
+      return questionJpaRepository.findAllByCategory_IdOrderById(categoryId).stream()
+          .map(this::mapQuestion)
+          .toList();
     }
 
-    String sql = """
-        SELECT q.id, q.owner, q.question, q.category_id, c.name AS category_name
-        FROM Questions q
-        JOIN Categories c ON c.id = q.category_id
-        ORDER BY q.id
-        """;
-    return jdbcTemplate.query(sql, this::mapQuestion);
+    return questionJpaRepository.findAll().stream()
+        .sorted(java.util.Comparator.comparing(QaQuestionEntity::getId))
+        .map(this::mapQuestion)
+        .toList();
   }
 
+  @Transactional
   public QuestionEntity createQuestion(Integer userId, String question, Integer categoryId) {
-    String sql = """
-        INSERT INTO Questions (owner, question, category_id)
-        VALUES (?, ?, ?)
-        RETURNING id
-        """;
-    Integer questionId = jdbcTemplate.queryForObject(sql, Integer.class, userId, question, categoryId);
-    if (questionId == null) {
-      throw new IllegalStateException("Unable to create question");
-    }
-    return findQuestionById(questionId)
-        .orElseThrow(() -> new IllegalStateException("Question was created but not found"));
+    QaUserEntity owner = userJpaRepository.findById(userId)
+        .orElseThrow(() -> new IllegalStateException("User not found: " + userId));
+    QaCategoryEntity category = categoryJpaRepository.findById(categoryId)
+        .orElseThrow(() -> new IllegalStateException("Category not found: " + categoryId));
+
+    QaQuestionEntity entity = new QaQuestionEntity();
+    entity.setOwner(owner);
+    entity.setQuestion(question);
+    entity.setCategory(category);
+
+    return mapQuestion(questionJpaRepository.saveAndFlush(entity));
   }
 
   public boolean questionExists(Integer questionId) {
-    String sql = "SELECT COUNT(*) FROM Questions WHERE id = ?";
-    Integer count = jdbcTemplate.queryForObject(sql, Integer.class, questionId);
-    return count != null && count > 0;
+    return questionJpaRepository.existsById(questionId);
   }
 
   public boolean answerExistsForQuestion(Integer answerId, Integer questionId) {
-    String sql = "SELECT COUNT(*) FROM Answers WHERE id = ? AND question_id = ?";
-    Integer count = jdbcTemplate.queryForObject(sql, Integer.class, answerId, questionId);
-    return count != null && count > 0;
+    return answerJpaRepository.existsByIdAndQuestion_Id(answerId, questionId);
   }
 
+  @Transactional
   public AnswerEntity createAnswer(Integer questionId, Integer previousAnswerId, String answer,
       Integer ownerId) {
-    String sql = """
-        INSERT INTO Answers (question_id, prev_ans_id, answer, owner)
-        VALUES (?, ?, ?, ?)
-        RETURNING id, question_id, prev_ans_id, answer, owner, created_at
-        """;
-    return jdbcTemplate.queryForObject(sql, this::mapAnswer, questionId, previousAnswerId, answer,
-        ownerId);
+    QaQuestionEntity question = questionJpaRepository.findById(questionId)
+        .orElseThrow(() -> new IllegalStateException("Question not found: " + questionId));
+    QaUserEntity owner = userJpaRepository.findById(ownerId)
+        .orElseThrow(() -> new IllegalStateException("User not found: " + ownerId));
+
+    QaAnswerEntity entity = new QaAnswerEntity();
+    entity.setQuestion(question);
+    entity.setOwner(owner);
+    entity.setAnswer(answer);
+    entity.setCreatedAt(Instant.now());
+    if (previousAnswerId != null) {
+      entity.setPreviousAnswer(answerJpaRepository.findById(previousAnswerId)
+          .orElseThrow(() -> new IllegalStateException(
+              "Previous answer not found: " + previousAnswerId)));
+    }
+
+    return mapAnswer(answerJpaRepository.saveAndFlush(entity));
   }
 
   public List<AnswerEntity> findAnswersByQuestionId(Integer questionId) {
-    String sql = """
-        SELECT id, question_id, prev_ans_id, answer, owner, created_at
-        FROM Answers
-        WHERE question_id = ?
-        ORDER BY id
-        """;
-    return jdbcTemplate.query(sql, this::mapAnswer, questionId);
+    return answerJpaRepository.findAllByQuestion_IdOrderById(questionId).stream()
+        .map(this::mapAnswer)
+        .toList();
   }
 
   public Optional<UserSummaryResponse> findUserSummaryById(Integer userId) {
-    String sql = """
-        SELECT id, username, birthday, city, country, description, avatar_id
-        FROM Users
-        WHERE id = ?
-        """;
-    List<UserSummaryResponse> rows = jdbcTemplate.query(sql, (rs, rowNum) ->
-        new UserSummaryResponse(
-            rs.getInt("id"),
-            rs.getString("username"),
-            toInstant(rs.getTimestamp("birthday")),
-            rs.getString("city"),
-            rs.getString("country"),
-            rs.getString("description"),
-            rs.getInt("avatar_id")), userId);
-
-    if (rows.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.of(rows.getFirst());
+    return userJpaRepository.findById(userId)
+        .map(this::mapUserSummary);
   }
 
-  private QuestionEntity mapQuestion(ResultSet rs, int rowNum) throws SQLException {
+  private QuestionEntity mapQuestion(QaQuestionEntity entity) {
     return new QuestionEntity(
-        rs.getInt("id"),
-        rs.getInt("owner"),
-        rs.getInt("category_id"),
-        toCategoryEnum(rs.getString("category_name")),
-        rs.getString("question"));
+        entity.getId(),
+        entity.getOwner().getId(),
+        entity.getCategory().getId(),
+        QaLookupMapper.toCategoryEnum(entity.getCategory().getName()),
+        entity.getQuestion());
   }
 
-  private AnswerEntity mapAnswer(ResultSet rs, int rowNum) throws SQLException {
-    int prevAnsRaw = rs.getInt("prev_ans_id");
-    Integer previousAnswerId = rs.wasNull() ? null : prevAnsRaw;
-
+  private AnswerEntity mapAnswer(QaAnswerEntity entity) {
     return new AnswerEntity(
-        rs.getInt("id"),
-        rs.getInt("question_id"),
-        previousAnswerId,
-        rs.getInt("owner"),
-        rs.getString("answer"),
-        toInstant(rs.getTimestamp("created_at")));
+        entity.getId(),
+        entity.getQuestion().getId(),
+        entity.getPreviousAnswer() != null ? entity.getPreviousAnswer().getId() : null,
+        entity.getOwner().getId(),
+        entity.getAnswer(),
+        entity.getCreatedAt() != null ? entity.getCreatedAt() : Instant.now());
   }
 
-  private Instant toInstant(Timestamp timestamp) {
-    return timestamp != null ? timestamp.toInstant() : Instant.now();
-  }
-
-  private String toDbCategoryName(String rawCategoryName) {
-    if (rawCategoryName == null || rawCategoryName.isBlank()) {
-      return rawCategoryName;
-    }
-
-    String normalized = rawCategoryName.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
-    return switch (normalized) {
-      case "sport" -> "Sport";
-      case "music" -> "Music";
-      case "art" -> "Art";
-      case "entertainments" -> "Entertainments";
-      case "business" -> "Business";
-      case "education" -> "Education";
-      case "activerecreation", "activerecreationcategory" -> "ActiveRecreation";
-      case "passiverecreation", "passiverecreationcategory" -> "PassiveRecreation";
-      case "massevent", "isamassevent" -> "MassEvent";
-      case "other" -> "Other";
-      case "notspecified" -> "NotSpecified";
-      default -> rawCategoryName;
-    };
-  }
-
-  private Category toCategoryEnum(String dbCategoryName) {
-    String normalized = dbCategoryName.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
-    return switch (normalized) {
-      case "sport" -> Category.SPORT;
-      case "music" -> Category.MUSIC;
-      case "art" -> Category.ART;
-      case "entertainments" -> Category.ENTERTAINMENTS;
-      case "business" -> Category.BUSINESS;
-      case "education" -> Category.EDUCATION;
-      case "activerecreation" -> Category.ACTIVE_RECREATION;
-      case "passiverecreation" -> Category.PASSIVE_RECREATION;
-      case "massevent", "isamassevent" -> Category.IS_A_MASS_EVENT;
-      case "other" -> Category.OTHER;
-      case "notspecified" -> Category.NOT_SPECIFIED;
-      default -> throw new IllegalArgumentException("Unsupported category in DB: " + dbCategoryName);
-    };
+  private UserSummaryResponse mapUserSummary(QaUserEntity entity) {
+    return new UserSummaryResponse(
+        entity.getId(),
+        entity.getUserName(),
+        entity.getDateOfBirth(),
+        entity.getCity(),
+        entity.getCountry(),
+        entity.getDescription(),
+        entity.getAvatarId());
   }
 
   public record QuestionEntity(

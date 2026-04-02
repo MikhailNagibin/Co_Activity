@@ -1,575 +1,231 @@
 package com.coactivity.repository.impl;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
-import com.coactivity.domain.Category;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
+import com.coactivity.persistence.core.CoreDomainMapper;
+import com.coactivity.persistence.core.CoreLookupMapper;
+import com.coactivity.persistence.core.entity.BanEntity;
+import com.coactivity.persistence.core.entity.BanId;
+import com.coactivity.persistence.core.entity.CategoryEntity;
+import com.coactivity.persistence.core.entity.RoleEntity;
+import com.coactivity.persistence.core.entity.RoomEntity;
+import com.coactivity.persistence.core.entity.RoomMemberEntity;
+import com.coactivity.persistence.core.entity.RoomMemberId;
+import com.coactivity.persistence.core.entity.UserEntity;
+import com.coactivity.persistence.core.repository.BanJpaRepository;
+import com.coactivity.persistence.core.repository.BulletinBoardJpaRepository;
+import com.coactivity.persistence.core.repository.CategoryLookupRepository;
+import com.coactivity.persistence.core.repository.PictureJpaRepository;
+import com.coactivity.persistence.core.repository.RoleLookupRepository;
+import com.coactivity.persistence.core.repository.RoomJpaRepository;
+import com.coactivity.persistence.core.repository.RoomMemberJpaRepository;
+import com.coactivity.persistence.core.repository.RoomsRequestJpaRepository;
+import com.coactivity.persistence.core.repository.UserJpaRepository;
 import com.coactivity.repository.RoomRepository;
-import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.ValidationException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional
 public class RoomRepositoryImpl implements RoomRepository {
 
-  private final DataRepository dataRepository;
-  private final QuestionRepositoryImpl qaRepository;
-  private final UserRepository userRepository;
+  private final RoomJpaRepository roomJpaRepository;
+  private final RoomMemberJpaRepository roomMemberJpaRepository;
+  private final BanJpaRepository banJpaRepository;
+  private final CategoryLookupRepository categoryLookupRepository;
+  private final RoleLookupRepository roleLookupRepository;
+  private final UserJpaRepository userJpaRepository;
+  private final RoomsRequestJpaRepository roomsRequestJpaRepository;
+  private final BulletinBoardJpaRepository bulletinBoardJpaRepository;
+  private final PictureJpaRepository pictureJpaRepository;
 
-  public RoomRepositoryImpl(DataRepository dataRepository, QuestionRepositoryImpl qaRepository,
-      UserRepository userRepository) {
-    this.dataRepository = dataRepository;
-    this.qaRepository = qaRepository;
-    this.userRepository = userRepository;
+  public RoomRepositoryImpl(RoomJpaRepository roomJpaRepository,
+      RoomMemberJpaRepository roomMemberJpaRepository,
+      BanJpaRepository banJpaRepository,
+      CategoryLookupRepository categoryLookupRepository,
+      RoleLookupRepository roleLookupRepository,
+      UserJpaRepository userJpaRepository,
+      RoomsRequestJpaRepository roomsRequestJpaRepository,
+      BulletinBoardJpaRepository bulletinBoardJpaRepository,
+      PictureJpaRepository pictureJpaRepository) {
+    this.roomJpaRepository = roomJpaRepository;
+    this.roomMemberJpaRepository = roomMemberJpaRepository;
+    this.banJpaRepository = banJpaRepository;
+    this.categoryLookupRepository = categoryLookupRepository;
+    this.roleLookupRepository = roleLookupRepository;
+    this.userJpaRepository = userJpaRepository;
+    this.roomsRequestJpaRepository = roomsRequestJpaRepository;
+    this.bulletinBoardJpaRepository = bulletinBoardJpaRepository;
+    this.pictureJpaRepository = pictureJpaRepository;
   }
 
   @Override
   public Room createRoom(Integer ownerId, RoomCreationRequest request) {
-    Integer roomId = dataRepository.inTransaction(connection -> {
-      String sql = """
-          INSERT INTO Rooms (is_active, is_public, chat_link, category_id, name, description, start_date, end_date,
-                              age_rating, frequency, maximum_number_of_people)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          RETURNING id
-          """;
+    CategoryEntity categoryEntity = findCategoryEntity(request.getCategory());
 
-      try (PreparedStatement statement = connection.prepareStatement(sql)) {
-        statement.setBoolean(1, true);
-        statement.setBoolean(2, request.getIsPublic());
-        statement.setString(3, request.getChatLink());
-        statement.setInt(4, getCategoryIdByNameInTransaction(connection, request.getCategory()));
-        statement.setString(5, request.getName());
-        statement.setString(6, request.getDescription());
-        statement.setTimestamp(7, request.getDateOfStartEvent() != null ?
-            Timestamp.from(request.getDateOfStartEvent()) : null);
-        statement.setTimestamp(8, request.getDateOfEndEvent() != null ?
-            Timestamp.from(request.getDateOfEndEvent()) : null);
-        statement.setInt(9, request.getAgeRating());
-        statement.setTimestamp(10, request.getFrequency() != null ?
-            Timestamp.from(request.getFrequency()) : null);
-        statement.setInt(11, request.getMaximumNumberOfPeople());
+    RoomEntity roomEntity = new RoomEntity();
+    roomEntity.setActive(true);
+    roomEntity.setPublicRoom(Boolean.TRUE.equals(request.getIsPublic()));
+    roomEntity.setChatLink(request.getChatLink());
+    roomEntity.setCategory(categoryEntity);
+    roomEntity.setName(request.getName());
+    roomEntity.setDescription(request.getDescription());
+    roomEntity.setDateOfStartEvent(request.getDateOfStartEvent());
+    roomEntity.setDateOfEndEvent(request.getDateOfEndEvent());
+    roomEntity.setAgeRating(request.getAgeRating());
+    roomEntity.setFrequency(request.getFrequency());
+    roomEntity.setMaximumNumberOfPeople(
+        request.getMaximumNumberOfPeople() != null ? request.getMaximumNumberOfPeople() : 2);
 
-        try (ResultSet resultSet = statement.executeQuery()) {
-          if (resultSet.next()) {
-            Integer createdRoomId = resultSet.getInt("id");
-            addUserToRoomInTransaction(connection, createdRoomId, ownerId, Role.OWNER);
-            return createdRoomId;
-          }
-        }
-      }
-
-      throw new RuntimeException("Failed to create room");
-    });
-
-    return getRoomById(roomId);
+    RoomEntity saved = roomJpaRepository.saveAndFlush(roomEntity);
+    addUserToRoom(saved.getId(), ownerId, Role.OWNER);
+    return CoreDomainMapper.toRoom(saved);
   }
 
   @Override
+  @Transactional(readOnly = true)
   public Room getRoomById(Integer roomId) {
-    String sql = "SELECT * FROM Rooms WHERE id = ?";
+    return roomJpaRepository.findById(roomId)
+        .map(CoreDomainMapper::toRoom)
+        .orElse(null);
+  }
 
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return mapResultSetToRoom(resultSet);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get room with id: " + roomId, e);
-    }
-    return null;
+  @Override
+  @Transactional(readOnly = true)
+  public List<Room> getAllRooms() {
+    return roomJpaRepository.findAll().stream()
+        .map(CoreDomainMapper::toRoom)
+        .toList();
   }
 
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Role role) {
-    try (Connection connection = dataRepository.getDataSource().getConnection()) {
-      addUserToRoomInTransaction(connection, roomId, userId, role);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to add user to room", e);
+    if (isUserBannedInRoom(roomId, userId)) {
+      throw new RuntimeException("User is banned from room");
     }
-  }
-
-  public boolean isUserBannedInRoom(Integer roomId, Integer userId) {
-    String sql = "SELECT EXISTS(SELECT 1 FROM Bans WHERE room_id = ? AND user_id = ?)";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getBoolean(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to check user ban status", e);
-    }
-    return false;
-  }
-
-  public boolean isUserBannedInTransaction(Connection connection, Integer roomId, Integer userId) {
-    String sql = "SELECT EXISTS(SELECT 1 FROM Bans WHERE room_id = ? AND user_id = ?)";
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getBoolean(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to check user ban status", e);
+    if (isUserInMembers(roomId, userId)) {
+      throw new RuntimeException("User is already a member of room");
     }
 
-    return false;
-  }
+    RoomEntity roomEntity = getExistingRoomEntity(roomId);
+    UserEntity userEntity = userJpaRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+    RoleEntity roleEntity = findRoleEntity(role);
 
-  public int getRoomParticipantCount(Integer roomId) {
-    String sql = "SELECT COUNT(*) FROM Rooms_members WHERE room_id = ?";
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getInt(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get room participant count", e);
-    }
-    return 0;
-  }
-
-  public int getRoomParticipantCountInTransaction(Connection connection, Integer roomId) {
-    String sql = "SELECT COUNT(*) FROM Rooms_members WHERE room_id = ?";
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getInt(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get room participant count", e);
-    }
-
-    return 0;
-  }
-
-  @Override
-  public void removeUserFromRoom(Integer roomId, Integer userId) {
-    String sql = "DELETE FROM Rooms_members WHERE room_id = ? AND user_id = ?";
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-      int affectedRows = statement.executeUpdate();
-      if (affectedRows == 0) {
-        throw new RuntimeException(
-            "User " + userId + " is not a member of room " + roomId);
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException(
-          "Failed to remove user " + userId + " from room " + roomId, e);
-    }
-  }
-
-  public void addUserBan(Integer roomId, Integer userId) {
-    try (Connection connection = dataRepository.getDataSource().getConnection()) {
-      addUserBanInTransaction(connection, roomId, userId);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to add user ban", e);
-    }
+    RoomMemberEntity membership = new RoomMemberEntity();
+    membership.setId(new RoomMemberId(roomId, userId));
+    membership.setRoom(roomEntity);
+    membership.setUser(userEntity);
+    membership.setRole(roleEntity);
+    roomMemberJpaRepository.save(membership);
   }
 
   @Override
   public void deleteRoom(Integer roomId) {
-    dataRepository.inTransaction(connection -> {
-      deleteRoomInTransaction(connection, roomId);
-      return null;
-    });
+    RoomEntity roomEntity = getExistingRoomEntity(roomId);
+    bulletinBoardJpaRepository.deleteByRoom_Id(roomId);
+    banJpaRepository.deleteAllByRoom_Id(roomId);
+    roomsRequestJpaRepository.deleteAllByRoom_Id(roomId);
+    roomMemberJpaRepository.deleteAllByRoom_Id(roomId);
+    pictureJpaRepository.deleteAllByRoom_Id(roomId);
+    roomJpaRepository.delete(roomEntity);
   }
 
-  /**
-   * Удалить из БД всё, связанное с данной комнатой
-   *
-   * @param roomId
-   */
-  private void deleteAllWithRoomsInTransaction(Connection connection, Integer roomId) {
-    deleteByRoomId(connection, "DELETE FROM BulletinBoard WHERE room_id = ?", roomId);
-    deleteByRoomId(connection, "DELETE FROM Bans WHERE room_id = ?", roomId);
-    deleteByRoomId(connection, "DELETE FROM Rooms_requests WHERE room_id = ?", roomId);
-    deleteByRoomId(connection, "DELETE FROM Rooms_members WHERE room_id = ?", roomId);
-    deleteByRoomId(connection, "DELETE FROM Pictures WHERE room_id = ?", roomId);
+  @Override
+  @Transactional(readOnly = true)
+  public boolean isUserInMembers(Integer roomId, Integer userId) {
+    return roomMemberJpaRepository.existsByRoom_IdAndUser_Id(roomId, userId);
   }
 
-  private Room mapResultSetToRoom(ResultSet resultSet) throws SQLException {
-    Integer id = resultSet.getInt("id");
-    boolean isActive = resultSet.getBoolean("is_active");
-    boolean isPublic = resultSet.getBoolean("is_public");
-    String chatLink = resultSet.getString("chat_link");
-    Integer categoryId = resultSet.getInt("category_id");
-    String name = resultSet.getString("name");
-    String description = resultSet.getString("description");
-    Instant startDate = resultSet.getTimestamp("start_date") != null ?
-        resultSet.getTimestamp("start_date").toInstant() : null;
-    Instant endDate = resultSet.getTimestamp("end_date") != null ?
-        resultSet.getTimestamp("end_date").toInstant() : null;
-    int ageRating = resultSet.getInt("age_rating");
-    Instant frequency = resultSet.getTimestamp("frequency") != null ?
-        resultSet.getTimestamp("frequency").toInstant() : null;
-    int maxPeople = resultSet.getInt("maximum_number_of_people");
-    Category category = qaRepository.getCategoryById(categoryId);
-
-    return new Room(id, isActive, isPublic, chatLink, category, name, description,
-        startDate, endDate, ageRating, frequency, maxPeople, null,
-        null);
+  @Override
+  public void removeUserFromRoom(Integer roomId, Integer userId) {
+    if (!roomMemberJpaRepository.existsByRoom_IdAndUser_Id(roomId, userId)) {
+      throw new RuntimeException("User " + userId + " is not a member of room " + roomId);
+    }
+    roomMemberJpaRepository.deleteByRoom_IdAndUser_Id(roomId, userId);
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public boolean isUserBannedInRoom(Integer roomId, Integer userId) {
+    return banJpaRepository.existsByRoom_IdAndUser_Id(roomId, userId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public int getRoomParticipantCount(Integer roomId) {
+    return (int) roomMemberJpaRepository.countByRoom_Id(roomId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Map<User, Role> getUsersInRoom(Integer roomId) {
-    String sql = """
-        SELECT u.id, r.role
-        FROM Users AS u
-        INNER JOIN Rooms_members AS rm ON rm.user_id = u.id
-        INNER JOIN Roles AS r ON r.id = rm.role_id
-        WHERE rm.room_id = ?;
-        """;
-
-    var usersInRoom = new HashMap<User, Role>();
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          User user = userRepository.getUserById(resultSet.getInt("id"));
-          Role role = Role.valueOf(resultSet.getString("role").toUpperCase());
-          usersInRoom.put(user, role);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get room users", e);
+    Map<User, Role> usersInRoom = new LinkedHashMap<>();
+    for (RoomMemberEntity membership : roomMemberJpaRepository.findAllByRoom_Id(roomId)) {
+      usersInRoom.put(
+          CoreDomainMapper.toUserSummary(membership.getUser()),
+          CoreLookupMapper.toRole(membership.getRole().getRoleName()));
     }
     return usersInRoom;
   }
 
-  /**
-   * Получение всех пользователей с баном в данной комнате
-   *
-   * @param roomId
-   * @return
-   */
-  private List<Integer> getUsersWithBanInRoom(Integer roomId) {
-    String sql = "select user_id from Bans where room_id = ?";
-    var bans = new ArrayList<Integer>();
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          bans.add(resultSet.getInt(1));
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get bans for room: " + roomId, e);
-    }
-    return bans;
-  }
-
-  public boolean isUserInMembers(Integer roomId, Integer userId) {
-    String sql = """
-        SELECT EXISTS(
-            SELECT 1 FROM Rooms_members
-            WHERE room_id = ? AND user_id = ?
-        )
-        """;
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getBoolean(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to check room membership", e);
-    }
-    return false;
-  }
-
-  public boolean isUserInMembersInTransaction(Connection connection, Integer roomId, Integer userId) {
-    String sql = """
-        SELECT EXISTS(
-            SELECT 1 FROM Rooms_members
-            WHERE room_id = ? AND user_id = ?
-        )
-        """;
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getBoolean(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to check room membership", e);
-    }
-
-    return false;
-  }
-
-  public boolean isUserOwnerOfRoom(Integer userId, Integer roomId) {
-    if (!isUserInMembers(roomId, userId)) {
-      return false;
-    }
-    String sql = """
-        select * from Rooms_members
-        where user_id = ? and room_id = ? and
-        role_id in (select id from Roles where role = 'owner')
-        """;
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, userId);
-      statement.setInt(2, roomId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return true;
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException(
-          "Failed to check whether user " + userId + " owns room " + roomId, e);
-    }
-    return false;
-  }
-
+  @Override
   public void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role) {
-    String sql = """
-        UPDATE Rooms_members
-        SET role_id = (select id from Roles where LOWER(role) = LOWER(?))
-        where room_id = ? and user_id = ?""";
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, role.name());
-      statement.setInt(2, roomId);
-      statement.setInt(3, userId);
-
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows > 0) {
-        return;
-      } else {
-        throw new RuntimeException(
-            "Room membership not found for user " + userId + " in room " + roomId);
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException(
-          "Failed to update role for user " + userId + " in room " + roomId, e);
-    }
-  }
-
-  public Role getUserRoleByRoomId(Integer roomId, Integer userId) {
-    String sql = """
-        SELECT r.role, rm.role_id
-        FROM Rooms_members AS rm 
-        LEFT JOIN Roles AS r ON r.id = rm.role_id
-        WHERE rm.room_id = ? AND rm.user_id = ?""";
-
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          String roleFromDb = resultSet.getString("role");
-          int roleId = resultSet.getInt("role_id");
-
-          if (resultSet.wasNull() || roleFromDb == null) {
-            throw new RuntimeException(
-                "Role mapping not found for role_id " + roleId + " in room " + roomId);
-          }
-
-          return Role.valueOf(roleFromDb.toUpperCase());
-        } else {
-          throw new RuntimeException("User not found in room members");
-        }
-      }
-    } catch (SQLException | IllegalArgumentException e) {
-      throw new RuntimeException("Error getting user role", e);
-    }
+    RoomMemberEntity membership = roomMemberJpaRepository.findByRoom_IdAndUser_Id(roomId, userId)
+        .orElseThrow(() -> new RuntimeException(
+            "Failed to update role. User " + userId + " not found in room " + roomId));
+    membership.setRole(findRoleEntity(role));
   }
 
   @Override
-  public List<Room> getAllRooms() {
-    String sql = "SELECT * FROM Rooms";
-    var rooms = new ArrayList<Room>();
-    try (Connection connection = dataRepository.getDataSource().getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet resultSet = statement.executeQuery()) {
-
-      while (resultSet.next()) {
-        rooms.add(mapResultSetToRoom(resultSet));
-      }
-      return rooms;
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to get rooms", e);
-    }
+  @Transactional(readOnly = true)
+  public Role getUserRoleByRoomId(Integer roomId, Integer userId) {
+    RoomMemberEntity membership = roomMemberJpaRepository.findByRoom_IdAndUser_Id(roomId, userId)
+        .orElseThrow(() -> new RuntimeException(
+            "User " + userId + " not found in room " + roomId));
+    return CoreLookupMapper.toRole(membership.getRole().getRoleName());
   }
 
+  @Override
+  public void addUserBan(Integer roomId, Integer userId) {
+    if (banJpaRepository.existsByRoom_IdAndUser_Id(roomId, userId)) {
+      return;
+    }
+    RoomEntity roomEntity = getExistingRoomEntity(roomId);
+    UserEntity userEntity = userJpaRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+    BanEntity banEntity = new BanEntity();
+    banEntity.setId(new BanId(userId, roomId));
+    banEntity.setUser(userEntity);
+    banEntity.setRoom(roomEntity);
+    banJpaRepository.save(banEntity);
+  }
+
+  @Transactional(readOnly = true)
   public int getCategoryIdByName(String categoryName) {
-    try (Connection connection = dataRepository.getDataSource().getConnection()) {
-      return getCategoryIdByNameInTransaction(connection, categoryName);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to retrieve category ID", e);
-    }
+    return findCategoryEntity(categoryName).getId();
   }
 
-  public int getCategoryIdByNameInTransaction(Connection connection, String categoryName) {
-    String sql = """
-        SELECT id FROM Categories
-        WHERE LOWER(name) = LOWER(?);
-        """;
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, categoryName);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getInt("id");
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to retrieve category ID", e);
-    }
-
-    throw new ValidationException("Category not found: " + categoryName);
+  private RoomEntity getExistingRoomEntity(Integer roomId) {
+    return roomJpaRepository.findById(roomId)
+        .orElseThrow(() -> new RuntimeException("Room not found: " + roomId));
   }
 
-  public void addUserToRoomInTransaction(Connection connection, Integer roomId, Integer userId,
-      Role role) {
-    if (isUserBannedInTransaction(connection, roomId, userId)) {
-      throw new IllegalStateException("User is banned from this room");
-    }
-
-    if (isUserInMembersInTransaction(connection, roomId, userId)) {
-      throw new IllegalStateException("User is already a member of this room");
-    }
-
-    if (!roomExistsInTransaction(connection, roomId)) {
-      throw new IllegalArgumentException("Room with id " + roomId + " does not exist");
-    }
-
-    String sql = """
-        INSERT INTO Rooms_members (room_id, user_id, role_id)
-        VALUES (?, ?, (SELECT id FROM Roles WHERE LOWER(role) = LOWER(?)))
-        """;
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-      statement.setString(3, role.name());
-
-      int affectedRows = statement.executeUpdate();
-      if (affectedRows == 0) {
-        throw new RuntimeException("Failed to add user to room");
-      }
-    } catch (SQLException e) {
-      String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
-      if (message.contains("foreign key constraint")) {
-        throw new IllegalArgumentException("User or room does not exist", e);
-      }
-      if (message.contains("unique constraint") || message.contains("duplicate key")) {
-        throw new IllegalStateException("User is already a member of this room", e);
-      }
-      throw new RuntimeException("Failed to add user to room", e);
-    }
+  private CategoryEntity findCategoryEntity(String categoryName) {
+    String dbName = CoreLookupMapper.toDbCategoryName(categoryName);
+    return categoryLookupRepository.findByNameIgnoreCase(dbName)
+        .orElseThrow(() -> new ValidationException("Category not found: " + categoryName));
   }
 
-  public void addUserBanInTransaction(Connection connection, Integer roomId, Integer userId) {
-    String sql = """
-        INSERT INTO Bans (room_id, user_id)
-        VALUES (?, ?)
-        ON CONFLICT (user_id, room_id) DO NOTHING
-        """;
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.setInt(2, userId);
-      statement.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to add user ban", e);
-    }
-  }
-
-  public void deleteRoomInTransaction(Connection connection, Integer roomId) {
-    deleteAllWithRoomsInTransaction(connection, roomId);
-
-    String sql = "DELETE FROM Rooms WHERE id = ?";
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      int affectedRows = statement.executeUpdate();
-
-      if (affectedRows == 0) {
-        throw new RuntimeException("Room not found with id: " + roomId);
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to delete room", e);
-    }
-  }
-
-  private boolean roomExistsInTransaction(Connection connection, Integer roomId) {
-    String sql = "SELECT EXISTS(SELECT 1 FROM Rooms WHERE id = ?)";
-
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-
-      try (ResultSet resultSet = statement.executeQuery()) {
-        if (resultSet.next()) {
-          return resultSet.getBoolean(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to verify room existence", e);
-    }
-
-    return false;
-  }
-
-  private void deleteByRoomId(Connection connection, String sql, Integer roomId) {
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, roomId);
-      statement.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to delete room related records", e);
-    }
+  private RoleEntity findRoleEntity(Role role) {
+    return roleLookupRepository.findByRoleNameIgnoreCase(CoreLookupMapper.toDbRoleName(role))
+        .orElseThrow(() -> new RuntimeException("Role not found: " + role));
   }
 }
