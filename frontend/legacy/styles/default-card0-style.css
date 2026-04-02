@@ -1,0 +1,88 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: small;
+    background-color: rgb(237, 234, 234);
+    min-height: 1000px;
+}
+
+#main-header {
+    background-color: rgb(237, 234, 234);
+    height: 50px;
+    width: 100%;
+    padding: 10px 5em 0% 5em;
+    display: flex;
+    align-items: baseline;
+    gap: 19px;
+    position: fixed;
+    border-bottom: 1px solid rgb(77, 77, 77);
+}
+
+.gray-elem {
+    color: rgb(136, 112, 112);
+}
+#main-header i {
+    margin-left: 860px;
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+#main-header button {
+    background-color: black;
+    color: white;
+    flex-basis: 90px;
+    height: 30px;
+
+}
+
+button {
+    border-radius: 6px;
+}
+
+.fa-moon {
+    padding: 5px;
+    border-radius: 9px;
+}
+.fa-moon:hover {
+    background-color: rgb(201, 189, 189);
+}
+
+.virtual-elem {
+    padding-top: 66px;
+}
+
+
+/* уникальное снизу начинается */
+
+main {
+    margin: 15px 50px;
+}
+.two-top-fields {
+    display: flex;
+    gap: 100px;
+}
+.two-top-fields img, article {
+    border-radius: 10px;
+}
+
+.two-top-fields article {
+    border: 1px solid black;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.sign-in-to-join {
+    margin-left: 165px;
+    width: 80%;
+    height: 100px;
+    text-align: center;
+    border: 1px solid gray;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    padding: 10px;
+}

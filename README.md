@@ -21,12 +21,15 @@ There is no monolith fallback and no direct business HTTP API in `notifications-
 - Docker Desktop with `docker compose`
 - Java 21
 - Maven wrapper `./mvnw`
+- Node.js 20+ with `npm`
 
 Quick checks:
 
 ```bash
 java -version
 ./mvnw -v
+node -v
+npm -v
 docker --version
 docker compose version
 ```
@@ -193,6 +196,87 @@ Why `QA_SERVICE_BASE_URL=http://localhost:8081` is required here:
 - in Docker Compose, `core-service` reaches `qa-service` by the internal hostname `qa-service`
 - in local runs, your host process must call `localhost:8081`
 
+## Frontend Run
+
+The active frontend app is located in `frontend/web`.
+
+It uses Vite and calls the public backend API through `core-service`.
+
+Default API base URL:
+
+- `http://localhost:8080/api`
+
+This default already matches the local backend setup from this README, so no extra frontend config is required if `core-service` runs on port `8080`.
+
+1. Install frontend dependencies:
+
+```bash
+cd frontend/web
+npm ci
+```
+
+2. Optional: create a local env file if you want to override the backend URL:
+
+```bash
+cp .env.example .env
+```
+
+Example override:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080/api
+```
+
+3. Start the Vite dev server:
+
+```bash
+npm run dev
+```
+
+4. Open the frontend in the browser:
+
+```text
+http://localhost:5173
+```
+
+## Run Frontend with Backend
+
+Recommended local setup:
+
+1. Start infrastructure:
+
+```bash
+docker compose up -d postgres kafka
+```
+
+2. Run `qa-service`, `notifications-service`, and `core-service` locally as described in `Local Run`.
+
+3. In a separate terminal, start the frontend:
+
+```bash
+cd frontend/web
+npm ci
+npm run dev
+```
+
+4. Open:
+
+```text
+http://localhost:5173
+```
+
+Runtime contract:
+
+- browser -> `http://localhost:5173`
+- frontend -> `http://localhost:8080/api`
+- `core-service` -> `http://localhost:8081`
+
+Notes:
+
+- `core-service` already allows CORS from `http://localhost:5173` in the default local configuration.
+- Q&A requests from the frontend still go through `core-service`, not directly to `qa-service`.
+- if you run backend through full Docker Compose, the frontend can still be started locally with the same default `VITE_API_BASE_URL`.
+
 ## SMTP for Local Development
 
 - Docker Compose uses Yandex SMTP by default.
@@ -222,6 +306,8 @@ Run notifications-service tests:
 
 ## Repository Structure
 
+- `frontend/web`
+- `frontend/legacy`
 - `services/core-service`
 - `services/qa-service`
 - `services/notifications-service`
