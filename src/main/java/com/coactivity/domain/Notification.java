@@ -24,7 +24,6 @@ public class Notification {
   @Column(name = "description")
   private String description;
 
-  // Для обратной совместимости
   public static Notification getByIndex(int index) {
     throw new UnsupportedOperationException("Use NotificationRepository instead");
   }
@@ -34,7 +33,6 @@ public class Notification {
     return name;
   }
 
-  // Предопределенные константы
   public static final String MEMBERSHIP_ACCEPTED = "membershipAccepted";
   public static final String MEMBERSHIP_REJECTED = "membershipRejected";
   public static final String ACTIVITY_CLOSED = "activityClosed";

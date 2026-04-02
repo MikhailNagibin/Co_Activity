@@ -87,11 +87,11 @@ public class UserProfileService {
           new PendingVerification(user.getId(), verificationCode,
               Instant.now().plus(VERIFICATION_CODE_TTL)));
       String test = generateVerificationCode();
-      System.out.println("=== VERIFICATION CODE for " + request.getLogin() + ": " + verificationCode);
+//      System.out.println("=== VERIFICATION CODE for " + request.getLogin() + ": " + verificationCode);
       pendingVerifications.put(normalizeLogin(request.getLogin()),
           new PendingVerification(user.getId(), verificationCode, Instant.now().plus(VERIFICATION_CODE_TTL)));
 
-//      notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
+      notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
     } catch (AuthorizationException e) {
       throw e;
     } catch (Exception e) {
