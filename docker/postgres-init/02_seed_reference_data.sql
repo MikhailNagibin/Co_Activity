@@ -1,10 +1,10 @@
-INSERT INTO Roles (role) VALUES
+INSERT INTO roles (role) VALUES
 ('Owner'),
 ('Admin'),
 ('Participant')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO Categories (name) VALUES
+INSERT INTO categories (name) VALUES
 ('Sport'),
 ('Music'),
 ('Art'),
@@ -18,14 +18,14 @@ INSERT INTO Categories (name) VALUES
 ('NotSpecified')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO RequestStatuses (status_info) VALUES
+INSERT INTO request_statuses (status_info) VALUES
 ('Consideration'),
 ('Accepted'),
 ('Refused'),
 ('RefusedWithBan')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO Notifications (notification) VALUES
+INSERT INTO notifications (notification) VALUES
 ('MembershipAccepted'),
 ('MembershipRejected'),
 ('ActivityClosed'),

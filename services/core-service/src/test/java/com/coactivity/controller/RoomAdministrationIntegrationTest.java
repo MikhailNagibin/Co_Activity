@@ -1,6 +1,5 @@
 package com.coactivity.controller;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.response.*;
 import com.coactivity.controller.impl.RoomControllerImpl;
@@ -64,7 +63,7 @@ class RoomAdministrationIntegrationTest {
   private UserControllerImpl userController;
 
   @Autowired
-  private DataRepository dataRepository;
+  private DataSource dataSource;
 
   @Autowired
   private RoomRepositoryImpl roomRepository;
@@ -112,16 +111,15 @@ class RoomAdministrationIntegrationTest {
   }
 
   private void cleanupDatabase() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
       statement.execute("SET session_replication_role = 'replica'");
 
       String[] tables = {
-        "usersNotification", "BulletinBoard", "Answers", "Questions",
-        "Bans", "rooms_requests", "Rooms_members", "Pictures",
-        "Rooms", "Users", "Categories", "Roles", "RequestStatuses", "Notifications"
+        "user_notifications", "bulletin_board", "answers", "questions",
+        "bans", "room_requests", "room_members", "pictures",
+        "rooms", "users", "categories", "roles", "request_statuses", "notifications"
       };
 
       for (String table : tables) {
@@ -137,22 +135,18 @@ class RoomAdministrationIntegrationTest {
   }
 
   private void initializeDatabase() throws Exception {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       ScriptUtils.executeSqlScript(connection, new ClassPathResource("sql/init_tables.sql"));
     }
   }
 
   private void insertReferenceData() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
       // Insert roles
       statement.execute("""
-                INSERT INTO Roles (role) VALUES 
+                INSERT INTO roles (role) VALUES 
                 ('Owner'),
                 ('Admin'),
                 ('Participant')
@@ -161,7 +155,7 @@ class RoomAdministrationIntegrationTest {
 
       // Insert categories
       statement.execute("""
-                INSERT INTO Categories (name) VALUES 
+                INSERT INTO categories (name) VALUES 
                 ('Sport'),
                 ('Music'),
                 ('Art'),
@@ -178,7 +172,7 @@ class RoomAdministrationIntegrationTest {
 
       // Insert request statuses
       statement.execute("""
-                INSERT INTO RequestStatuses (status_info) VALUES 
+                INSERT INTO request_statuses (status_info) VALUES 
                 ('Consideration'),
                 ('Accepted'),
                 ('Refused'),
@@ -188,7 +182,7 @@ class RoomAdministrationIntegrationTest {
 
       // Insert notifications
       statement.execute("""
-                INSERT INTO Notifications (notification) VALUES 
+                INSERT INTO notifications (notification) VALUES 
                 ('MembershipAccepted'),
                 ('MembershipRejected'),
                 ('ActivityClosed'),
@@ -199,8 +193,6 @@ class RoomAdministrationIntegrationTest {
   }
 
   private void createTestUsers() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       // Create room owner
       ownerId = createUser(connection, "owner@test.com", "RoomOwner");
@@ -219,7 +211,7 @@ class RoomAdministrationIntegrationTest {
 
   private Integer createUser(Connection connection, String email, String username) throws SQLException {
     String sql = """
-            INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) 
+            INSERT INTO users (login, username, password, birthday, country, city, description, avatar_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
             RETURNING id
             """;
@@ -262,15 +254,13 @@ class RoomAdministrationIntegrationTest {
   }
 
   private void createTestRoom() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       // Get category ID
       Integer sportCategoryId = getCategoryId(connection, "Sport");
 
       // Create room
       String roomSql = """
-                INSERT INTO Rooms (is_active, is_public, chat_link, category_id, name, description, 
+                INSERT INTO rooms (is_active, is_public, chat_link, category_id, name, description, 
                                    start_date, end_date, age_rating, frequency, maximum_number_of_people)
                 VALUES (true, false, 'https://test-chat.com', ?, 'Test Admin Room', 
                         'Room for testing administration features', 
@@ -303,7 +293,7 @@ class RoomAdministrationIntegrationTest {
   }
 
   private Integer getCategoryId(Connection connection, String categoryName) throws SQLException {
-    String sql = "SELECT id FROM Categories WHERE name = ?";
+    String sql = "SELECT id FROM categories WHERE name = ?";
 
     try (PreparedStatement ps = connection.prepareStatement(sql)) {
       ps.setString(1, categoryName);
@@ -319,8 +309,8 @@ class RoomAdministrationIntegrationTest {
 
   private void addUserToRoom(Connection connection, Integer roomId, Integer userId, String role) throws SQLException {
     String sql = """
-            INSERT INTO Rooms_members (room_id, user_id, role_id)
-            VALUES (?, ?, (SELECT id FROM Roles WHERE role = ?))
+            INSERT INTO room_members (room_id, user_id, role_id)
+            VALUES (?, ?, (SELECT id FROM roles WHERE role = ?))
             """;
 
     try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -653,13 +643,13 @@ class RoomAdministrationIntegrationTest {
 
   // Helper methods
   private Integer createUser(String email, String username) throws SQLException {
-    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+    try (Connection connection = dataSource.getConnection()) {
       return createUser(connection, email, username);
     }
   }
 
   private void addUserToRoom(Integer roomId, Integer userId, String role) throws SQLException {
-    try (Connection connection = dataRepository.getDataSource().getConnection()) {
+    try (Connection connection = dataSource.getConnection()) {
       addUserToRoom(connection, roomId, userId, role);
     }
   }

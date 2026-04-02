@@ -13,6 +13,7 @@ import com.coactivity.service.exception.ValidationException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -36,12 +37,14 @@ public class QaGatewayService {
 
   private final RestClient restClient;
 
+  @Autowired
   public QaGatewayService(
       @Value("${qa.service.base-url:http://qa-service:8081}") String qaServiceBaseUrl) {
-    this.restClient = RestClient.builder()
-        .baseUrl(qaServiceBaseUrl)
-        .requestFactory(createRequestFactory())
-        .build();
+    this(createRestClient(qaServiceBaseUrl));
+  }
+
+  QaGatewayService(RestClient restClient) {
+    this.restClient = restClient;
   }
 
   public QuestionResponse askQuestion(String authorizationHeader, QuestionRequest request) {
@@ -137,7 +140,14 @@ public class QaGatewayService {
     return new QaServiceUnavailableException("QA service is unavailable", ex);
   }
 
-  private JdkClientHttpRequestFactory createRequestFactory() {
+  private static RestClient createRestClient(String qaServiceBaseUrl) {
+    return RestClient.builder()
+        .baseUrl(qaServiceBaseUrl)
+        .requestFactory(createRequestFactory())
+        .build();
+  }
+
+  private static JdkClientHttpRequestFactory createRequestFactory() {
     HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(QA_CONNECT_TIMEOUT)
         .build();

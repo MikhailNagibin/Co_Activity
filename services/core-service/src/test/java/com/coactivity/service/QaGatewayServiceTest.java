@@ -1,26 +1,16 @@
 package com.coactivity.service;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 
 import com.coactivity.service.exception.QaServiceUnavailableException;
-import com.sun.net.httpserver.HttpServer;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
 class QaGatewayServiceTest {
-
-  private HttpServer httpServer;
-
-  @AfterEach
-  void tearDown() {
-    if (httpServer != null) {
-      httpServer.stop(0);
-    }
-  }
 
   @Test
   void getAllQuestionsThrowsServiceUnavailableWhenConnectionFails() {
@@ -30,20 +20,16 @@ class QaGatewayServiceTest {
   }
 
   @Test
-  void getAllQuestionsTranslatesRemote500ToServiceUnavailable() throws IOException {
-    httpServer = HttpServer.create(new InetSocketAddress(0), 0);
-    httpServer.createContext("/api/qa/questions", exchange -> {
-      byte[] body = "{\"error\":\"boom\"}".getBytes(StandardCharsets.UTF_8);
-      exchange.sendResponseHeaders(500, body.length);
-      try (OutputStream outputStream = exchange.getResponseBody()) {
-        outputStream.write(body);
-      }
-    });
-    httpServer.start();
+  void getAllQuestionsTranslatesRemote500ToServiceUnavailable() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://qa-service");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://qa-service/api/qa/questions"))
+        .andExpect(request -> GET.equals(request.getMethod()))
+        .andRespond(withServerError());
 
-    QaGatewayService gatewayService = new QaGatewayService(
-        "http://127.0.0.1:" + httpServer.getAddress().getPort());
+    QaGatewayService gatewayService = new QaGatewayService(builder.build());
 
     assertThrows(QaServiceUnavailableException.class, gatewayService::getAllQuestions);
+    server.verify();
   }
 }

@@ -162,6 +162,7 @@ docker compose up -d postgres kafka
 Then run the services locally in separate terminals:
 
 ```bash
+JWT_SECRET_BASE64=your-base64-secret \
 ./mvnw -f services/qa-service/pom.xml spring-boot:run
 ```
 
@@ -183,6 +184,7 @@ SPRING_DATASOURCE_USERNAME=postgres \
 SPRING_DATASOURCE_PASSWORD=postgres \
 SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
 QA_SERVICE_BASE_URL=http://localhost:8081 \
+JWT_SECRET_BASE64=your-base64-secret \
 ./mvnw -f services/core-service/pom.xml spring-boot:run
 ```
 

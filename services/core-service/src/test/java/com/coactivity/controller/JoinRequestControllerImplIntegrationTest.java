@@ -1,6 +1,5 @@
 package com.coactivity.controller;
 
-import com.coactivity.DataRepository;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.controller.impl.UserControllerImpl;
@@ -56,7 +55,7 @@ class JoinRequestControllerImplIntegrationTest {
   private UserControllerImpl userController;
 
   @Autowired
-  private DataRepository dataRepository;
+  private DataSource dataSource;
 
   @Autowired
   private TokenService tokenService;
@@ -93,16 +92,15 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void cleanupDatabase() throws Exception {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
 
       statement.execute("SET session_replication_role = 'replica'");
 
       String[] tables = {
-        "usersNotification", "BulletinBoard", "Answers", "Questions",
-        "Bans", "rooms_requests", "Rooms_members", "Pictures",
-        "Rooms", "Users",
+        "user_notifications", "bulletin_board", "answers", "questions",
+        "bans", "room_requests", "room_members", "pictures",
+        "rooms", "users",
       };
 
       for (String table : tables) {
@@ -114,8 +112,6 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void initializeDatabase() throws Exception {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       ScriptUtils.executeSqlScript(connection, new ClassPathResource("sql/init_tables.sql"));
       insertRequestStatuses(connection);
@@ -125,13 +121,13 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void insertRequestStatuses(Connection connection) throws SQLException {
-    String checkSql = "SELECT COUNT(*) FROM RequestStatuses";
+    String checkSql = "SELECT COUNT(*) FROM request_statuses";
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
 
         String insertSql = """
-                    INSERT INTO RequestStatuses (status_info) VALUES 
+                    INSERT INTO request_statuses (status_info) VALUES 
                     ('Consideration'),
                     ('Accepted'),
                     ('Refused'),
@@ -143,12 +139,12 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void insertRoles(Connection connection) throws SQLException {
-    String checkSql = "SELECT COUNT(*) FROM Roles";
+    String checkSql = "SELECT COUNT(*) FROM roles";
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
         String insertSql = """
-                    INSERT INTO Roles (role) VALUES 
+                    INSERT INTO roles (role) VALUES 
                     ('OWNER'),
                     ('ADMIN'),
                     ('PARTICIPANT')
@@ -159,12 +155,12 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void insertCategories(Connection connection) throws SQLException {
-    String checkSql = "SELECT COUNT(*) FROM Categories";
+    String checkSql = "SELECT COUNT(*) FROM categories";
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(checkSql)) {
       if (rs.next() && rs.getInt(1) == 0) {
         String insertSql = """
-                    INSERT INTO Categories (name) VALUES 
+                    INSERT INTO categories (name) VALUES 
                     ('Sport'),
                     ('Music'),
                     ('Art')
@@ -175,8 +171,6 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void createTestUsers() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       regularUserId = insertUser(connection, "regular@test.com", "RegularUser", "password123");
 
@@ -188,7 +182,7 @@ class JoinRequestControllerImplIntegrationTest {
 
   private Integer insertUser(Connection connection, String email, String username, String password) throws SQLException {
     String sql = """
-            INSERT INTO Users (login, username, password, birthday, country, city, description, avatar_id) 
+            INSERT INTO users (login, username, password, birthday, country, city, description, avatar_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
             RETURNING id
             """;
@@ -241,10 +235,9 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private Integer getCategoryId(String categoryName) throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          PreparedStatement ps = connection.prepareStatement(
-           "SELECT id FROM Categories WHERE name = ?")) {
+           "SELECT id FROM categories WHERE name = ?")) {
       ps.setString(1, categoryName);
 
       try (ResultSet rs = ps.executeQuery()) {
@@ -257,8 +250,6 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private void createTestJoinRequests() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
-
     try (Connection connection = dataSource.getConnection()) {
       insertJoinRequest(connection, regularUserId, roomId, "Consideration");
 
@@ -275,7 +266,7 @@ class JoinRequestControllerImplIntegrationTest {
 
   private void insertJoinRequest(Connection connection, Integer userId, Integer roomId, String status) throws SQLException {
     String sql = """
-            INSERT INTO rooms_requests (user_id, room_id, status_id, created_at)
+            INSERT INTO room_requests (user_id, room_id, status_id, created_at)
             VALUES (?, ?, ?, ?)
             """;
 
@@ -292,7 +283,7 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private Integer getStatusId(Connection connection, String status) throws SQLException {
-    String sql = "SELECT id FROM RequestStatuses WHERE status_info = ?";
+    String sql = "SELECT id FROM request_statuses WHERE status_info = ?";
 
     try (PreparedStatement ps = connection.prepareStatement(sql)) {
       ps.setString(1, status);
@@ -466,17 +457,15 @@ class JoinRequestControllerImplIntegrationTest {
 
   // Вспомогательные методы
   private Integer createUser(String email, String username) throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection()) {
       return insertUser(connection, email, username, "password123");
     }
   }
 
   private Integer getPendingRequestId() throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          PreparedStatement ps = connection.prepareStatement(
-           "SELECT id FROM rooms_requests WHERE user_id = ? AND status_id = ? LIMIT 1")) {
+           "SELECT id FROM room_requests WHERE user_id = ? AND status_id = ? LIMIT 1")) {
       ps.setInt(1, regularUserId);
       ps.setInt(2, getStatusId(connection, "Consideration"));
 
@@ -490,11 +479,10 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private RequestStatus getRequestStatus(Integer requestId) throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          PreparedStatement ps = connection.prepareStatement(
-           "SELECT rs.status_info FROM rooms_requests rr " +
-             "JOIN RequestStatuses rs ON rr.status_id = rs.id " +
+           "SELECT rs.status_info FROM room_requests rr " +
+             "JOIN request_statuses rs ON rr.status_id = rs.id " +
              "WHERE rr.id = ?")) {
       ps.setInt(1, requestId);
 
@@ -508,10 +496,9 @@ class JoinRequestControllerImplIntegrationTest {
   }
 
   private boolean requestExists(Integer requestId) throws SQLException {
-    DataSource dataSource = dataRepository.getDataSource();
     try (Connection connection = dataSource.getConnection();
          PreparedStatement ps = connection.prepareStatement(
-           "SELECT COUNT(*) FROM rooms_requests WHERE id = ?")) {
+           "SELECT COUNT(*) FROM room_requests WHERE id = ?")) {
       ps.setInt(1, requestId);
 
       try (ResultSet rs = ps.executeQuery()) {
