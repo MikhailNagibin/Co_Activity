@@ -22,8 +22,11 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -36,12 +39,16 @@ public class UserProfileService {
   private final NotificationService notificationService;
   private final Map<String, PendingVerification> pendingVerifications = new ConcurrentHashMap<>();
   private final SecureRandom secureRandom = new SecureRandom();
+  private final StringRedisTemplate redisTemplate;
+  private static final String REDIS_2FA_PREFIX = "2fa:code:";
+  private static final long CODE_TTL_MINUTES = 10;
 
   public UserProfileService(UserRepositoryImpl userRepository, TokenService tokenService,
-                            NotificationService notificationService) {
+                            NotificationService notificationService, StringRedisTemplate redisTemplate) {
     this.userRepository = userRepository;
     this.tokenService = tokenService;
     this.notificationService = notificationService;
+    this.redisTemplate = redisTemplate;
   }
 
   private static boolean isBlank(String value) {
@@ -83,18 +90,19 @@ public class UserProfileService {
       }
 
       String verificationCode = generateVerificationCode();
-      pendingVerifications.put(normalizeLogin(request.getLogin()),
-          new PendingVerification(user.getId(), verificationCode,
-              Instant.now().plus(VERIFICATION_CODE_TTL)));
-      String test = generateVerificationCode();
-//      System.out.println("=== VERIFICATION CODE for " + request.getLogin() + ": " + verificationCode);
-      pendingVerifications.put(normalizeLogin(request.getLogin()),
-          new PendingVerification(user.getId(), verificationCode, Instant.now().plus(VERIFICATION_CODE_TTL)));
+      String normalizedLogin = normalizeLogin(request.getLogin());
+      String redisKey = REDIS_2FA_PREFIX + normalizedLogin;
 
+      // Сохраняем код в Redis с TTL 10 минут
+      redisTemplate.opsForValue().set(redisKey, verificationCode, CODE_TTL_MINUTES, TimeUnit.MINUTES);
+
+      // Отправляем письмо с кодом
       notificationService.sendLoginVerificationCode(request.getLogin(), verificationCode);
+      System.out.println("send");
     } catch (AuthorizationException e) {
       throw e;
     } catch (Exception e) {
+      System.out.println(e.getMessage());
       throw new ValidationException("Unable to initiate login", e);
     }
   }
@@ -105,31 +113,29 @@ public class UserProfileService {
     }
 
     String normalizedLogin = normalizeLogin(login);
-    PendingVerification pending = pendingVerifications.get(normalizedLogin);
+    String redisKey = REDIS_2FA_PREFIX + normalizedLogin;
+    String storedCode = redisTemplate.opsForValue().get(redisKey);
 
-    if (pending == null) {
-      throw new ResourceNotFoundException("No pending verification found");
+    if (storedCode == null) {
+      throw new ResourceNotFoundException("No pending verification found or code expired");
     }
 
-    if (pending.expiresAt().isBefore(Instant.now())) {
-      pendingVerifications.remove(normalizedLogin);
-      throw new ValidationException("Verification code expired");
-    }
-    System.out.println(pending + " " + pendingVerifications);
-    if (!pending.code().equals(verificationCode)) {
+    if (!storedCode.equals(verificationCode)) {
       throw new AuthorizationException("Invalid verification code");
     }
 
+    // Код верный – удаляем его из Redis (одноразовый)
+    redisTemplate.delete(redisKey);
+
     try {
-      User user = userRepository.getUserById(pending.userId());
+      // Находим пользователя по логину (логин уникален)
+      User user = userRepository.getUserByLogin(login);
       if (user == null) {
-        pendingVerifications.remove(normalizedLogin);
         throw new ResourceNotFoundException("User not found");
       }
 
       String token = tokenService.createToken(user.getId());
       tokenService.registerToken(user.getId(), token);
-      pendingVerifications.remove(normalizedLogin);
 
       return new LoginResponse(token, user.getId(), user.getUserName());
     } catch (Exception e) {
