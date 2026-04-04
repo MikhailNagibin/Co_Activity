@@ -14,7 +14,28 @@ function toArray(payload) {
   return []
 }
 
-function formatDate(value) {
+/**
+ * Снимает одну или несколько обёрток JSON-строки ("..."), если контент так сохранён/пришёл с API.
+ */
+export function normalizeBulletinContent(raw) {
+  let s = raw == null ? '' : String(raw)
+  let guard = 0
+  while (guard < 4 && s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(s)
+      if (typeof parsed !== 'string') {
+        break
+      }
+      s = parsed
+      guard += 1
+    } catch {
+      break
+    }
+  }
+  return s
+}
+
+export function formatDate(value) {
   if (!value) {
     return 'Дата не указана'
   }
@@ -61,12 +82,14 @@ export function mapRoomsToActivityCards(payload) {
     )
 
     const roomId = pickFirst(room.id, room.roomId, room.uuid, room.name)
-    const defaultImage = roomId
-      ? `https://picsum.photos/seed/room${roomId}/800/400`
-      : 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800'
+    const numericId =
+      roomId !== null && roomId !== undefined && String(roomId).trim() !== '' && !Number.isNaN(Number(roomId))
+        ? Number(roomId)
+        : null
 
     return {
       id: roomId,
+      linkTo: numericId != null ? `/rooms/${numericId}` : null,
       title: String(pickFirst(room.name, room.title, 'Без названия')),
       description: String(pickFirst(room.description, room.summary, 'Описание отсутствует')),
       location: String(
@@ -85,7 +108,6 @@ export function mapRoomsToActivityCards(payload) {
           ? `Набрано ${participantsCount}/${capacity}`
           : `Участников: ${participantsCount || 0}`,
       author: String(pickFirst(creatorName, 'Неизвестный автор')),
-      image: String(pickFirst(room.imageUrl, room.coverImageUrl, defaultImage)),
     }
   })
 }

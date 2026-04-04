@@ -1,23 +1,11 @@
 import AppHeader from '../components/AppHeader.jsx'
+import StyledDropdown from '../components/StyledDropdown.jsx'
+import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/httpClient.js'
 import { getAccessToken } from '../api/tokenStorage.js'
 import { createQuestion } from '../services/qaService.js'
-
-const CATEGORY_OPTIONS = [
-  { value: 'Sport', label: 'Спорт' },
-  { value: 'Music', label: 'Музыка' },
-  { value: 'Art', label: 'Искусство' },
-  { value: 'Entertainments', label: 'Развлечения' },
-  { value: 'Business', label: 'Бизнес' },
-  { value: 'Education', label: 'Образование' },
-  { value: 'ActiveRecreation', label: 'Активный отдых' },
-  { value: 'PassiveRecreation', label: 'Пассивный отдых' },
-  { value: 'MassEvent', label: 'Массовое мероприятие' },
-  { value: 'Other', label: 'Другое' },
-  { value: 'NotSpecified', label: 'Не указано' },
-]
 
 const QUESTION_MAX_LENGTH = 2000
 
@@ -67,34 +55,32 @@ function CreateQuestionPage() {
   return (
     <>
       <AppHeader activeTab="qa" />
-      <section className="main-hero">
-        <h2>Создание вопроса</h2>
-        <h3 className="gray-elem">Задайте вопрос сообществу и получите ответы</h3>
-      </section>
+      <div className="main-page-shell">
+        <section className="main-hero">
+          <h2>Новый вопрос</h2>
+          <h3>Задайте вопрос сообществу и получите ответы</h3>
+        </section>
 
-      <main className="create-room-page">
-        {!hasToken ? (
-          <p className="create-room-hint">
-            <Link to="/sign-in">Войдите</Link>, чтобы задавать вопросы, или{' '}
-            <Link to="/sign-up">зарегистрируйтесь</Link>.
-          </p>
-        ) : null}
+        <main className="main-page-content qa-create-main">
+          {!hasToken ? (
+            <p className="create-room-hint">
+              <Link to="/sign-in">Войдите</Link>, чтобы задавать вопросы, или{' '}
+              <Link to="/sign-up">зарегистрируйтесь</Link>.
+            </p>
+          ) : null}
 
-        <form className="create-room-form" onSubmit={handleSubmit}>
+          <form className="create-room-form qa-create-form" onSubmit={handleSubmit}>
           <div className="create-room-form-row">
             <label htmlFor="question-category">Категория</label>
-            <select
+            <StyledDropdown
+              variant="form"
               id="question-category"
+              ariaLabel="Категория вопроса"
+              options={ROOM_CATEGORY_OPTIONS}
               value={category}
-              onChange={(event) => setCategory(event.target.value)}
+              onChange={setCategory}
               disabled={isSubmitting}
-            >
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="create-room-form-row">
@@ -118,8 +104,9 @@ function CreateQuestionPage() {
           <button type="submit" className="create-room-submit" disabled={isSubmitting || !hasToken}>
             {isSubmitting ? 'Отправка...' : 'Задать вопрос'}
           </button>
-        </form>
-      </main>
+          </form>
+        </main>
+      </div>
     </>
   )
 }

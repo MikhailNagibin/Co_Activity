@@ -1,20 +1,9 @@
 import { Link } from 'react-router-dom'
 
 function ActivityCard({ item }) {
-  const cardTitle = item.linkTo ? (
-    <Link className="activity-card-link" to={item.linkTo}>
-      {item.title}
-    </Link>
-  ) : (
-    item.title
-  )
-
-  return (
-    <article className="activity-card">
-      <div className="activity-card-image-wrap">
-        <img src={item.image} alt={item.title} />
-      </div>
-      <h2>{cardTitle}</h2>
+  const body = (
+    <>
+      <h2 className="activity-card-title">{item.title}</h2>
       <p>{item.description}</p>
       <hr />
       <p>{item.location}</p>
@@ -24,8 +13,18 @@ function ActivityCard({ item }) {
         <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
         <h5>{item.author}</h5>
       </div>
-    </article>
+    </>
   )
+
+  if (item.linkTo) {
+    return (
+      <Link className="activity-card-outer-link" to={item.linkTo}>
+        <article className="activity-card">{body}</article>
+      </Link>
+    )
+  }
+
+  return <article className="activity-card">{body}</article>
 }
 
 export default ActivityCard

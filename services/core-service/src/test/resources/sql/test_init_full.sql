@@ -112,13 +112,13 @@ CREATE TABLE IF NOT EXISTS user_notifications (
 );
 
 CREATE TABLE IF NOT EXISTS bulletin_board (
-  id SERIAL PRIMARY KEY,
-  room_id INT NOT NULL,
-  content TEXT,
-  author_id INT NOT NULL,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (room_id) REFERENCES rooms(id),
-  FOREIGN KEY (author_id) REFERENCES users(id)
+    id SERIAL PRIMARY KEY,
+    room_id INT NOT NULL,
+    content TEXT,
+    author_id INT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES rooms(id),
+    FOREIGN KEY (author_id) REFERENCES users(id)
 );
 
 INSERT INTO roles (role) VALUES

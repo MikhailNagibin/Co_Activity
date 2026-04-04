@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
+import { getAccessToken } from '../api/tokenStorage.js'
 
 function DefaultCard0() {
+  const isAuthenticated = Boolean(getAccessToken())
+
   return (
     <>
       <AppHeader activeTab="main" />
@@ -37,6 +40,15 @@ function DefaultCard0() {
             </article>
           </section>
         </div>
+
+        {isAuthenticated ? (
+          <section className="activity-bulletin-board" aria-labelledby="bulletin-heading">
+            <h2 id="bulletin-heading">Доска объявлений</h2>
+            <p className="gray-elem">
+              Здесь отображаются объявления организатора и участников. Гости эту секцию не видят (ФТ).
+            </p>
+          </section>
+        ) : null}
       </main>
     </>
   )

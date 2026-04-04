@@ -1,16 +1,21 @@
 import AppHeader from '../components/AppHeader.jsx'
 import ActivityCard from '../components/ActivityCard.jsx'
+import StyledDropdown from '../components/StyledDropdown.jsx'
+import { BROWSE_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ApiError } from '../api/httpClient.js'
+import { getAccessToken } from '../api/tokenStorage.js'
 import { getRooms } from '../services/roomsService.js'
 import { mapRoomsToActivityCards } from '../services/uiMappers.js'
 
 function MainPage() {
   const location = useLocation()
+  const isAuthenticated = Boolean(getAccessToken())
   const [activities, setActivities] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all-categories')
 
   useEffect(() => {
     let isMounted = true
@@ -51,41 +56,48 @@ function MainPage() {
   return (
     <>
       <AppHeader activeTab="main" />
-      <section className="main-hero">
-        <h2>Исследуйте активности</h2>
-        <h3 className="gray-elem">Найдите партнеров по хобби, проектам, интересам</h3>
-      </section>
+      <div className="main-page-shell">
+        <section className="main-hero">
+          <h2>Исследуйте активности</h2>
+          <h3>Найдите партнеров по хобби, проектам, интересам</h3>
+        </section>
 
-      <main className="main-page-content">
-        <div className="search-wrapper">
-          <button className="search-button" type="button" aria-label="Поиск">
-            <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          </button>
-          <input placeholder="Поиск активностей..." type="text" />
-        </div>
+        <main className="main-page-content">
+          <div className="main-toolbar">
+            <div className="search-wrapper">
+              <button className="search-button" type="button" aria-label="Поиск">
+                <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              </button>
+              <input placeholder="Поиск активностей..." type="search" name="q" autoComplete="off" />
+            </div>
 
-        <select name="categories" defaultValue="all-categories">
-          <option value="all-categories">Все категории</option>
-          <option value="sport">Спорт</option>
-          <option value="music">Музыка</option>
-          <option value="art">Искусство</option>
-          <option value="entertainment">Развлечения</option>
-          <option value="business">Бизнес</option>
-          <option value="education">Образование</option>
-          <option value="active-recreation">Активный отдых</option>
-          <option value="passive-recreation">Пассивный отдых</option>
-          <option value="others">Другое</option>
-        </select>
+            <StyledDropdown
+              variant="toolbar"
+              id="main-category-filter"
+              ariaLabel="Категория"
+              options={BROWSE_CATEGORY_OPTIONS}
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+            />
 
-        <button type="button">Фильтры</button>
+            <button type="button" className="main-filters-btn">
+              Фильтры
+            </button>
 
-        <Link className="main-create-activity-btn" to="/create-room">
-          Создать активность
-        </Link>
+            {isAuthenticated ? (
+              <Link className="main-create-activity-btn" to="/create-room">
+                Создать активность
+              </Link>
+            ) : null}
+          </div>
 
-        <section className="cards">
+          <section className="cards" aria-label="Список активностей">
           {isLoading ? <p>Загрузка активностей...</p> : null}
-          {!isLoading && errorMessage ? <p style={{ color: '#b00020' }}>{errorMessage}</p> : null}
+          {!isLoading && errorMessage ? (
+            <p className="main-activities-error" role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
           {!isLoading && !errorMessage && activities.length === 0 ? (
             <p>Пока нет активностей</p>
           ) : null}
@@ -94,8 +106,9 @@ function MainPage() {
                 <ActivityCard key={item.id ?? `${item.title}-${index}`} item={item} />
               ))
             : null}
-        </section>
-      </main>
+          </section>
+        </main>
+      </div>
     </>
   )
 }

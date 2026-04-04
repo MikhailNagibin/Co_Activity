@@ -1,7 +1,28 @@
-import { get, post } from '../api/httpClient.js'
+import { get, post, put } from '../api/httpClient.js'
 
 export function getRooms(options = {}) {
   return get('/rooms', options)
+}
+
+export function getRoomById(roomId, options = {}) {
+  return get(`/rooms/${roomId}`, options)
+}
+
+/** GET /api/rooms/{roomId}/participants — только участник с ролью OWNER или ADMIN. */
+export function getRoomParticipants(roomId, options = {}) {
+  return get(`/rooms/${roomId}/participants`, { ...options, withAuth: true })
+}
+
+/**
+ * PUT /api/rooms/{roomId}/bulletin — тело: JSON-строка с текстом (как @RequestBody String на бэкенде).
+ */
+export function updateRoomBulletin(roomId, content, options = {}) {
+  return put(`/rooms/${roomId}/bulletin`, content, { ...options, withAuth: true })
+}
+
+/** POST /api/rooms/{roomId}/join — публичное: вступление; приватное: заявка. Нужен Bearer. */
+export function joinRoom(roomId, options = {}) {
+  return post(`/rooms/${roomId}/join`, undefined, { ...options, withAuth: true })
 }
 
 /** POST /api/rooms/createRoom — требуется Bearer-токен. */

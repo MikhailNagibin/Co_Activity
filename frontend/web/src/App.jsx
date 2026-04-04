@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
+import RoomActivityPage from './pages/RoomActivityPage.jsx'
 import DefaultCard0 from './pages/DefaultCard0.jsx'
 import DefaultQuestion0 from './pages/DefaultQuestion0.jsx'
 import CreateQuestionPage from './pages/CreateQuestionPage.jsx'
@@ -19,6 +20,7 @@ function App() {
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/sign-up" element={<SignUp />} />
       <Route path="/main" element={<MainPage />} />
+      <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
       <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/qa" element={<QADataPage />} />

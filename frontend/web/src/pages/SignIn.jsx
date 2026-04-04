@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthField from '../components/AuthField.jsx'
 import AuthLayout from '../components/AuthLayout.jsx'
 import { describeFetchFailure, isApiError } from '../api/httpClient.js'
@@ -7,6 +7,7 @@ import { loginStep1, verifyCode } from '../services/authService.js'
 
 function SignIn() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     email: '',
@@ -70,7 +71,10 @@ function SignIn() {
     setIsSubmitting(true)
     try {
       await verifyCode({ login, code })
-      navigate('/main')
+      const next = searchParams.get('next')
+      const safeNext =
+        next && next.startsWith('/') && !next.startsWith('//') ? next : '/main'
+      navigate(safeNext)
     } catch (error) {
       if (isApiError(error)) {
         setErrorMessage(error.message)
