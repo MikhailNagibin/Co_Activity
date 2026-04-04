@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthField from '../components/AuthField.jsx'
 import AuthLayout from '../components/AuthLayout.jsx'
-import { ApiError } from '../api/httpClient.js'
+import { isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
 import { register } from '../services/authService.js'
 
 /** Backend: Instant (ISO-8601), e.g. 2000-01-01T00:00:00Z */
@@ -14,6 +19,7 @@ function birthDateInputToInstant(isoDate) {
 }
 
 function SignUp() {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     email: '',
     nickname: '',
@@ -91,8 +97,12 @@ function SignUp() {
         about: '',
       })
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/sign-up' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось создать аккаунт. Попробуйте снова.'))
       } else {
         setErrorMessage('Не удалось создать аккаунт. Попробуйте снова.')
       }

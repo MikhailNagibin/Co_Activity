@@ -76,8 +76,6 @@ public class QaService {
         .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
 
     UserSummaryResponse questionAuthor = getExistingUserSummary(question.ownerId());
-    QuestionResponse questionResponse =
-        new QuestionResponse(question.id(), question.category(), question.question(), questionAuthor);
 
     List<AnswerEntity> answers = qaRepository.findAnswersByQuestionId(questionId);
     List<AnswerResponse> answerResponses = new ArrayList<>(answers.size());
@@ -85,6 +83,9 @@ public class QaService {
       UserSummaryResponse author = getExistingUserSummary(answer.ownerId());
       answerResponses.add(mapAnswer(answer, author));
     }
+
+    QuestionResponse questionResponse = new QuestionResponse(question.id(), question.category(),
+        question.question(), questionAuthor);
 
     return new QuestionWithAnswersResponse(questionResponse, answerResponses);
   }

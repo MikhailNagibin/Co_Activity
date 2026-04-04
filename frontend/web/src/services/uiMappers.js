@@ -1,3 +1,5 @@
+import { getRoomCategoryLabel } from '../constants/categoryOptions.js'
+
 function toArray(payload) {
   if (Array.isArray(payload)) {
     return payload
@@ -48,6 +50,24 @@ export function formatDate(value) {
   return parsed.toLocaleDateString('ru-RU')
 }
 
+/** Дата и время для Q&A (пустая строка, если значения нет). */
+export function formatDateTimeRu(value) {
+  if (!value) {
+    return ''
+  }
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value)
+  }
+  return parsed.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function pickFirst(...candidates) {
   for (const candidate of candidates) {
     if (candidate !== undefined && candidate !== null && String(candidate).trim() !== '') {
@@ -87,19 +107,41 @@ export function mapRoomsToActivityCards(payload) {
         ? Number(roomId)
         : null
 
+    const categoryRaw = pickFirst(room.category, room.categoryName)
+    const categoryKey =
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? String(categoryRaw).trim() : ''
+
+    const rawPublic = room.isPublic
+    const isPublic = rawPublic === false ? false : true
+
+    const isFull = capacity > 0 && participantsCount >= capacity
+
+    const startRaw = pickFirst(room.dateOfStartEvent, room.date, room.eventDate)
+    let eventStartMs = null
+    if (startRaw != null && String(startRaw).trim() !== '') {
+      const parsed = Date.parse(startRaw)
+      eventStartMs = Number.isNaN(parsed) ? null : parsed
+    }
+
+    const creatorCity = String(room.creator?.city ?? '').trim()
+    const creatorCountry = String(room.creator?.country ?? '').trim()
+
     return {
       id: roomId,
+      sortId: numericId ?? 0,
       linkTo: numericId != null ? `/rooms/${numericId}` : null,
       title: String(pickFirst(room.name, room.title, 'Без названия')),
       description: String(pickFirst(room.description, room.summary, 'Описание отсутствует')),
-      location: String(
-        pickFirst(
-          [room.creator?.city, room.creator?.country].filter(Boolean).join(', '),
-          room.location,
-          room.address,
-          'Локация не указана в API',
-        ),
-      ),
+      categoryKey,
+      category: getRoomCategoryLabel(categoryRaw),
+      isPublic,
+      isFull,
+      ageRating: Number(room.ageRating) || 0,
+      participantsCount,
+      maximumParticipants: capacity,
+      creatorCity,
+      creatorCountry,
+      eventStartMs,
       date: formatDate(
         pickFirst(room.dateOfStartEvent, room.date, room.eventDate, room.createdAt),
       ),
@@ -112,7 +154,7 @@ export function mapRoomsToActivityCards(payload) {
   })
 }
 
-function splitQuestionTitleBody(text) {
+export function splitQuestionTitleBody(text) {
   if (!text || typeof text !== 'string') {
     return { title: 'Без названия', body: 'Описание отсутствует' }
   }
@@ -132,20 +174,39 @@ export function mapQuestionsToPreview(payload) {
     /** Aligns with core-service QuestionResponse: question, author (UserSummaryResponse), category */
     const rawText = pickFirst(question.question, question.title, question.body, '')
     const { title, body } = splitQuestionTitleBody(rawText)
+    const categoryRaw = pickFirst(question.category, question.categoryName)
+    const categoryKey =
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? String(categoryRaw).trim() : ''
     const categoryTag =
-      question.category != null && String(question.category).trim() !== ''
-        ? [String(question.category)]
-        : []
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? [String(categoryRaw)] : []
     const extraTags = Array.isArray(question.tags) ? question.tags.map((tag) => String(tag)) : []
 
+    const rawId = pickFirst(question.id, question.questionId, question.uuid)
+    const numericId =
+      rawId !== null && rawId !== undefined && String(rawId).trim() !== '' && !Number.isNaN(Number(rawId))
+        ? Number(rawId)
+        : null
+
+    const createdRaw = pickFirst(question.createdAt, question.createdDate)
+    const createdIso =
+      createdRaw != null && String(createdRaw).trim() !== '' ? String(createdRaw) : null
+    const answersRaw = pickFirst(question.answersCount, question.answerCount, 0)
+    const answersNum = Number(answersRaw)
+    const answersCount = Number.isFinite(answersNum) ? answersNum : 0
+
     return {
-      id: pickFirst(question.id, question.questionId, question.uuid, title),
+      id: rawId ?? title,
+      sortId: numericId ?? 0,
       author: String(pickFirst(question.author?.userName, question.authorName, 'Неизвестный автор')),
-      createdAt: formatDate(pickFirst(question.createdAt, question.createdDate)),
+      createdAt: formatDateTimeRu(createdIso),
+      createdAtIso: createdIso,
+      categoryKey,
+      categoryLabel: getRoomCategoryLabel(categoryRaw),
       title: String(title),
       description: String(body),
       tags: [...categoryTag, ...extraTags],
-      answersCount: Number(pickFirst(question.answersCount, question.answerCount, 0)),
+      answersCount,
+      linkTo: numericId != null ? `/questions/${numericId}` : null,
     }
   })
 }

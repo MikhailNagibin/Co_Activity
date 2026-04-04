@@ -63,7 +63,7 @@ public class QAControllerImpl {
 
   @GetMapping("/questions/{questionId}")
   public ResponseEntity<QuestionWithAnswersResponse> getQuestionWithAnswers(
-    @Positive @PathVariable Integer questionId) {
+      @Positive @PathVariable Integer questionId) {
     QuestionWithAnswersResponse response = qaGatewayService.getQuestionWithAnswers(questionId);
     return ResponseEntity.ok(response);
   }

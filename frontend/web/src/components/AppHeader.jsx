@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { getAccessToken } from '../api/tokenStorage.js'
+import { useTheme } from '../theme/useTheme.js'
 
 function AppHeader({
   authActionLabel = 'Войти',
   authActionTo = '/sign-in',
   activeTab = null,
 }) {
+  const { theme, toggleTheme } = useTheme()
   const hasToken = Boolean(getAccessToken())
   const actionLabel = hasToken ? 'Профиль' : authActionLabel
   const actionTo = hasToken ? '/profile' : authActionTo
@@ -33,8 +35,17 @@ function AppHeader({
         </nav>
 
         <div className="app-header-actions">
-          <button type="button" className="app-header-theme-btn" aria-label="Тема оформления">
-            <i className="fa-regular fa-moon" aria-hidden="true"></i>
+          <button
+            type="button"
+            className="app-header-theme-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+          >
+            <i
+              className={theme === 'dark' ? 'fa-solid fa-sun' : 'fa-regular fa-moon'}
+              aria-hidden="true"
+            ></i>
           </button>
           <Link className="app-header-auth" to={actionTo}>
             {actionLabel}

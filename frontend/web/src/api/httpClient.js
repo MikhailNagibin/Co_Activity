@@ -25,7 +25,6 @@ export function isApiError(error) {
  * Текст для ошибок вне HTTP-ответа (сеть, CORS, обрыв соединения).
  */
 export function describeFetchFailure(error) {
-  const baseUrl = getApiBaseUrl()
   const raw = typeof error?.message === 'string' ? error.message : ''
 
   if (
@@ -34,14 +33,14 @@ export function describeFetchFailure(error) {
     raw.includes('Load failed') ||
     raw.includes('fetch') && raw.includes('Network')
   ) {
-    return `Не удаётся связаться с API (${baseUrl}). Частые причины: core-service не запущен, неверный VITE_API_BASE_URL, или CORS (перезапустите core-service после смены настроек; origin Vite должен быть разрешён).`
+    return 'Не удаётся связаться с сервером. Проверьте интернет и что сервер приложения запущен (для разработки: core-service, CORS и адрес API в настройках фронта).'
   }
 
   if (raw) {
-    return `Запрос не выполнен: ${raw}`
+    return 'Запрос не выполнен. Проверьте подключение к интернету и что сервер приложения запущен.'
   }
 
-  return 'Запрос не выполнен. Проверьте, что backend запущен и адрес API в настройках фронта верный.'
+  return 'Запрос не выполнен. Проверьте подключение и настройки приложения.'
 }
 
 function joinUrl(baseUrl, path) {
@@ -162,6 +161,10 @@ export function post(path, body, options = {}) {
 
 export function put(path, body, options = {}) {
   return apiRequest(path, { ...options, method: 'PUT', body })
+}
+
+export function patch(path, body, options = {}) {
+  return apiRequest(path, { ...options, method: 'PATCH', body })
 }
 
 export function del(path, options = {}) {

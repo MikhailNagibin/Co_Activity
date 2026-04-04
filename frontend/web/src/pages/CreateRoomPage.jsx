@@ -3,8 +3,13 @@ import StyledDropdown from '../components/StyledDropdown.jsx'
 import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ApiError } from '../api/httpClient.js'
+import { isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { getAccessToken } from '../api/tokenStorage.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
 import { createRoom } from '../services/roomsService.js'
 
 function localDateTimeToInstantIso(value) {
@@ -120,8 +125,12 @@ function CreateRoomPage() {
       await createRoom(payload)
       navigate('/main')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/create-room' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось создать событие. Попробуйте снова.'))
       } else {
         setErrorMessage('Не удалось создать событие. Попробуйте снова.')
       }

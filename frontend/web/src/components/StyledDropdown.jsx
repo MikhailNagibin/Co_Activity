@@ -9,6 +9,7 @@ function StyledDropdown({
   onChange,
   id,
   ariaLabel,
+  ariaDescribedBy,
   disabled = false,
   variant = 'toolbar',
   className = '',
@@ -133,6 +134,7 @@ function StyledDropdown({
         id={id}
         className="styled-dropdown__trigger"
         aria-label={ariaLabel}
+        {...(ariaDescribedBy ? { 'aria-describedby': ariaDescribedBy } : {})}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listId}

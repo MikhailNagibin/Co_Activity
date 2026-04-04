@@ -15,6 +15,20 @@ body {
   color: rgb(136, 112, 112);
 }
 
+.sign-in-session-notice {
+  margin: 0 auto 16px;
+  max-width: 520px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 112, 243, 0.42);
+  background: rgba(0, 112, 243, 0.07);
+  color: #0a4a8c;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+  box-sizing: border-box;
+}
+
 button {
   border-radius: 6px;
   border: none;

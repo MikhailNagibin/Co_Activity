@@ -6,7 +6,7 @@ function ActivityCard({ item }) {
       <h2 className="activity-card-title">{item.title}</h2>
       <p>{item.description}</p>
       <hr />
-      <p>{item.location}</p>
+      <p>{item.category}</p>
       <p>{item.date}</p>
       <p>{item.capacity}</p>
       <div className="activity-card-author">

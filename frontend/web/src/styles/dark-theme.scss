@@ -1,0 +1,743 @@
+// Loaded after App.css so these rules win. Toggle via <html data-bs-theme="dark"> (ThemeProvider + inline boot script).
+
+[data-bs-theme='dark'] {
+  color-scheme: dark;
+
+  body {
+    background-color: #121212 !important;
+    color: #e8e8ea;
+  }
+
+  .gray-elem {
+    color: rgba(232, 200, 200, 0.55);
+  }
+
+  .sign-field {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #e8e8ea;
+
+    h2,
+    h4 {
+      color: inherit;
+    }
+
+    hr {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .sign-in-session-notice {
+    border-color: rgba(88, 166, 255, 0.48);
+    background: rgba(88, 166, 255, 0.12);
+    color: #c5dcff;
+  }
+
+  #main-header.app-header {
+    background: rgba(28, 28, 30, 0.92);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+
+  .app-header-brand {
+    color: #f2f2f4;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .app-header-nav-link {
+    color: rgba(232, 232, 236, 0.55);
+
+    &:hover {
+      color: #f2f2f4;
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  .app-header-nav-link--active {
+    color: #f2f2f4;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .app-header-theme-btn {
+    color: rgba(232, 232, 236, 0.65);
+
+    &:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .app-header-auth {
+    background-color: #f2f2f4;
+    color: #111 !important;
+
+    &:hover {
+      background-color: #fff;
+      color: #111 !important;
+    }
+  }
+
+  .main-hero {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 28px rgba(0, 0, 0, 0.45);
+
+    h2 {
+      color: #f2f2f4;
+    }
+
+    h3 {
+      color: rgba(232, 232, 236, 0.55);
+    }
+  }
+
+  .main-toolbar {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.35),
+      0 6px 22px rgba(0, 0, 0, 0.35);
+
+    .search-button {
+      color: rgba(232, 232, 236, 0.45);
+    }
+
+    input {
+      border-color: rgba(255, 255, 255, 0.14);
+      background-color: #242428;
+      color: #e8e8ea;
+
+      &:focus {
+        border-color: rgba(255, 255, 255, 0.35);
+      }
+
+      &::placeholder {
+        color: rgba(232, 232, 236, 0.4);
+      }
+    }
+
+    select {
+      border-color: rgba(255, 255, 255, 0.14);
+      background-color: #242428;
+      color: #e8e8ea;
+    }
+
+    .main-filters-btn {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: #e8e8ea;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      &.main-filters-btn--active {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.24);
+      }
+    }
+
+    .main-create-activity-btn {
+      background-color: #f2f2f4;
+      color: #111;
+
+      &:hover {
+        background-color: #fff;
+        color: #111;
+      }
+    }
+  }
+
+  .main-toolbar-shell--filters-open .main-toolbar {
+    border-bottom-color: transparent;
+  }
+
+  .main-browse-filters-panel {
+    background: #161618;
+    border-color: rgba(255, 255, 255, 0.1);
+    border-top-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.35),
+      0 6px 22px rgba(0, 0, 0, 0.35);
+  }
+
+  .main-browse-filters-label {
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .main-browse-filters-hint-inline {
+    color: rgba(232, 232, 236, 0.5);
+
+    strong {
+      color: rgba(232, 232, 236, 0.7);
+    }
+  }
+
+  .main-browse-filters-input {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+  }
+
+  .main-browse-filters-hint {
+    color: rgba(232, 232, 236, 0.62);
+  }
+
+  .main-browse-filters-reset {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  .styled-dropdown__trigger {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:hover:not(:disabled) {
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    &:focus-visible {
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .styled-dropdown--open .styled-dropdown__trigger {
+    border-color: rgba(255, 255, 255, 0.24);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+  }
+
+  .styled-dropdown__chevron {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .styled-dropdown__panel {
+    background: #2c2c30;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 4px 18px rgba(0, 0, 0, 0.5),
+      0 16px 48px rgba(0, 0, 0, 0.55);
+  }
+
+  .styled-dropdown__option {
+    color: #e8e8ea;
+
+    &:hover,
+    &.styled-dropdown__option--highlight {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .styled-dropdown__check {
+    color: #f2f2f4;
+  }
+
+  .main-page-content .cards > p {
+    color: rgba(232, 232, 236, 0.65);
+  }
+
+  .activity-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+
+    &:hover {
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    hr {
+      border-top-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .activity-card-title {
+      color: #f2f2f4;
+    }
+
+    p {
+      color: rgba(232, 232, 236, 0.72);
+    }
+  }
+
+  .activity-card-link {
+    color: #c8d7ff;
+  }
+
+  .activity-card-author {
+    border-top-color: rgba(255, 255, 255, 0.08);
+
+    i {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e8e8ea;
+    }
+
+    h5 {
+      color: #e8e8ea;
+    }
+  }
+
+  .qa-hero h3 {
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .qa-keywords-panel {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 22px rgba(0, 0, 0, 0.35);
+  }
+
+  .qa-keywords-heading {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .qa-keyword-chip {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e8e8ea;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  .qa-list-message {
+    color: rgba(232, 232, 236, 0.65);
+  }
+
+  .qa-question-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+
+    .qa-question-card-link:hover & {
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 12px 32px rgba(0, 0, 0, 0.4);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+  }
+
+  .qa-question-card-title {
+    color: #f2f2f4;
+  }
+
+  .qa-question-card-excerpt {
+    color: rgba(232, 232, 236, 0.68);
+  }
+
+  .qa-tag {
+    color: rgba(180, 210, 255, 0.9);
+    background: rgba(88, 166, 255, 0.12);
+    border-color: rgba(88, 166, 255, 0.22);
+  }
+
+  .qa-question-card-footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .qa-question-card-author {
+    color: #e8e8ea;
+
+    i {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .qa-question-card-stat {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .back-link {
+    color: #c8d7ff;
+  }
+
+  .qa-thread-back {
+    color: rgba(232, 232, 236, 0.65);
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .qa-thread-op {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  .qa-thread-avatar {
+    color: rgba(232, 232, 236, 0.35);
+  }
+
+  .qa-thread-author-name {
+    color: #f2f2f4;
+  }
+
+  .qa-thread-date {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .qa-thread-title {
+    color: #f2f2f4;
+  }
+
+  .qa-thread-body {
+    color: rgba(232, 232, 236, 0.78);
+  }
+
+  .qa-thread-answers-heading {
+    color: #f2f2f4;
+  }
+
+  .qa-answer-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .qa-answer-author {
+    color: #e8e8ea;
+  }
+
+  .qa-answer-body p {
+    color: rgba(232, 232, 236, 0.82);
+  }
+
+  .qa-thread-shell--legacy {
+    .qa-thread-op,
+    .qa-answer-card {
+      background: #2a2d32;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .qa-thread-reply-form {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .qa-thread-shell--legacy .qa-thread-reply-form {
+    background: #2a2d32;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .qa-thread-reply-textarea {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: #242428;
+    color: #e8e8ea;
+  }
+
+  .qa-thread-reply-counter {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .qa-create-form {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  .qa-create-form .create-room-form-row {
+    input[type='text'],
+    select,
+    textarea {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+  }
+
+  .room-activity-page .back-link {
+    color: rgba(232, 232, 236, 0.75);
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .room-activity-hero {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  .room-activity-title {
+    color: #f2f2f4;
+  }
+
+  .room-activity-status {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(232, 232, 236, 0.75);
+  }
+
+  .room-meta-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .room-meta-chip:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .room-meta-chip-label {
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .room-meta-chip-value {
+    color: #e8e8ea;
+  }
+
+  .room-schedule-divider {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .room-schedule-label {
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .room-schedule-value {
+    color: #e8e8ea;
+  }
+
+  .room-section-heading {
+    color: #f2f2f4;
+  }
+
+  .room-description-text {
+    color: rgba(232, 232, 236, 0.78);
+  }
+
+  .room-panel-soft,
+  .room-join-block.room-panel-soft {
+    background-color: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 22px rgba(0, 0, 0, 0.35);
+  }
+
+  .organizer-name {
+    color: #f2f2f4;
+  }
+
+  .room-join-disabled {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .room-chat-section a {
+    color: #c8d7ff;
+  }
+
+  .activity-bulletin-board:not(.room-panel-soft) {
+    border-color: rgba(255, 255, 255, 0.2);
+    background-color: #242428;
+  }
+
+  .room-bulletin-meta {
+    color: rgba(232, 232, 236, 0.65);
+  }
+
+  .room-bulletin-meta-label {
+    color: #f2f2f4;
+  }
+
+  .room-bulletin-edit-btn {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: #2c2c30;
+    color: #e8e8ea;
+
+    &:hover {
+      background: #34343a;
+    }
+  }
+
+  .room-bulletin-textarea {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: #242428;
+    color: #e8e8ea;
+  }
+
+  .room-bulletin-cancel {
+    color: rgba(232, 232, 236, 0.75);
+  }
+
+  .organizer-row {
+    > i,
+    > .organizer-avatar {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e8e8ea;
+    }
+
+    > h2 {
+      color: #f2f2f4;
+    }
+  }
+
+  .fa-moon,
+  .fa-sun,
+  .fa-magnifying-glass,
+  .fa-circle-user,
+  .fa-comment {
+    color: rgba(232, 232, 236, 0.85);
+  }
+
+  .app-header-theme-btn .fa-regular,
+  .app-header-theme-btn .fa-solid {
+    color: inherit;
+  }
+
+  .create-room-hint a {
+    color: #c8d7ff;
+  }
+
+  .create-room-form {
+    background-color: #2a2d32;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e8e8ea;
+
+    label {
+      color: #e8e8ea;
+    }
+  }
+
+  .create-room-form-row {
+    input[type='text'],
+    input[type='url'],
+    input[type='number'],
+    input[type='datetime-local'],
+    select,
+    textarea {
+      border-color: rgba(255, 255, 255, 0.16);
+      background-color: #242428;
+      color: #e8e8ea;
+    }
+  }
+
+  .create-room-submit {
+    background-color: #f2f2f4;
+    color: #111;
+
+    &:not(:disabled):hover {
+      background-color: #fff;
+    }
+  }
+
+  .create-question-counter {
+    color: rgba(232, 232, 236, 0.55);
+  }
+
+  .profile-auth-rail__card {
+    background: linear-gradient(165deg, #2a2c32 0%, #1e2026 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.45),
+      0 10px 28px rgba(0, 0, 0, 0.5);
+  }
+
+  .profile-auth-rail__label {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .profile-auth-rail__hint {
+    color: rgba(232, 232, 236, 0.6);
+  }
+
+  .profile-panel {
+    background-color: #2a2d32;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e8e8ea;
+  }
+
+  .profile-form {
+    input,
+    textarea {
+      border-color: rgba(255, 255, 255, 0.16);
+      background-color: #242428;
+      color: #e8e8ea;
+    }
+  }
+
+  .profile-links {
+    button,
+    .profile-links__action {
+      border-color: rgba(255, 255, 255, 0.16);
+      background-color: #242428;
+      color: #e8e8ea;
+    }
+
+    .profile-links__action:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .notification-settings-back:hover {
+    border-bottom-color: rgba(255, 255, 255, 0.45);
+  }
+
+  .cta-black-button {
+    background-color: #f2f2f4;
+
+    &:hover {
+      background-color: #fff;
+    }
+
+    a {
+      color: #111;
+    }
+  }
+
+  button.cta-black-button {
+    color: #111;
+  }
+
+  .cta-black-button-link {
+    background-color: #f2f2f4;
+    color: #111 !important;
+
+    &:hover {
+      background-color: #fff;
+    }
+  }
+
+  .two-top-fields article {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e8e8ea;
+  }
+
+  .default-card-page {
+    color: #e8e8ea;
+  }
+}

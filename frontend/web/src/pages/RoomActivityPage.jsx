@@ -1,8 +1,13 @@
 import AppHeader from '../components/AppHeader.jsx'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ApiError, isApiError } from '../api/httpClient.js'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { isApiError } from '../api/httpClient.js'
 import { getAccessToken } from '../api/tokenStorage.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { getBannedRooms, getMyProfile, getSentJoinRequests } from '../services/profileService.js'
 import {
   getRoomById,
@@ -54,6 +59,7 @@ function isOwnerOrAdminRole(role) {
 }
 
 function RoomActivityPage() {
+  const navigate = useNavigate()
   const { roomId: roomIdParam } = useParams()
   const roomId = Number.parseInt(String(roomIdParam), 10)
   const isAuthenticated = Boolean(getAccessToken())
@@ -112,8 +118,14 @@ function RoomActivityPage() {
         setHasPendingRequest(false)
       }
     } catch (error) {
-      if (error instanceof ApiError || isApiError(error)) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить активность'))
       } else {
         setErrorMessage('Не удалось загрузить активность')
       }
@@ -121,7 +133,7 @@ function RoomActivityPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [roomId])
+  }, [roomId, navigate])
 
   useEffect(() => {
     loadRoom()
@@ -194,10 +206,6 @@ function RoomActivityPage() {
       setBulletinFeedback('Текст объявления не может быть пустым.')
       return
     }
-    const confirmed = window.confirm('Вы уверены, что хотите изменить доску?')
-    if (!confirmed) {
-      return
-    }
 
     setBulletinSaving(true)
     setBulletinFeedback('')
@@ -222,8 +230,14 @@ function RoomActivityPage() {
       setBulletinEditing(false)
       setBulletinDraft('')
     } catch (error) {
-      if (error instanceof ApiError || isApiError(error)) {
-        setBulletinFeedback(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setBulletinFeedback(getUserFacingApiMessage(error, 'Не удалось сохранить доску объявлений.'))
       } else {
         setBulletinFeedback('Не удалось сохранить доску объявлений.')
       }
@@ -247,8 +261,14 @@ function RoomActivityPage() {
       }
       await loadRoom()
     } catch (error) {
-      if (error instanceof ApiError || isApiError(error)) {
-        setJoinFeedback(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setJoinFeedback(getUserFacingApiMessage(error, 'Не удалось выполнить действие.'))
       } else {
         setJoinFeedback('Не удалось выполнить действие.')
       }

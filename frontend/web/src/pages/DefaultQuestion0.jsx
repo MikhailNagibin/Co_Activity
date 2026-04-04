@@ -6,7 +6,6 @@ const answers = [
     author: 'Pyotr Sergeyev',
     date: '04.03.2026 10:05',
     text: "Попробуй потыкаться в Leetcode, там отработаешь синтаксис, видосики-разборы заданий глянешь - и профит. After that, try building small projects like a calculator or todo app to practice. The key is to code every day, even if it's just 30 minutes.",
-    accepted: true,
   },
   {
     author: 'Vyacheslav Pupiy',
@@ -24,7 +23,7 @@ function DefaultQuestion0() {
   return (
     <>
       <AppHeader activeTab="qa" />
-      <div className="main-page-shell qa-thread-shell">
+      <div className="main-page-shell qa-thread-shell qa-thread-shell--legacy">
         <Link className="back-link qa-thread-back" to="/qa">
           ← Назад к вопросам
         </Link>
@@ -61,22 +60,13 @@ function DefaultQuestion0() {
         <section className="qa-thread-answers" aria-label="Ответы">
           <h2 className="qa-thread-answers-heading">3 ответа</h2>
           {answers.map((answer) => (
-            <article
-              className={`qa-answer-card${answer.accepted ? ' qa-answer-card--accepted' : ''}`}
-              key={`${answer.author}-${answer.date}`}
-            >
+            <article className="qa-answer-card" key={`${answer.author}-${answer.date}`}>
               <aside className="qa-answer-sidebar" aria-label="Автор ответа">
                 <i className="fa-regular fa-circle-user qa-thread-avatar" aria-hidden="true"></i>
                 <h4 className="qa-answer-author">{answer.author}</h4>
                 <time className="qa-thread-date">{answer.date}</time>
               </aside>
               <div className="qa-answer-body">
-                {answer.accepted ? (
-                  <div className="qa-answer-badge">
-                    <span aria-hidden="true">✓</span>
-                    <span>Принятый ответ</span>
-                  </div>
-                ) : null}
                 <p>{answer.text}</p>
               </div>
             </article>

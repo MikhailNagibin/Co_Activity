@@ -1,13 +1,27 @@
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthField from '../components/AuthField.jsx'
 import AuthLayout from '../components/AuthLayout.jsx'
 import { describeFetchFailure, isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { loginStep1, verifyCode } from '../services/authService.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
+
+function readSessionExpiredFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('session') === 'expired'
+  } catch {
+    return false
+  }
+}
 
 function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const [sessionExpiredBanner] = useState(readSessionExpiredFromUrl)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     email: '',
@@ -16,6 +30,24 @@ function SignIn() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+
+  useLayoutEffect(() => {
+    if (!sessionExpiredBanner) {
+      return
+    }
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.get('session') !== 'expired') {
+      return
+    }
+    sp.delete('session')
+    const next = sp.get('next')
+    const cleaned = new URLSearchParams()
+    if (next) {
+      cleaned.set('next', next)
+    }
+    const q = cleaned.toString()
+    navigate({ pathname: '/sign-in', search: q ? `?${q}` : '' }, { replace: true })
+  }, [sessionExpiredBanner, navigate])
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target
@@ -41,13 +73,20 @@ function SignIn() {
       await loginStep1({ login, password: formData.password })
       setStep(2)
     } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        const next = searchParams.get('next')
+        redirectToSignInForExpiredSession(navigate, {
+          next: next && next.startsWith('/') && !next.startsWith('//') ? next : '/main',
+        })
+        return
+      }
       if (isApiError(error)) {
         if (error.status === 503) {
           setErrorMessage(
-            `${error.message} Частая причина: не запущены Kafka/notifications-service или не настроен SMTP (см. .env: SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD).`,
+            `${getUserFacingApiMessage(error, 'Сервис временно недоступен.')} Частая причина: не запущены Kafka/notifications-service или не настроен SMTP (см. .env: SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD).`,
           )
         } else {
-          setErrorMessage(error.message)
+          setErrorMessage(getUserFacingApiMessage(error, 'Не удалось отправить код. Попробуйте снова.'))
         }
       } else {
         setErrorMessage(describeFetchFailure(error))
@@ -76,8 +115,15 @@ function SignIn() {
         next && next.startsWith('/') && !next.startsWith('//') ? next : '/main'
       navigate(safeNext)
     } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        const next = searchParams.get('next')
+        redirectToSignInForExpiredSession(navigate, {
+          next: next && next.startsWith('/') && !next.startsWith('//') ? next : '/main',
+        })
+        return
+      }
       if (isApiError(error)) {
-        setErrorMessage(error.message)
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось войти. Проверьте код и попробуйте снова.'))
       } else {
         setErrorMessage(describeFetchFailure(error))
       }
@@ -102,6 +148,11 @@ function SignIn() {
         </h3>
       }
     >
+      {sessionExpiredBanner ? (
+        <div className="sign-in-session-notice" role="status">
+          Сессия истекла. Требуется заново войти в аккаунт
+        </div>
+      ) : null}
       {step === 1 ? (
         <form onSubmit={handlePasswordSubmit}>
           <AuthField

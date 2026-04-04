@@ -16,6 +16,9 @@ function answersWord(n) {
 }
 
 function QuestionPreview({ item }) {
+  const answersNum = Number(item.answersCount)
+  const answersCount = Number.isFinite(answersNum) ? answersNum : 0
+
   const card = (
     <article className="qa-question-card">
       <div className="qa-question-card-body">
@@ -42,15 +45,22 @@ function QuestionPreview({ item }) {
           <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
           <span>{item.author}</span>
         </div>
-        <time className="qa-question-card-date" dateTime={item.createdAt}>
-          {item.createdAt}
-        </time>
-        <div className="qa-question-card-stat">
-          <i className="fa-regular fa-comments" aria-hidden="true"></i>
-          <span>
-            {item.answersCount} {answersWord(item.answersCount)}
-          </span>
-        </div>
+        {item.createdAt ? (
+          <time
+            className="qa-question-card-date"
+            dateTime={item.createdAtIso != null && item.createdAtIso !== '' ? item.createdAtIso : undefined}
+          >
+            {item.createdAt}
+          </time>
+        ) : null}
+        {answersCount > 0 ? (
+          <div className="qa-question-card-stat">
+            <i className="fa-regular fa-comments" aria-hidden="true"></i>
+            <span>
+              {answersCount} {answersWord(answersCount)}
+            </span>
+          </div>
+        ) : null}
       </footer>
     </article>
   )

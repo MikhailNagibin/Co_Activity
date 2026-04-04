@@ -3,8 +3,13 @@ import StyledDropdown from '../components/StyledDropdown.jsx'
 import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ApiError } from '../api/httpClient.js'
+import { isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { getAccessToken } from '../api/tokenStorage.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
 import { createQuestion } from '../services/qaService.js'
 
 const QUESTION_MAX_LENGTH = 2000
@@ -42,8 +47,12 @@ function CreateQuestionPage() {
       await createQuestion({ category, question: trimmedQuestion })
       navigate('/qa')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/qa/new' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось отправить вопрос. Попробуйте снова.'))
       } else {
         setErrorMessage('Не удалось отправить вопрос. Попробуйте снова.')
       }
