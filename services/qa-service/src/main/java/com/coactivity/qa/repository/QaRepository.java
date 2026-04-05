@@ -60,7 +60,7 @@ public class QaRepository {
         .toList();
   }
 
-  @Transactional
+  @Transactional(readOnly = false)
   public QuestionEntity createQuestion(Integer userId, String question, Integer categoryId) {
     QaUserEntity owner = userJpaRepository.findById(userId)
         .orElseThrow(() -> new IllegalStateException("User not found: " + userId));
@@ -83,7 +83,7 @@ public class QaRepository {
     return answerJpaRepository.existsByIdAndQuestion_Id(answerId, questionId);
   }
 
-  @Transactional
+  @Transactional(readOnly = false)
   public AnswerEntity createAnswer(Integer questionId, Integer previousAnswerId, String answer,
       Integer ownerId) {
     QaQuestionEntity question = questionJpaRepository.findById(questionId)

@@ -11,53 +11,22 @@ body {
   min-height: 800px;
 }
 
-#main-header {
-  background-color: rgb(237, 234, 234);
-  height: 50px;
-  width: 100%;
-  padding: 10px 5em 0 5em;
-  display: flex;
-  align-items: baseline;
-  gap: 19px;
-  position: fixed;
-  border-bottom: 1px solid rgb(77, 77, 77);
-}
-
 .gray-elem {
   color: rgb(136, 112, 112);
 }
 
-#main-header .fa-moon {
-  margin-left: auto;
-  margin-right: 10px;
-  font-size: 20px;
-  padding: 5px;
-  border-radius: 9px;
-  line-height: 1;
-}
-
-#main-header .fa-moon:hover {
-  background-color: rgb(201, 189, 189);
-}
-
-#main-header button {
-  background-color: black;
-  color: white;
-  flex-basis: 90px;
-  height: 30px;
-}
-
-#main-header button a {
-  text-decoration: none;
-}
-
-.nav-link-muted {
-  color: rgb(116, 113, 113);
-  text-decoration: none;
-}
-
-.nav-link-muted:hover {
-  text-decoration: underline;
+.sign-in-session-notice {
+  margin: 0 auto 16px;
+  max-width: 520px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 112, 243, 0.42);
+  background: rgba(0, 112, 243, 0.07);
+  color: #0a4a8c;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 button {
@@ -66,7 +35,7 @@ button {
 }
 
 .virtual-elem {
-  padding-top: 66px;
+  padding-top: 72px;
 }
 
 .sign-field {

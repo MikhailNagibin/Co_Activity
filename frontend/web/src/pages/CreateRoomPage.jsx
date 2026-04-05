@@ -1,24 +1,16 @@
 import AppHeader from '../components/AppHeader.jsx'
+import StyledDropdown from '../components/StyledDropdown.jsx'
+import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ApiError } from '../api/httpClient.js'
+import { isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { getAccessToken } from '../api/tokenStorage.js'
+import {
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
 import { createRoom } from '../services/roomsService.js'
-
-/** Имена категорий в БД (Categories.name), сравнение без учёта регистра */
-const CATEGORY_OPTIONS = [
-  { value: 'Sport', label: 'Спорт' },
-  { value: 'Music', label: 'Музыка' },
-  { value: 'Art', label: 'Искусство' },
-  { value: 'Entertainments', label: 'Развлечения' },
-  { value: 'Business', label: 'Бизнес' },
-  { value: 'Education', label: 'Образование' },
-  { value: 'ActiveRecreation', label: 'Активный отдых' },
-  { value: 'PassiveRecreation', label: 'Пассивный отдых' },
-  { value: 'MassEvent', label: 'Массовое мероприятие' },
-  { value: 'Other', label: 'Другое' },
-  { value: 'NotSpecified', label: 'Не указано' },
-]
 
 function localDateTimeToInstantIso(value) {
   if (!value || typeof value !== 'string') {
@@ -133,8 +125,12 @@ function CreateRoomPage() {
       await createRoom(payload)
       navigate('/main')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/create-room' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось создать событие. Попробуйте снова.'))
       } else {
         setErrorMessage('Не удалось создать событие. Попробуйте снова.')
       }
@@ -178,19 +174,20 @@ function CreateRoomPage() {
 
           <div className="create-room-form-row">
             <label htmlFor="category">Категория</label>
-            <select
+            <StyledDropdown
+              variant="form"
               id="category"
-              name="category"
+              ariaLabel="Категория активности"
+              options={ROOM_CATEGORY_OPTIONS}
               value={formData.category}
-              onChange={handleFieldChange}
+              onChange={(next) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  category: next,
+                }))
+              }
               disabled={isSubmitting}
-            >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="create-room-form-row">

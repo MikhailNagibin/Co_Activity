@@ -4,8 +4,17 @@ export function getQuestions() {
   return get('/qa/questions')
 }
 
+export function getQuestionWithAnswers(questionId) {
+  const id = encodeURIComponent(String(questionId))
+  return get(`/qa/questions/${id}`)
+}
+
 export function createQuestion(payload, options = {}) {
   return post('/qa/questions', payload, { ...options, withAuth: true })
+}
+
+export function postAnswer(payload, options = {}) {
+  return post('/qa/answers', payload, { ...options, withAuth: true })
 }
 
 /**

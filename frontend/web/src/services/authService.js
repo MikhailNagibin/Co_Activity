@@ -16,7 +16,7 @@ export async function verifyCode({ login, code }) {
 
   const token = payload?.token
   if (!token || typeof token !== 'string') {
-    throw new ApiError('Сервер не вернул токен. Повторите вход.', 200, null)
+    throw new ApiError('Не удалось завершить вход. Повторите попытку.', 200, null)
   }
   setAccessToken(token)
 

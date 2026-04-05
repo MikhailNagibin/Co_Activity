@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
+import ProfileAuthRail from '../components/ProfileAuthRail.jsx'
 import { clearAccessToken, getAccessToken } from '../api/tokenStorage.js'
-import { ApiError } from '../api/httpClient.js'
+import { isApiError } from '../api/httpClient.js'
+import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import {
-  deleteMyAccount,
-  getMyProfile,
-  logout,
-  updateMyNotificationSettings,
-  updateMyProfile,
-} from '../services/profileService.js'
+  isUnauthorizedApiError,
+  redirectToSignInForExpiredSession,
+} from '../utils/sessionExpiredRedirect.js'
+import { deleteMyAccount, getMyProfile, logout, updateMyProfile } from '../services/profileService.js'
 
 function instantToInputDate(value) {
   if (!value) {
@@ -34,7 +34,6 @@ function ProfilePage() {
   const hasToken = Boolean(getAccessToken())
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [isSavingNotifications, setIsSavingNotifications] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -46,12 +45,6 @@ function ProfilePage() {
     city: '',
     description: '',
     avatarId: '',
-  })
-  const [notificationsForm, setNotificationsForm] = useState({
-    membershipAccepted: true,
-    membershipRejected: true,
-    activityClosed: true,
-    newJoinRequest: true,
   })
 
   useEffect(() => {
@@ -74,20 +67,16 @@ function ProfilePage() {
           description: payload?.description ?? '',
           avatarId: payload?.avatarId == null ? '' : String(payload.avatarId),
         })
-        const enabled = Array.isArray(payload?.notifications) ? payload.notifications : []
-        const has = (key) => enabled.some((item) => String(item) === key)
-        setNotificationsForm({
-          membershipAccepted: has('MembershipAccepted'),
-          membershipRejected: has('MembershipRejected'),
-          activityClosed: has('ActivityClosed'),
-          newJoinRequest: has('NewJoinRequest'),
-        })
       } catch (error) {
         if (!isMounted) {
           return
         }
-        if (error instanceof ApiError) {
-          setErrorMessage(error.message)
+        if (isUnauthorizedApiError(error)) {
+          redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+          return
+        }
+        if (isApiError(error)) {
+          setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить профиль'))
         } else {
           setErrorMessage('Не удалось загрузить профиль')
         }
@@ -107,25 +96,11 @@ function ProfilePage() {
     return () => {
       isMounted = false
     }
-  }, [hasToken])
-
-  const notificationsDisabled = useMemo(
-    () =>
-      !notificationsForm.membershipAccepted &&
-      !notificationsForm.membershipRejected &&
-      !notificationsForm.activityClosed &&
-      !notificationsForm.newJoinRequest,
-    [notificationsForm],
-  )
+  }, [hasToken, navigate])
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target
     setProfileForm((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleNotificationToggle = (event) => {
-    const { name, checked } = event.target
-    setNotificationsForm((prev) => ({ ...prev, [name]: checked }))
   }
 
   const handleSaveProfile = async (event) => {
@@ -169,44 +144,17 @@ function ProfilePage() {
       setProfile(updated)
       setSuccessMessage('Профиль сохранён')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось сохранить профиль'))
       } else {
         setErrorMessage('Не удалось сохранить профиль')
       }
     } finally {
       setIsSavingProfile(false)
-    }
-  }
-
-  const handleSaveNotifications = async (event) => {
-    event.preventDefault()
-    setErrorMessage('')
-    setSuccessMessage('')
-
-    const payload = {
-      membershipAccepted: notificationsForm.membershipAccepted,
-      membershipRejected: notificationsForm.membershipRejected,
-      activityClosed: notificationsForm.activityClosed,
-      newJoinRequest: notificationsForm.newJoinRequest,
-    }
-
-    setIsSavingNotifications(true)
-    try {
-      await updateMyNotificationSettings(payload)
-      setSuccessMessage(
-        notificationsDisabled
-          ? 'Все уведомления отключены'
-          : 'Настройки уведомлений сохранены',
-      )
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
-      } else {
-        setErrorMessage('Не удалось сохранить настройки уведомлений')
-      }
-    } finally {
-      setIsSavingNotifications(false)
     }
   }
 
@@ -236,8 +184,12 @@ function ProfilePage() {
       clearAccessToken()
       navigate('/sign-up')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось удалить аккаунт'))
       } else {
         setErrorMessage('Не удалось удалить аккаунт')
       }
@@ -246,15 +198,19 @@ function ProfilePage() {
     }
   }
 
+  const sessionEnded = Boolean(hasToken && !isLoading && !profile)
+
   return (
     <>
       <AppHeader activeTab={null} />
-      <section className="main-hero">
-        <h2>Личный кабинет</h2>
-        <h3 className="gray-elem">Настройки профиля, уведомлений и быстрые переходы</h3>
-      </section>
+      <div className="profile-shell">
+        <div className="profile-shell__column">
+          <section className="main-hero">
+            <h2>Личный кабинет</h2>
+            <h3 className="gray-elem">Настройки профиля и быстрые переходы</h3>
+          </section>
 
-      <main className="profile-page">
+          <main className="profile-page">
         {!hasToken ? (
           <p className="create-room-hint">
             <Link to="/sign-in">Войдите</Link>, чтобы открыть личный кабинет.
@@ -265,17 +221,21 @@ function ProfilePage() {
         {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
         {successMessage ? <p className="profile-success">{successMessage}</p> : null}
 
+        {hasToken && !isLoading && !profile ? (
+          <section className="profile-panel profile-session-fallback">
+            <h3>Профиль не загрузился</h3>
+            <p className="gray-elem">Войдите снова.</p>
+          </section>
+        ) : null}
+
         {hasToken && !isLoading && profile ? (
           <div className="profile-grid">
             <section className="profile-panel">
               <h3>Быстрые разделы</h3>
               <div className="profile-links">
-                <button type="button" disabled>
-                  Уведомления
-                </button>
-                <button type="button" disabled>
-                  Персональные данные
-                </button>
+                <Link to="/profile/notifications" className="profile-links__action">
+                  Настройка уведомлений
+                </Link>
                 <button type="button" disabled>
                   Мои активности
                 </button>
@@ -358,77 +318,21 @@ function ProfilePage() {
                   {isSavingProfile ? 'Сохранение...' : 'Сохранить профиль'}
                 </button>
               </form>
-            </section>
-
-            <section className="profile-panel">
-              <h3>Уведомления</h3>
-              <form onSubmit={handleSaveNotifications} className="profile-form">
-                <label className="profile-checkbox">
-                  <input
-                    type="checkbox"
-                    name="membershipAccepted"
-                    checked={notificationsForm.membershipAccepted}
-                    onChange={handleNotificationToggle}
-                    disabled={isSavingNotifications}
-                  />
-                  Заявка на вступление принята
-                </label>
-                <label className="profile-checkbox">
-                  <input
-                    type="checkbox"
-                    name="membershipRejected"
-                    checked={notificationsForm.membershipRejected}
-                    onChange={handleNotificationToggle}
-                    disabled={isSavingNotifications}
-                  />
-                  Заявка на вступление отклонена
-                </label>
-                <label className="profile-checkbox">
-                  <input
-                    type="checkbox"
-                    name="activityClosed"
-                    checked={notificationsForm.activityClosed}
-                    onChange={handleNotificationToggle}
-                    disabled={isSavingNotifications}
-                  />
-                  Активность, в которой я состою, закрылась
-                </label>
-                <label className="profile-checkbox">
-                  <input
-                    type="checkbox"
-                    name="newJoinRequest"
-                    checked={notificationsForm.newJoinRequest}
-                    onChange={handleNotificationToggle}
-                    disabled={isSavingNotifications}
-                  />
-                  Новая заявка на вступление в мою активность
-                </label>
-
-                <button type="submit" className="create-room-submit" disabled={isSavingNotifications}>
-                  {isSavingNotifications ? 'Сохранение...' : 'Сохранить уведомления'}
-                </button>
-              </form>
-            </section>
-
-            <section className="profile-panel">
-              <h3>Действия с аккаунтом</h3>
-              <div className="profile-actions">
-                <button type="button" className="create-room-submit" onClick={handleLogout}>
-                  Выйти из аккаунта
-                </button>
-                <button
-                  type="button"
-                  className="profile-delete-btn"
-                  onClick={handleDeleteAccount}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Удаление...' : 'Удалить аккаунт'}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="profile-delete-account-link"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Удаление...' : 'Удалить аккаунт'}
+              </button>
             </section>
           </div>
         ) : null}
-      </main>
+          </main>
+        </div>
+        <ProfileAuthRail hasToken={hasToken} onLogout={handleLogout} sessionEnded={sessionEnded} />
+      </div>
     </>
   )
 }

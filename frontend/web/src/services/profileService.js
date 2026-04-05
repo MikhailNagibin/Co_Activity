@@ -1,4 +1,4 @@
-import { del, post, put } from '../api/httpClient.js'
+import { del, get, post, put } from '../api/httpClient.js'
 import { me } from './authService.js'
 
 export function getMyProfile() {
@@ -19,4 +19,12 @@ export function logout(options = {}) {
 
 export function deleteMyAccount(options = {}) {
   return del('/users/me', { ...options, withAuth: true })
+}
+
+export function getSentJoinRequests(options = {}) {
+  return get('/users/requests/sent', { ...options, withAuth: true })
+}
+
+export function getBannedRooms(options = {}) {
+  return get('/users/banned-rooms', { ...options, withAuth: true })
 }

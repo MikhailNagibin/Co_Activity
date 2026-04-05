@@ -6,7 +6,6 @@ const answers = [
     author: 'Pyotr Sergeyev',
     date: '04.03.2026 10:05',
     text: "Попробуй потыкаться в Leetcode, там отработаешь синтаксис, видосики-разборы заданий глянешь - и профит. After that, try building small projects like a calculator or todo app to practice. The key is to code every day, even if it's just 30 minutes.",
-    accepted: true,
   },
   {
     author: 'Vyacheslav Pupiy',
@@ -24,71 +23,61 @@ function DefaultQuestion0() {
   return (
     <>
       <AppHeader activeTab="qa" />
-      <main className="default-question-page">
-        <Link className="back-link" to="/qa">
-          ← Обратно
+      <div className="main-page-shell qa-thread-shell qa-thread-shell--legacy">
+        <Link className="back-link qa-thread-back" to="/qa">
+          ← Назад к вопросам
         </Link>
 
-        <article id="specific-question">
-          <div className="question-author-col">
+        <article className="qa-thread-op">
+          <aside className="qa-thread-op-sidebar" aria-label="Автор вопроса">
             <i
-              className="fa-regular fa-circle-user question-avatar question-avatar-lg"
+              className="fa-regular fa-circle-user qa-thread-avatar qa-thread-avatar--lg"
               aria-hidden="true"
             ></i>
-            <h3>Alex Ivanov</h3>
-            <em>02.03.2026 18:24</em>
-          </div>
+            <h3 className="qa-thread-author-name">Alex Ivanov</h3>
+            <time className="qa-thread-date">02.03.2026 18:24</time>
+          </aside>
 
-          <div>
-            <h2>Как начать изучать язык программирования Java новичку?</h2>
-            <p>
-              Я имею небольшой опыт в программировании на Python, с
-              Объектно-ориентированным программированием возникают объективные проблемы - но
-              если я выучу такой ООПшный язык как джава, то больше вопросов по питончику у
-              меня явно не останется! Я пробовал читать книги, но они давались сложно. Курсы
-              же какие-то дорогие бывают, а меня жаба душит, не могу, хочу стать
-              топ-джавистом здесь и сейчас. Посоветуйте что-нибудь таким нетерпеливым и
-              заряженным типам, как я. Спасибо
+          <div className="qa-thread-op-main">
+            <h1 className="qa-thread-title">Как начать изучать язык программирования Java новичку?</h1>
+            <p className="qa-thread-body">
+              Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным
+              программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как
+              джава, то больше вопросов по питончику у меня явно не останется! Я пробовал читать книги,
+              но они давались сложно. Курсы же какие-то дорогие бывают, а меня жаба душит, не могу, хочу
+              стать топ-джавистом здесь и сейчас. Посоветуйте что-нибудь таким нетерпеливым и заряженным
+              типам, как я. Спасибо
             </p>
-            <div className="question-tags">
-              <button type="button">java</button>
-              <button type="button">программирование</button>
-              <button type="button">it</button>
-              <button type="button">python</button>
+            <div className="qa-thread-op-tags">
+              <span className="qa-tag">java</span>
+              <span className="qa-tag">программирование</span>
+              <span className="qa-tag">it</span>
+              <span className="qa-tag">python</span>
             </div>
           </div>
         </article>
 
-        <div className="answers-wrap">
-          <h2>3 ответа</h2>
+        <section className="qa-thread-answers" aria-label="Ответы">
+          <h2 className="qa-thread-answers-heading">3 ответа</h2>
           {answers.map((answer) => (
-            <article
-              className={`answer ${answer.accepted ? 'accepted-answer' : ''}`}
-              key={`${answer.author}-${answer.date}`}
-            >
-              <div className="account-part-of-article">
-                <i className="fa-regular fa-circle-user question-avatar" aria-hidden="true"></i>
-                <h4>{answer.author}</h4>
-                <em>{answer.date}</em>
-              </div>
-              <div className="answer-body">
-                {answer.accepted ? (
-                  <div className="accepted">
-                    <span aria-hidden="true">✓</span>
-                    <strong>принятый ответ</strong>
-                  </div>
-                ) : null}
+            <article className="qa-answer-card" key={`${answer.author}-${answer.date}`}>
+              <aside className="qa-answer-sidebar" aria-label="Автор ответа">
+                <i className="fa-regular fa-circle-user qa-thread-avatar" aria-hidden="true"></i>
+                <h4 className="qa-answer-author">{answer.author}</h4>
+                <time className="qa-thread-date">{answer.date}</time>
+              </aside>
+              <div className="qa-answer-body">
                 <p>{answer.text}</p>
               </div>
             </article>
           ))}
-        </div>
-      </main>
+        </section>
 
-      <div className="sign-in-to-answer">
-        <button type="button" className="cta-black-button">
-          <Link to="/sign-in">Войти, чтобы ответить на вопрос</Link>
-        </button>
+        <div className="qa-thread-cta">
+          <Link className="main-create-activity-btn qa-thread-cta-link" to="/sign-in">
+            Войти, чтобы ответить
+          </Link>
+        </div>
       </div>
     </>
   )
