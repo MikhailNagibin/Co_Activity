@@ -1,11 +1,11 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.domain.BulletinBoard;
-import com.coactivity.persistence.core.CoreDomainMapper;
-import com.coactivity.persistence.core.entity.BulletinBoardEntity;
-import com.coactivity.persistence.core.repository.BulletinBoardJpaRepository;
-import com.coactivity.persistence.core.repository.RoomJpaRepository;
-import com.coactivity.persistence.core.repository.UserJpaRepository;
+import com.coactivity.persistence.CoreDomainMapper;
+import com.coactivity.persistence.entity.BulletinBoardEntity;
+import com.coactivity.persistence.repository.BulletinBoardJpaRepository;
+import com.coactivity.persistence.repository.RoomJpaRepository;
+import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.repository.BulletinBoardRepository;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;

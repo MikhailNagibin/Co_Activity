@@ -1,72 +1,167 @@
 # Co_Activity
 
-Backend monorepo on Java 21 + Spring Boot + PostgreSQL + Kafka.
+Co_Activity is a microservice-based application for users, rooms, join requests, Q&A, and notification delivery.
 
-## Current Architecture
+This repository contains:
 
-- `core-service` is the only public HTTP API.
-- `qa-service` is an internal HTTP microservice for Q&A.
-- `notifications-service` is a Kafka consumer for email delivery.
-- failed notification records are redirected to a DLT topic after retries or immediately for invalid payloads.
-- Canonical flow:
-  - `client -> core-service`
-  - `core-service -> qa-service` over internal HTTP
-  - `core-service -> Kafka -> notifications-service -> Yandex SMTP`
+- backend services on Java 21 + Spring Boot
+- PostgreSQL for persistence
+- Kafka for asynchronous notification delivery
+- an active frontend app on React + Vite
 
-This repo intentionally has one runtime path for each use case.
-There is no monolith fallback and no direct business HTTP API in `notifications-service`.
+Yes: the backend can be started with Docker Compose. That is the main and simplest run mode for this project.
+
+## Stack
+
+- Backend: Java 21, Spring Boot, Maven Wrapper
+- Database: PostgreSQL 16
+- Messaging: Kafka
+- Frontend: React 19, Vite
+- Mail delivery: Yandex SMTP through `notifications-service`
+
+## Runtime Architecture
+
+- `core-service` is the only public HTTP API
+- `qa-service` is an internal HTTP microservice
+- `notifications-service` is a Kafka consumer for email delivery
+- `core-service` talks to `qa-service` over HTTP
+- `core-service` publishes email commands to Kafka
+- `notifications-service` consumes those commands and sends email
+
+Canonical runtime flow:
+
+```text
+browser/client -> core-service -> qa-service
+browser/client -> core-service -> Kafka -> notifications-service -> SMTP
+```
+
+Important constraints:
+
+- there is no monolith fallback
+- `notifications-service` is not a public business API
+- frontend Q&A calls still go through `core-service`, not directly to `qa-service`
+
+## Repository Layout
+
+- `frontend/web` - active frontend application
+- `frontend/legacy` - old static prototype, not the active runtime
+- `services/core-service` - public backend API
+- `services/qa-service` - internal Q&A service
+- `services/notifications-service` - Kafka email consumer
+- `contracts` - API and event contracts
+- `docker` - database init files
+- `scripts` - helper scripts such as SMTP smoke tests
+
+## Choose a Run Mode
+
+### 1. Docker Compose backend
+
+Use this when you want the fastest reliable start.
+
+What runs in Docker:
+
+- PostgreSQL
+- Kafka
+- `qa-service`
+- `notifications-service`
+- `core-service`
+
+What usually runs locally:
+
+- `frontend/web`
+
+### 2. Local Java services + Docker infrastructure
+
+Use this when you want to debug Spring Boot services in your IDE or terminal.
+
+What runs in Docker:
+
+- PostgreSQL
+- Kafka
+
+What runs locally:
+
+- `qa-service`
+- `notifications-service`
+- `core-service`
+- optionally `frontend/web`
 
 ## Prerequisites
 
+### For Docker Compose backend
+
 - Docker Desktop with `docker compose`
+- Node.js 20+ and `npm` if you want to run the frontend locally
+
+### For local Java services
+
 - Java 21
-- Maven wrapper `./mvnw`
-- Node.js 20+ with `npm`
+- Docker Desktop with `docker compose`
+- Node.js 20+ and `npm` for the frontend
+
+You do not need a separate Maven installation. Use the wrapper included in the repo:
+
+```bash
+./mvnw -v
+```
 
 Quick checks:
 
 ```bash
-java -version
-./mvnw -v
-node -v
-npm -v
 docker --version
 docker compose version
+java -version
+node -v
+npm -v
 ```
 
-## Start with Docker Compose
+## Environment Setup
 
-1. Create local env file:
+Create a local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Generate a JWT secret and put it into `.env`:
+Generate a JWT secret and put it into `JWT_SECRET_BASE64` in `.env`:
 
 ```bash
 openssl rand -base64 32
 ```
 
-3. Start the stack:
+Important variables in `.env`:
+
+- `JWT_SECRET_BASE64` is required for `core-service` and `qa-service`
+- `SPRING_MAIL_USERNAME` and `SPRING_MAIL_PASSWORD` are needed only if you want real email delivery
+- `SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092` is correct for local access to Kafka from the host
+- `QA_SERVICE_BASE_URL=http://qa-service:8081` is correct for Docker Compose, but wrong for a locally started `core-service`
+
+If you run `core-service` locally, override this variable:
+
+```bash
+QA_SERVICE_BASE_URL=http://localhost:8081
+```
+
+## Run Backend with Docker Compose
+
+This is the recommended backend startup path.
+
+1. Prepare `.env` as described above.
+
+2. Start the backend:
 
 ```bash
 docker compose up --build -d
 ```
 
-4. Check the public API:
+3. Check that the public API is up:
 
 ```bash
 curl http://localhost:8080/actuator/health
-```
-
-5. Check internal service health through Compose:
-
-```bash
 docker compose ps
 ```
 
-6. View logs:
+4. View logs when needed:
 
 ```bash
 docker compose logs -f core-service
@@ -76,22 +171,181 @@ docker compose logs -f kafka
 docker compose logs -f postgres
 ```
 
-7. Stop:
+5. Stop everything:
 
 ```bash
 docker compose down
 ```
 
-If you changed the SQL schema, recreate PostgreSQL volume so init scripts run again:
+If you changed the SQL schema and need PostgreSQL init scripts to run again:
 
 ```bash
 docker compose down -v
 docker compose up --build -d
 ```
 
-## Public API Smoke Test
+### Published Ports in Docker Mode
 
-Only `core-service` is reachable from the host.
+- `core-service`: `localhost:8080`
+- PostgreSQL: `localhost:5430`
+- Kafka: `localhost:29092`
+
+Notes:
+
+- `qa-service` and `notifications-service` are internal in Docker Compose
+- only `core-service` is exposed as the public backend API
+
+## Run Backend Locally with `.env`
+
+This mode is useful for debugging Java code.
+
+### 1. Start infrastructure only
+
+```bash
+docker compose up -d postgres kafka
+```
+
+### 2. Load `.env` into each terminal session
+
+Before starting a service, export variables from `.env`:
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env
+set +a
+```
+
+`source` loads variables into the current shell. `set -a` marks them for export so Java processes can read them.
+
+### 3. Start `qa-service`
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env
+set +a
+./mvnw -f services/qa-service/pom.xml spring-boot:run
+```
+
+Local port:
+
+- `http://localhost:8081`
+
+### 4. Start `notifications-service`
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env
+set +a
+./mvnw -f services/notifications-service/pom.xml spring-boot:run
+```
+
+Local port:
+
+- `http://localhost:8082`
+
+Notes:
+
+- email delivery works only if SMTP credentials in `.env` are valid
+- the service can still start even if SMTP is not configured correctly, but real email sending will fail
+
+### 5. Start `core-service`
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env
+set +a
+export QA_SERVICE_BASE_URL=http://localhost:8081
+./mvnw -f services/core-service/pom.xml spring-boot:run
+```
+
+Public local port:
+
+- `http://localhost:8080`
+
+Why the extra `export QA_SERVICE_BASE_URL=...` is required:
+
+- in Docker Compose, `core-service` reaches `qa-service` by container hostname `qa-service`
+- when both processes run on your machine, `core-service` must call `localhost:8081`
+
+## Run the Frontend
+
+The active frontend is in `frontend/web`.
+
+Default backend URL in the frontend:
+
+```text
+http://localhost:8080/api
+```
+
+That default already matches:
+
+- backend started through Docker Compose
+- backend started locally on port `8080`
+
+Install and start the frontend:
+
+```bash
+cd frontend/web
+npm ci
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+If you want to override the backend URL:
+
+```bash
+cd frontend/web
+cp .env.example .env
+```
+
+Example:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080/api
+```
+
+## Recommended Development Setups
+
+### Simplest setup
+
+- backend: Docker Compose
+- frontend: local Vite dev server
+
+Commands:
+
+```bash
+docker compose up --build -d
+cd frontend/web
+npm ci
+npm run dev
+```
+
+### Debug-friendly setup
+
+- PostgreSQL and Kafka: Docker
+- Java services: local
+- frontend: local
+
+Commands:
+
+```bash
+docker compose up -d postgres kafka
+```
+
+Then start the three Spring Boot services in separate terminals as described above.
+
+## Quick Smoke Checks
+
+Only `core-service` should be used from the browser or external tools.
 
 Basic checks:
 
@@ -101,221 +355,94 @@ curl http://localhost:8080/api/rooms
 curl http://localhost:8080/api/qa/questions
 ```
 
-## Yandex SMTP Smoke Test
+Frontend runtime contract:
 
-The email flow is tested through the real business path: `core-service -> Kafka -> notifications-service`.
+- browser -> `http://localhost:5173`
+- frontend -> `http://localhost:8080/api`
+- `core-service` -> `http://localhost:8081` when running locally
 
-Before the test, make sure:
+## SMTP Smoke Test
 
-- IMAP/SMTP access is enabled in Yandex Mail settings
-- you created a Yandex app password for Mail
-- `SPRING_MAIL_USERNAME` and `SPRING_MAIL_PASSWORD` in `.env` are filled in
+Use this only when the backend is running through Docker Compose and you want to test real email delivery.
 
-Preferred path:
+Before the test:
+
+- enable IMAP/SMTP access in Yandex Mail settings
+- create a Yandex app password for Mail
+- fill `SPRING_MAIL_USERNAME` and `SPRING_MAIL_PASSWORD` in `.env`
+
+Run:
 
 ```bash
 ./scripts/yandex-smoke-test.sh
 ```
 
-Manual path:
-
-1. Register a temporary user:
-
-```bash
-TEST_EMAIL="student.$(date +%s)@example.com"
-
-curl -i -X POST http://localhost:8080/api/users \
-  -H 'Content-Type: application/json' \
-  -d "{
-    \"login\": \"${TEST_EMAIL}\",
-    \"userName\": \"yandex-smoke\",
-    \"password\": \"Password123\",
-    \"dateOfBirth\": \"2000-01-01T00:00:00Z\",
-    \"city\": \"Moscow\",
-    \"country\": \"Russia\",
-    \"description\": \"Yandex SMTP smoke test user\",
-    \"avatarId\": 1
-  }"
-```
-
-2. Trigger login verification email:
-
-```bash
-curl -i -X POST http://localhost:8080/api/users/login \
-  -H 'Content-Type: application/json' \
-  -d "{
-    \"login\": \"${TEST_EMAIL}\",
-    \"password\": \"Password123\"
-  }"
-```
-
 Expected result:
 
-- `202 Accepted` from `/api/users/login`
-- a verification email appears in the target Yandex inbox or spam folder
-
-## Local Run
-
-If you run services locally, keep Docker only for infrastructure:
-
-```bash
-docker compose up -d postgres kafka
-```
-
-Then run the services locally in separate terminals:
-
-```bash
-JWT_SECRET_BASE64=your-base64-secret \
-./mvnw -f services/qa-service/pom.xml spring-boot:run
-```
-
-```bash
-SPRING_MAIL_HOST=smtp.yandex.ru \
-SPRING_MAIL_PORT=587 \
-SPRING_MAIL_SMTP_AUTH=true \
-SPRING_MAIL_SMTP_STARTTLS_ENABLE=true \
-SPRING_MAIL_SMTP_STARTTLS_REQUIRED=true \
-SPRING_MAIL_USERNAME=your-mail@yandex.ru \
-SPRING_MAIL_PASSWORD=your-app-password \
-SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
-./mvnw -f services/notifications-service/pom.xml spring-boot:run
-```
-
-```bash
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5430/postgres_db \
-SPRING_DATASOURCE_USERNAME=postgres \
-SPRING_DATASOURCE_PASSWORD=postgres \
-SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:29092 \
-QA_SERVICE_BASE_URL=http://localhost:8081 \
-JWT_SECRET_BASE64=your-base64-secret \
-./mvnw -f services/core-service/pom.xml spring-boot:run
-```
-
-Why `QA_SERVICE_BASE_URL=http://localhost:8081` is required here:
-
-- in Docker Compose, `core-service` reaches `qa-service` by the internal hostname `qa-service`
-- in local runs, your host process must call `localhost:8081`
-
-## Frontend Run
-
-The active frontend app is located in `frontend/web`.
-
-It uses Vite and calls the public backend API through `core-service`.
-
-Default API base URL:
-
-- `http://localhost:8080/api`
-
-This default already matches the local backend setup from this README, so no extra frontend config is required if `core-service` runs on port `8080`.
-
-1. Install frontend dependencies:
-
-```bash
-cd frontend/web
-npm ci
-```
-
-2. Optional: create a local env file if you want to override the backend URL:
-
-```bash
-cp .env.example .env
-```
-
-Example override:
-
-```bash
-VITE_API_BASE_URL=http://localhost:8080/api
-```
-
-3. Start the Vite dev server:
-
-```bash
-npm run dev
-```
-
-4. Open the frontend in the browser:
-
-```text
-http://localhost:5173
-```
-
-## Run Frontend with Backend
-
-Recommended local setup:
-
-1. Start infrastructure:
-
-```bash
-docker compose up -d postgres kafka
-```
-
-2. Run `qa-service`, `notifications-service`, and `core-service` locally as described in `Local Run`.
-
-3. In a separate terminal, start the frontend:
-
-```bash
-cd frontend/web
-npm ci
-npm run dev
-```
-
-4. Open:
-
-```text
-http://localhost:5173
-```
-
-Runtime contract:
-
-- browser -> `http://localhost:5173`
-- frontend -> `http://localhost:8080/api`
-- `core-service` -> `http://localhost:8081`
-
-Notes:
-
-- `core-service` already allows CORS from `http://localhost:5173` in the default local configuration.
-- Q&A requests from the frontend still go through `core-service`, not directly to `qa-service`.
-- if you run backend through full Docker Compose, the frontend can still be started locally with the same default `VITE_API_BASE_URL`.
-
-## SMTP for Local Development
-
-- Docker Compose uses Yandex SMTP by default.
-- `SPRING_MAIL_*` variables are used only by `notifications-service`.
-- `notifications-service` health does not depend on SMTP availability.
-- Use a Yandex app password, not the main account password.
+- `/api/users/login` returns `202 Accepted`
+- `notifications-service` confirms delivery in logs
+- the email appears in the target inbox or spam folder
 
 ## Tests
 
-Run core-service tests:
+Run backend tests per service:
 
 ```bash
 ./mvnw -f services/core-service/pom.xml test
-```
-
-Run qa-service tests:
-
-```bash
 ./mvnw -f services/qa-service/pom.xml test
-```
-
-Run notifications-service tests:
-
-```bash
 ./mvnw -f services/notifications-service/pom.xml test
 ```
 
-## Repository Structure
+## Troubleshooting
 
-- `frontend/web`
-- `frontend/legacy`
-- `services/core-service`
-- `services/qa-service`
-- `services/notifications-service`
-- `contracts`
-- `docker`
+### `JWT_SECRET_BASE64` is missing
+
+Symptom:
+
+- `core-service` or `qa-service` fails during startup
+
+Fix:
+
+- generate a secret with `openssl rand -base64 32`
+- put it into `.env`
+- if you start services locally, make sure you actually exported `.env` in that terminal
+
+### `core-service` cannot call `qa-service` in local mode
+
+Symptom:
+
+- `/api/qa/*` calls fail
+- `core-service` tries to call `http://qa-service:8081`
+
+Fix:
+
+```bash
+export QA_SERVICE_BASE_URL=http://localhost:8081
+```
+
+### Database schema changes are not visible in Docker mode
+
+Symptom:
+
+- PostgreSQL starts with old schema
+
+Fix:
+
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+### Email is not sent
+
+Common causes:
+
+- wrong Yandex app password
+- SMTP access is disabled in Yandex settings
+- Kafka or `notifications-service` is not running
 
 ## Notes
 
-- `services/core-service/src/main/resources/sql/init_tables.sql` is the single schema source for Docker init and tests.
-- Notification delivery is asynchronous through Kafka.
-- Q&A remains synchronous through internal HTTP because reads and immediate answers fit HTTP better than Kafka request-reply in this project.
+- `services/core-service/src/main/resources/sql/init_tables.sql` is the main schema source used for Docker database initialization
+- notification delivery is asynchronous through Kafka
+- Q&A remains synchronous over internal HTTP because this project uses immediate request-response semantics there

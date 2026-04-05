@@ -1,10 +1,10 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.domain.Picture;
-import com.coactivity.persistence.core.CoreDomainMapper;
-import com.coactivity.persistence.core.entity.PictureEntity;
-import com.coactivity.persistence.core.repository.PictureJpaRepository;
-import com.coactivity.persistence.core.repository.RoomJpaRepository;
+import com.coactivity.persistence.CoreDomainMapper;
+import com.coactivity.persistence.entity.PictureEntity;
+import com.coactivity.persistence.repository.PictureJpaRepository;
+import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.repository.PictureRepository;
 import java.util.List;
 import org.springframework.stereotype.Repository;
