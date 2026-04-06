@@ -25,17 +25,19 @@ public class QaService {
   }
 
   public QuestionResponse askQuestion(Integer userId, QuestionRequest request) {
+    Integer authorId = requireUserId(userId);
     validateQuestionRequest(request);
 
     Integer categoryId = qaRepository.findCategoryIdByName(request.getCategory())
         .orElseThrow(() -> new ValidationException("Category not found: " + request.getCategory()));
 
-    QuestionEntity created = qaRepository.createQuestion(userId, request.getQuestion(), categoryId);
+    QuestionEntity created = qaRepository.createQuestion(authorId, request.getQuestion(), categoryId);
     return new QuestionResponse(created.id(), created.category(), created.question(),
         created.author());
   }
 
   public AnswerResponse answerQuestion(Integer userId, AnswerRequest request) {
+    Integer authorId = requireUserId(userId);
     validateAnswerRequest(request);
 
     if (!qaRepository.questionExists(request.getQuestionId())) {
@@ -49,7 +51,7 @@ public class QaService {
     }
 
     AnswerEntity created = qaRepository.createAnswer(request.getQuestionId(),
-        request.getPreviousAnswerId(), request.getAnswer(), userId);
+        request.getPreviousAnswerId(), request.getAnswer(), authorId);
 
     return mapAnswer(created);
   }
@@ -120,5 +122,12 @@ public class QaService {
     if (request.getAnswer() == null || request.getAnswer().isBlank()) {
       throw new ValidationException("Answer text cannot be empty");
     }
+  }
+
+  private Integer requireUserId(Integer userId) {
+    if (userId == null) {
+      throw new ValidationException("User ID is required");
+    }
+    return userId;
   }
 }

@@ -132,6 +132,15 @@ class NotificationServiceTest {
   }
 
   @Test
+  @DisplayName("Returns false and does not publish registration verification when email is blank")
+  void sendRegistrationVerificationCode_returnsFalseForBlankEmail() {
+    boolean delivered = notificationService.sendRegistrationVerificationCode("   ", "123456");
+
+    assertFalse(delivered);
+    verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
+  }
+
+  @Test
   @DisplayName("Returns false when Kafka template is missing")
   void sendMembershipAcceptedSync_returnsFalseWhenKafkaTemplateMissing() {
     NotificationService notificationServiceWithoutKafka =

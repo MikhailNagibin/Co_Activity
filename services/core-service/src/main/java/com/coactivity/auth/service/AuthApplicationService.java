@@ -74,6 +74,7 @@ public class AuthApplicationService {
     if (request == null) {
       throw new ValidationException("Registration request is required");
     }
+    validateRegistrationRequest(request);
 
     String normalizedEmail = normalizeEmail(request.getEmail());
     String normalizedUserName = normalizeUserName(request.getUserName());
@@ -218,6 +219,39 @@ public class AuthApplicationService {
       throw new ValidationException("Username is required");
     }
     return userName.trim();
+  }
+
+  private void validateRegistrationRequest(UserRegistrationRequest request) {
+    if (request.getDateOfBirth() == null) {
+      throw new ValidationException("Date of birth is required");
+    }
+    if (!request.getDateOfBirth().isBefore(Instant.now())) {
+      throw new ValidationException("Date of birth must be in the past");
+    }
+    if (request.getPassword() == null || request.getPassword().isBlank()) {
+      throw new ValidationException("Password is required");
+    }
+    if (request.getPassword().length() < 8 || request.getPassword().length() > 128) {
+      throw new ValidationException("Password length must be between 8 and 128 characters");
+    }
+    if (request.getUserName() != null) {
+      String trimmedUserName = request.getUserName().trim();
+      if (trimmedUserName.length() < 2 || trimmedUserName.length() > 20) {
+        throw new ValidationException("Username length must be between 2 and 20 characters");
+      }
+    }
+    if (request.getEmail() != null && request.getEmail().trim().length() > 255) {
+      throw new ValidationException("Email must be at most 255 characters");
+    }
+    if (request.getCity() != null && request.getCity().length() > 100) {
+      throw new ValidationException("City must be at most 100 characters");
+    }
+    if (request.getCountry() != null && request.getCountry().length() > 100) {
+      throw new ValidationException("Country must be at most 100 characters");
+    }
+    if (request.getDescription() != null && request.getDescription().length() > 500) {
+      throw new ValidationException("Description must be at most 500 characters");
+    }
   }
 
   private void ensureEmailAndUserNameAvailable(String normalizedEmail, String normalizedUserName) {

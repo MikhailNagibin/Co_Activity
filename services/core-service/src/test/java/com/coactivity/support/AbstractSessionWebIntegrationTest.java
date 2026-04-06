@@ -72,7 +72,8 @@ public abstract class AbstractSessionWebIntegrationTest {
 
     Cookie csrfCookie = Objects.requireNonNull(result.getResponse().getCookie("XSRF-TOKEN"));
     JsonNode payload = objectMapper.readTree(result.getResponse().getContentAsString());
-    return new CsrfContext(payload.get("token").asText(), csrfCookie);
+    Objects.requireNonNull(payload.get("token"));
+    return new CsrfContext(csrfCookie.getValue(), csrfCookie);
   }
 
   protected Cookie login(String email, String password, CsrfContext csrf,

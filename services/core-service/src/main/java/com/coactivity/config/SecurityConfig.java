@@ -19,9 +19,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.util.StringUtils;
+import java.util.function.Supplier;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableMethodSecurity
@@ -36,7 +44,9 @@ public class SecurityConfig {
     csrfTokenRepository.setHeaderName("X-XSRF-TOKEN");
 
     http
-        .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
+        .csrf(csrf -> csrf
+            .csrfTokenRepository(csrfTokenRepository)
+            .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             .sessionFixation(sessionFixation -> sessionFixation.migrateSession()))
@@ -60,6 +70,35 @@ public class SecurityConfig {
         .rememberMe(AbstractHttpConfigurer::disable);
 
     return http.build();
+  }
+
+  /**
+   * Spring Security uses XOR-masked CSRF tokens by default to reduce BREACH exposure.
+   * Our SPA reads the token from the XSRF cookie and sends that raw value in the header,
+   * so we need plain header resolution while still keeping the masked request attribute.
+   */
+  private static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+
+    private final CsrfTokenRequestHandler plainRequestHandler =
+        new CsrfTokenRequestAttributeHandler();
+    private final CsrfTokenRequestHandler xorRequestHandler =
+        new XorCsrfTokenRequestAttributeHandler();
+
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+        Supplier<CsrfToken> csrfToken) {
+      xorRequestHandler.handle(request, response, csrfToken);
+      csrfToken.get();
+    }
+
+    @Override
+    public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
+      String headerValue = request.getHeader(csrfToken.getHeaderName());
+      if (StringUtils.hasText(headerValue)) {
+        return plainRequestHandler.resolveCsrfTokenValue(request, csrfToken);
+      }
+      return xorRequestHandler.resolveCsrfTokenValue(request, csrfToken);
+    }
   }
 
   @Bean

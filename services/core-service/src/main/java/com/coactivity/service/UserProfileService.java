@@ -62,6 +62,7 @@ public class UserProfileService {
     if (request == null) {
       throw new ValidationException("Notification settings are required");
     }
+    getExistingUser(userId);
     if (request.getMembershipAccepted() != null) {
       if (request.getMembershipAccepted()) {
         userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
@@ -123,6 +124,9 @@ public class UserProfileService {
   }
 
   private User getExistingUser(Integer userId) {
+    if (userId == null) {
+      throw new ValidationException("User id is required");
+    }
     User user = userRepository.getUserById(userId);
     if (user == null) {
       throw new ResourceNotFoundException("User not found");

@@ -1,15 +1,19 @@
 package com.coactivity.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.coactivity.auth.model.UserStatus;
 import com.coactivity.controller.dto.request.LoginRequest;
+import com.coactivity.controller.dto.request.RegisterVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.persistence.entity.UserEntity;
@@ -18,7 +22,9 @@ import com.coactivity.security.CurrentUserDetailsService;
 import com.coactivity.security.CurrentUserPrincipal;
 import com.coactivity.service.NotificationService;
 import com.coactivity.service.UserProfileService;
+import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ConflictException;
+import com.coactivity.service.exception.NotificationDeliveryException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -30,6 +36,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,6 +49,9 @@ class AuthApplicationServiceTest {
   private AuthenticationManager authenticationManager;
   private SecurityContextRepository securityContextRepository;
   private UserProfileService userProfileService;
+  private PasswordEncoder passwordEncoder;
+  private NotificationService notificationService;
+  private RedisChallengeStore challengeStore;
   private AuthApplicationService authApplicationService;
 
   @BeforeEach
@@ -50,12 +60,15 @@ class AuthApplicationServiceTest {
     authenticationManager = Mockito.mock(AuthenticationManager.class);
     securityContextRepository = Mockito.mock(SecurityContextRepository.class);
     userProfileService = Mockito.mock(UserProfileService.class);
+    passwordEncoder = Mockito.mock(PasswordEncoder.class);
+    notificationService = Mockito.mock(NotificationService.class);
+    challengeStore = Mockito.mock(RedisChallengeStore.class);
 
     authApplicationService = new AuthApplicationService(
         userJpaRepository,
-        Mockito.mock(PasswordEncoder.class),
-        Mockito.mock(NotificationService.class),
-        Mockito.mock(RedisChallengeStore.class),
+        passwordEncoder,
+        notificationService,
+        challengeStore,
         authenticationManager,
         securityContextRepository,
         userProfileService,
@@ -129,6 +142,124 @@ class AuthApplicationServiceTest {
         () -> authApplicationService.register(request));
 
     assertEquals("USERNAME_ALREADY_TAKEN", exception.getCode());
+  }
+
+  @Test
+  void registerRejectsMissingDateOfBirth() {
+    UserRegistrationRequest request = new UserRegistrationRequest();
+    request.setEmail("new-user@example.com");
+    request.setUserName("newUser");
+    request.setPassword("Password123");
+    request.setDateOfBirth(null);
+
+    var exception = assertThrows(com.coactivity.service.exception.ValidationException.class,
+        () -> authApplicationService.register(request));
+
+    assertEquals("Date of birth is required", exception.getMessage());
+    verify(userJpaRepository, never()).saveAndFlush(any(UserEntity.class));
+  }
+
+  @Test
+  void registerRejectsTooShortPassword() {
+    UserRegistrationRequest request = new UserRegistrationRequest();
+    request.setEmail("new-user@example.com");
+    request.setUserName("newUser");
+    request.setPassword("short");
+    request.setDateOfBirth(Instant.parse("2000-01-01T00:00:00Z"));
+
+    var exception = assertThrows(com.coactivity.service.exception.ValidationException.class,
+        () -> authApplicationService.register(request));
+
+    assertEquals("Password length must be between 8 and 128 characters", exception.getMessage());
+    verify(userJpaRepository, never()).saveAndFlush(any(UserEntity.class));
+  }
+
+  @Test
+  void registerRollsBackPendingUserWhenVerificationEmailCannotBeDelivered() {
+    UserRegistrationRequest request = new UserRegistrationRequest();
+    request.setEmail("new-user@example.com");
+    request.setUserName("newUser");
+    request.setPassword("Password123");
+    request.setDateOfBirth(Instant.parse("2000-01-01T00:00:00Z"));
+
+    when(userJpaRepository.existsByEmailNormalized("new-user@example.com")).thenReturn(false);
+    when(userJpaRepository.existsByUserNameIgnoreCase("newUser")).thenReturn(false);
+    when(passwordEncoder.encode("Password123")).thenReturn("encoded-password");
+    when(userJpaRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(invocation -> {
+      UserEntity entity = invocation.getArgument(0);
+      entity.setId(42);
+      return entity;
+    });
+    when(notificationService.sendRegistrationVerificationCode(eq("new-user@example.com"),
+        anyString())).thenReturn(false);
+
+    assertThrows(NotificationDeliveryException.class, () -> authApplicationService.register(request));
+
+    verify(challengeStore).create(eq("new-user@example.com"), eq(42), anyString());
+    verify(challengeStore).delete("new-user@example.com");
+    verify(userJpaRepository).delete(any(UserEntity.class));
+  }
+
+  @Test
+  void verifyRegistrationActivatesPendingUserAndSetsTimestamp() {
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(12);
+    pendingUser.setEmail("verify@example.com");
+    pendingUser.setEmailNormalized("verify@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+    when(challengeStore.verify("verify@example.com", "123456"))
+        .thenReturn(RedisChallengeStore.VerificationResult.SUCCESS);
+
+    authApplicationService.verifyRegistration(
+        new RegisterVerificationRequest("verify@example.com", "123456"));
+
+    assertEquals(UserStatus.ACTIVE, pendingUser.getStatus());
+    assertNotNull(pendingUser.getEmailVerifiedAt());
+  }
+
+  @Test
+  void verifyRegistrationRejectsInvalidCode() {
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(12);
+    pendingUser.setEmail("verify@example.com");
+    pendingUser.setEmailNormalized("verify@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+    when(challengeStore.verify("verify@example.com", "000000"))
+        .thenReturn(RedisChallengeStore.VerificationResult.INVALID_CODE);
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> authApplicationService.verifyRegistration(
+            new RegisterVerificationRequest("verify@example.com", "000000")));
+
+    assertEquals("Invalid verification code", exception.getMessage());
+  }
+
+  @Test
+  void loginRejectsPendingVerificationUser() {
+    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(17);
+    pendingUser.setEmail("pending@example.com");
+    pendingUser.setEmailNormalized("pending@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(authenticationManager.authenticate(any()))
+        .thenThrow(new DisabledException("disabled"));
+    when(userJpaRepository.findByEmailNormalized("pending@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> authApplicationService.login(
+            new LoginRequest("pending@example.com", "Password123"), request, response));
+
+    assertEquals("Email is not verified", exception.getMessage());
   }
 
   private CurrentUserPrincipal principal(Integer id, String email, String userName) {

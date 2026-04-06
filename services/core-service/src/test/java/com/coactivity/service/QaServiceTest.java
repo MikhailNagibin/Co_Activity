@@ -1,13 +1,19 @@
 package com.coactivity.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.coactivity.controller.dto.request.AnswerRequest;
+import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.Category;
 import com.coactivity.repository.QaRepository;
 import com.coactivity.repository.QaRepository.AnswerEntity;
 import com.coactivity.repository.QaRepository.QuestionEntity;
+import com.coactivity.service.exception.ValidationException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -61,5 +67,29 @@ class QaServiceTest {
     assertEquals(1, thread.getAnswers().size());
     assertEquals("answerAuthor", thread.getAnswers().getFirst().getAuthor().getUserName());
     assertEquals("Answer text", thread.getAnswers().getFirst().getAnswer());
+  }
+
+  @Test
+  void askQuestionRejectsNullUserId() {
+    QuestionRequest request = new QuestionRequest("How to train?", "sport");
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> qaService.askQuestion(null, request));
+
+    assertEquals("User ID is required", exception.getMessage());
+    verify(qaRepository, never()).findCategoryIdByName("sport");
+    verify(qaRepository, never()).createQuestion(null, "How to train?", 1);
+  }
+
+  @Test
+  void answerQuestionRejectsNullUserId() {
+    AnswerRequest request = new AnswerRequest(7, null, "Answer text");
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> qaService.answerQuestion(null, request));
+
+    assertEquals("User ID is required", exception.getMessage());
+    verify(qaRepository, never()).questionExists(7);
+    verify(qaRepository, never()).createAnswer(7, null, "Answer text", null);
   }
 }

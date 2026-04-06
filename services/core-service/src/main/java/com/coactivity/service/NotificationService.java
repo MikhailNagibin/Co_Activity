@@ -76,7 +76,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getEmail() == null) {
+    if (user == null || !hasUsableEmail(user.getEmail())) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return true;
     }
@@ -122,7 +122,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getEmail() == null) {
+    if (user == null || !hasUsableEmail(user.getEmail())) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return true;
     }
@@ -167,7 +167,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getEmail() == null) {
+    if (user == null || !hasUsableEmail(user.getEmail())) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return;
     }
@@ -209,7 +209,7 @@ public class NotificationService {
         roomName);
 
     User admin = userRepository.getUserById(adminId);
-    if (admin == null || admin.getEmail() == null) {
+    if (admin == null || !hasUsableEmail(admin.getEmail())) {
       log.warn("Cannot send notification: admin {} not found or has no email", adminId);
       return;
     }
@@ -247,6 +247,10 @@ public class NotificationService {
 
   public boolean sendRegistrationVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send registration verification code to email={}", userEmail);
+    if (!hasUsableEmail(userEmail)) {
+      log.warn("Cannot send registration verification code: email is blank");
+      return false;
+    }
 
     String subject = "Подтверждение регистрации в CoActivity";
     String message = String.format("""
@@ -293,8 +297,9 @@ public class NotificationService {
   }
 
   private boolean publishEmailCommand(String to, String subject, String body) {
-    if (to == null || to.isBlank()) {
-      return true;
+    if (!hasUsableEmail(to)) {
+      log.warn("Email command recipient is blank");
+      return false;
     }
     if (kafkaTemplate == null) {
       log.warn("KafkaTemplate is not configured, email command will be skipped");
@@ -327,5 +332,9 @@ public class NotificationService {
       String to,
       String subject,
       String body) {
+  }
+
+  private boolean hasUsableEmail(String email) {
+    return email != null && !email.isBlank();
   }
 }
