@@ -62,14 +62,24 @@ public class RoomMembershipService {
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
       throw new ValidationException("Target user is not a member of the room and cannot be assigned admin role.");
     }
+    Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+    if (previousRole == Role.OWNER) {
+      throw new ValidationException("Room owner cannot be reassigned as admin");
+    }
+    if (previousRole == Role.ADMIN) {
+      return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, previousRole, ownerId);
+    }
     roomRepository.setRoleByUserIdAndRoomId(targetUserId, roomId, Role.ADMIN);
-    return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, Role.PARTICIPANT, ownerId);
+    return new RoleAssignmentResponse(targetUserId, roomId, Role.ADMIN, previousRole, ownerId);
   }
 
   public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
     Integer ownerId = requireOwner(requesterId, roomId);
     getExistingUser(targetUserId);
+    if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
+      throw new ValidationException("Target user is not a member of the room and cannot be demoted.");
+    }
 
     Role previousRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
     if (previousRole != Role.ADMIN) {
@@ -80,9 +90,10 @@ public class RoomMembershipService {
   }
 
   public boolean isUserInRoom(Integer requesterId, Integer roomId) {
+    Integer effectiveRequesterId = requireUserId(requesterId);
     validateRoomId(roomId);
     getExistingRoom(roomId);
-    return roomRepository.isUserInMembers(roomId, requesterId);
+    return roomRepository.isUserInMembers(roomId, effectiveRequesterId);
   }
 
   public MembershipVerificationResponse verifyUserMembership(Integer requesterId,
@@ -116,9 +127,13 @@ public class RoomMembershipService {
     } else {
       RoomsRequest existingRequest = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
       if (existingRequest != null) {
-        return;
+        if (existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
+          return;
+        }
+        roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.CONSIDERATION);
+      } else {
+        roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
       }
-      roomsRequestRepository.createRequest(userId, roomId, RequestStatus.CONSIDERATION);
 
       // Notify all admins and owner about the new join request
       Map<User, Role> roomUsers = roomRepository.getUsersInRoom(roomId);
@@ -256,6 +271,7 @@ public class RoomMembershipService {
   }
 
   private User getExistingUser(Integer userId) {
+    requireUserId(userId);
     User user = userRepository.getUserById(userId);
     if (user == null) {
       throw new ResourceNotFoundException("User not found: " + userId);

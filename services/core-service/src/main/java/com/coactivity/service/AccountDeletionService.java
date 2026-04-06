@@ -48,7 +48,7 @@ public class AccountDeletionService {
   @Transactional
   public void deleteAccountIfNoOwnedRooms(Integer userId) {
     requireExistingUser(userId);
-    List<Room> ownedRooms = roomRepository.getRoomsOwnedByUser(userId);
+    List<Room> ownedRooms = loadOwnedRooms(userId);
     if (!ownedRooms.isEmpty()) {
       throw new ConflictException("OWNED_ROOMS_RESOLUTION_REQUIRED",
           "Resolve owned rooms before deleting the account");
@@ -100,7 +100,7 @@ public class AccountDeletionService {
 
   private Map<Integer, Room> loadOwnedRoomsById(Integer userId) {
     Map<Integer, Room> ownedRoomsById = new LinkedHashMap<>();
-    for (Room room : roomRepository.getRoomsOwnedByUser(userId)) {
+    for (Room room : loadOwnedRooms(userId)) {
       if (room != null && room.getId() != null) {
         ownedRoomsById.put(room.getId(), room);
       }
@@ -110,11 +110,11 @@ public class AccountDeletionService {
 
   private List<OwnedRoomDeletionPreviewResponse> loadOwnedRoomPreviews(Integer userId) {
     List<OwnedRoomDeletionPreviewResponse> previews = new ArrayList<>();
-    for (Room room : roomRepository.getRoomsOwnedByUser(userId)) {
+    for (Room room : loadOwnedRooms(userId)) {
       if (room == null || room.getId() == null) {
         continue;
       }
-      Map<User, Role> roomUsers = roomRepository.getUsersInRoom(room.getId());
+      Map<User, Role> roomUsers = loadRoomUsers(room.getId());
       List<AccountDeletionTransferCandidateResponse> candidates = roomUsers.entrySet().stream()
           .filter(entry -> isTransferCandidate(userId, entry))
           .sorted(Comparator
@@ -199,7 +199,7 @@ public class AccountDeletionService {
       throw new ResourceNotFoundException("Room not found");
     }
 
-    List<Integer> participantIds = roomRepository.getUsersInRoom(room.getId()).keySet().stream()
+    List<Integer> participantIds = loadRoomUsers(room.getId()).keySet().stream()
         .filter(user -> user != null && user.getId() != null && !user.getId().equals(currentUserId))
         .map(User::getId)
         .distinct()
@@ -219,5 +219,15 @@ public class AccountDeletionService {
     if (userRepository.getUserById(userId) == null) {
       throw new ResourceNotFoundException("User not found");
     }
+  }
+
+  private Map<User, Role> loadRoomUsers(Integer roomId) {
+    Map<User, Role> roomUsers = roomRepository.getUsersInRoom(roomId);
+    return roomUsers != null ? roomUsers : Map.of();
+  }
+
+  private List<Room> loadOwnedRooms(Integer userId) {
+    List<Room> ownedRooms = roomRepository.getRoomsOwnedByUser(userId);
+    return ownedRooms != null ? ownedRooms : List.of();
   }
 }

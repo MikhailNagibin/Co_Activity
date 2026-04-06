@@ -72,7 +72,7 @@ public class RoomService {
       RoomSort sortBy) {
     validateCatalogFilter(filter);
     List<Room> rooms = roomRepository.getAllRooms();
-    if (rooms.isEmpty()) {
+    if (rooms == null || rooms.isEmpty()) {
       return Collections.emptyList();
     }
 
@@ -136,6 +136,9 @@ public class RoomService {
       throw new ValidationException("Requester id and room id are required");
     }
     Room room = getExistingRoom(roomId);
+    if (!roomRepository.isUserInMembers(roomId, requesterId)) {
+      throw new AuthorizationException("Only owners can delete rooms");
+    }
 
     Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
     if (requesterRole != Role.OWNER) {
@@ -155,14 +158,41 @@ public class RoomService {
     if (request == null) {
       throw new ValidationException("Room creation request is required");
     }
+    if (request.getIsPublic() == null) {
+      throw new ValidationException("Public visibility flag is required");
+    }
     if (request.getName() == null || request.getName().trim().isEmpty()) {
       throw new ValidationException("Room name cannot be empty");
+    }
+    String trimmedName = request.getName().trim();
+    if (trimmedName.length() < 3 || trimmedName.length() > 100) {
+      throw new ValidationException("Room name length must be between 3 and 100 characters");
     }
     if (request.getCategory() == null) {
       throw new ValidationException("Category is required");
     }
+    if (request.getCategory().isBlank()) {
+      throw new ValidationException("Category is required");
+    }
+    if (request.getDescription() == null || request.getDescription().trim().isEmpty()) {
+      throw new ValidationException("Room description cannot be empty");
+    }
+    if (request.getDescription().length() > 2000) {
+      throw new ValidationException("Room description must be at most 2000 characters");
+    }
     if (request.getMaximumNumberOfPeople() == null) {
       throw new ValidationException("Maximum number of people is required");
+    }
+    if (request.getMaximumNumberOfPeople() < 2 || request.getMaximumNumberOfPeople() > 100000) {
+      throw new ValidationException("Maximum number of people must be between 2 and 100000");
+    }
+    if (request.getAgeRating() < 0 || request.getAgeRating() > 21) {
+      throw new ValidationException("Age rating must be between 0 and 21");
+    }
+    if (request.getDateOfStartEvent() != null
+        && request.getDateOfEndEvent() != null
+        && !request.getDateOfEndEvent().isAfter(request.getDateOfStartEvent())) {
+      throw new ValidationException("Room end date must be after start date");
     }
   }
 

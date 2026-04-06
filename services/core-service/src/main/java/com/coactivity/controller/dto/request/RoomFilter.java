@@ -31,15 +31,22 @@ public class RoomFilter {
   private String country;
 
   public boolean isEmpty() {
-    return category == null && query == null && isPublic == null
-        && maxParticipants == null && city == null && country == null;
+    return category == null
+        && !hasTextFilter()
+        && isPublic == null
+        && maxParticipants == null
+        && !hasLocationFilter();
   }
 
   public boolean hasLocationFilter() {
-    return city != null || country != null;
+    return hasValue(city) || hasValue(country);
   }
 
   public boolean hasTextFilter() {
-    return query != null && !query.trim().isEmpty();
+    return hasValue(query);
+  }
+
+  private boolean hasValue(String value) {
+    return value != null && !value.trim().isEmpty();
   }
 }

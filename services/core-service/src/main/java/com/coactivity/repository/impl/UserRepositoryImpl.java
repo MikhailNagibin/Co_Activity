@@ -19,6 +19,7 @@ import com.coactivity.persistence.repository.UserNotificationJpaRepository;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
@@ -78,6 +79,9 @@ public class UserRepositoryImpl implements UserRepository {
 
     if (request.getUsername() != null) {
       String normalizedUserName = request.getUsername().trim();
+      if (normalizedUserName.isEmpty()) {
+        throw new ValidationException("Username cannot be blank");
+      }
       if (userJpaRepository.existsByUserNameIgnoreCaseAndIdNot(normalizedUserName, userId)) {
         throw new ConflictException("USERNAME_ALREADY_TAKEN", "Username is already taken");
       }

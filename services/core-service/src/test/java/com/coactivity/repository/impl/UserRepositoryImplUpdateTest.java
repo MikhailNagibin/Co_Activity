@@ -12,6 +12,7 @@ import com.coactivity.persistence.repository.RoomMemberJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.persistence.repository.UserNotificationJpaRepository;
 import com.coactivity.service.exception.ConflictException;
+import com.coactivity.service.exception.ValidationException;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,6 +75,21 @@ class UserRepositoryImplUpdateTest {
     assertNull(entity.getCountry());
     assertEquals("about me", entity.getDescription());
     assertEquals(7, entity.getAvatarId());
+  }
+
+  @Test
+  void updateUserRejectsBlankUsernameAfterTrimming() {
+    UserEntity entity = existingUser();
+    when(userJpaRepository.findById(1)).thenReturn(Optional.of(entity));
+
+    UserProfileUpdateRequest request = new UserProfileUpdateRequest("   ", null, null, null,
+        null, null);
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> userRepository.updateUser(1, request));
+
+    assertEquals("Username cannot be blank", exception.getMessage());
+    assertEquals("oldName", entity.getUserName());
   }
 
   private UserEntity existingUser() {

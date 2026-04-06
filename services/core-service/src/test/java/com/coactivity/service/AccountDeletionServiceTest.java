@@ -57,6 +57,17 @@ class AccountDeletionServiceTest {
   }
 
   @Test
+  void getDeletionPreviewTreatsMissingOwnedRoomsListAsEmpty() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(null);
+
+    AccountDeletionPreviewResponse response = accountDeletionService.getDeletionPreview(1);
+
+    assertTrue(response.isCanDeleteImmediately());
+    assertTrue(response.getOwnedRooms().isEmpty());
+  }
+
+  @Test
   void getDeletionPreviewReturnsSortedTransferCandidates() {
     Room ownedRoom = room(10, "Preview room");
     User owner = user(1, "owner");
@@ -82,9 +93,51 @@ class AccountDeletionServiceTest {
   }
 
   @Test
+  void getDeletionPreviewReturnsNoTransferCandidatesWhenOwnerIsAlone() {
+    Room ownedRoom = room(10, "Solo room");
+    User owner = user(1, "owner");
+
+    when(userRepository.getUserById(1)).thenReturn(owner);
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(ownedRoom));
+    when(roomRepository.getUsersInRoom(10)).thenReturn(Map.of(owner, Role.OWNER));
+
+    AccountDeletionPreviewResponse response = accountDeletionService.getDeletionPreview(1);
+
+    assertFalse(response.isCanDeleteImmediately());
+    assertTrue(response.getOwnedRooms().getFirst().getTransferCandidates().isEmpty());
+  }
+
+  @Test
+  void getDeletionPreviewHandlesMissingMembershipMap() {
+    Room ownedRoom = room(10, "Preview room");
+    User owner = user(1, "owner");
+
+    when(userRepository.getUserById(1)).thenReturn(owner);
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(ownedRoom));
+    when(roomRepository.getUsersInRoom(10)).thenReturn(null);
+
+    AccountDeletionPreviewResponse response = accountDeletionService.getDeletionPreview(1);
+
+    assertFalse(response.isCanDeleteImmediately());
+    assertEquals(1, response.getOwnedRooms().size());
+    assertEquals(0, response.getOwnedRooms().getFirst().getParticipantCount());
+    assertTrue(response.getOwnedRooms().getFirst().getTransferCandidates().isEmpty());
+  }
+
+  @Test
   void deleteAccountIfNoOwnedRoomsDeletesUser() {
     when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
     when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of());
+
+    accountDeletionService.deleteAccountIfNoOwnedRooms(1);
+
+    verify(userRepository).deleteUser(1);
+  }
+
+  @Test
+  void deleteAccountIfNoOwnedRoomsTreatsMissingOwnedRoomsListAsEmpty() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(null);
 
     accountDeletionService.deleteAccountIfNoOwnedRooms(1);
 
@@ -112,6 +165,81 @@ class AccountDeletionServiceTest {
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null)));
 
     assertThrows(ValidationException.class, () -> accountDeletionService.deleteAccount(1, request));
+  }
+
+  @Test
+  void deleteAccountRejectsDuplicateRoomActions() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null),
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null)));
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("Deletion actions contain duplicate room IDs", exception.getMessage());
+  }
+
+  @Test
+  void deleteAccountRejectsDeleteActionWithTransferTarget() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, 2)));
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("Delete room action must not include transfer target", exception.getMessage());
+    verify(roomRepository, never()).deleteRoom(10);
+  }
+
+  @Test
+  void deleteAccountRejectsTransferToDeletingUser() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 1)));
+
+    ConflictException exception = assertThrows(ConflictException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("INVALID_OWNERSHIP_TRANSFER", exception.getCode());
+    verify(userRepository, never()).deleteUser(1);
+  }
+
+  @Test
+  void deleteAccountRejectsActionFlowWhenUserOwnsNoRooms() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of());
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null)));
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("This account can be deleted without room actions", exception.getMessage());
+    verify(userRepository, never()).deleteUser(1);
+  }
+
+  @Test
+  void deleteAccountTreatsMissingOwnedRoomsListAsNoOwnedRooms() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(null);
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null)));
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("This account can be deleted without room actions", exception.getMessage());
+    verify(userRepository, never()).deleteUser(1);
   }
 
   @Test
@@ -144,10 +272,46 @@ class AccountDeletionServiceTest {
   }
 
   @Test
+  void deleteAccountDeleteRoomActionHandlesMissingMembershipMap() {
+    User owner = user(1, "owner");
+    Room deletedRoom = room(10, "Deleted room");
+
+    when(userRepository.getUserById(1)).thenReturn(owner);
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(deletedRoom));
+    when(roomRepository.getUsersInRoom(10)).thenReturn(null);
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null)));
+
+    accountDeletionService.deleteAccount(1, request);
+
+    verify(roomRepository).deleteRoom(10);
+    verify(notificationService, never()).sendActivityClosed(Mockito.anyInt(), Mockito.anyString());
+    verify(userRepository).deleteUser(1);
+  }
+
+  @Test
   void deleteAccountRejectsTransferToNonParticipant() {
     when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
     when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
     when(roomRepository.isUserInMembers(10, 2)).thenReturn(false);
+
+    AccountDeletionRequest request = new AccountDeletionRequest(List.of(
+        new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 2)));
+
+    ConflictException exception = assertThrows(ConflictException.class,
+        () -> accountDeletionService.deleteAccount(1, request));
+
+    assertEquals("INVALID_OWNERSHIP_TRANSFER", exception.getCode());
+    verify(userRepository, never()).deleteUser(1);
+  }
+
+  @Test
+  void deleteAccountRejectsTransferToUnsupportedRole() {
+    when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
+    when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
+    when(roomRepository.isUserInMembers(10, 2)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(10, 2)).thenReturn(Role.OWNER);
 
     AccountDeletionRequest request = new AccountDeletionRequest(List.of(
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 2)));

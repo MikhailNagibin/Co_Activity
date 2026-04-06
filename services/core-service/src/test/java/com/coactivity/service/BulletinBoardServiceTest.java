@@ -17,6 +17,8 @@ import com.coactivity.repository.impl.BulletinBoardRepositoryImpl;
 import com.coactivity.repository.impl.RoomRepositoryImpl;
 import com.coactivity.repository.impl.UserRepositoryImpl;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.ValidationException;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -101,6 +103,79 @@ class BulletinBoardServiceTest {
 
     assertEquals(content, response.getContent());
     assertEquals(userId, response.getAuthor().getId());
+  }
+
+  @Test
+  @DisplayName("Admin updates existing bulletin board instead of creating a new one")
+  void adminUpdatesExistingBulletinBoard() {
+    Integer roomId = 40;
+    Integer userId = 41;
+    String content = "Updated bulletin";
+    Room room = room(roomId);
+    User user = user(userId);
+    BulletinBoard existingBoard = new BulletinBoard(2, room, "Old content", user, Instant.now());
+    BulletinBoard updatedBoard = new BulletinBoard(2, room, content, user, Instant.now());
+
+    when(userRepository.getUserById(userId)).thenReturn(user);
+    when(roomRepository.getRoomById(roomId)).thenReturn(room);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, userId)).thenReturn(Role.ADMIN);
+    when(bulletinBoardRepository.getBulletinBoard(roomId)).thenReturn(existingBoard);
+    when(bulletinBoardRepository.updateBulletinBoard(roomId, content, userId)).thenReturn(updatedBoard);
+
+    BulletinBoardResponse response = bulletinBoardService.updateBulletinBoard(roomId, content,
+        userId);
+
+    assertEquals(content, response.getContent());
+    verify(bulletinBoardRepository).updateBulletinBoard(roomId, content, userId);
+    verify(bulletinBoardRepository, never()).createBulletinBoard(roomId, content, userId);
+  }
+
+  @Test
+  @DisplayName("Owner can delete existing bulletin board")
+  void ownerCanDeleteExistingBulletinBoard() {
+    Integer roomId = 50;
+    Integer userId = 51;
+    Room room = room(roomId);
+    User user = user(userId);
+
+    when(roomRepository.getRoomById(roomId)).thenReturn(room);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, userId)).thenReturn(Role.OWNER);
+    when(bulletinBoardRepository.isBulletinBoardExists(roomId)).thenReturn(true);
+
+    bulletinBoardService.deleteBulletinBoard(roomId, userId);
+
+    verify(bulletinBoardRepository).deleteBulletinBoard(roomId);
+  }
+
+  @Test
+  @DisplayName("Empty bulletin content is rejected before repository interaction")
+  void emptyBulletinContentIsRejected() {
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> bulletinBoardService.updateBulletinBoard(60, "   ", 61));
+
+    assertEquals("Bulletin content cannot be empty", exception.getMessage());
+    verifyNoInteractions(bulletinBoardRepository);
+  }
+
+  @Test
+  @DisplayName("Deleting absent bulletin board returns not found")
+  void deletingAbsentBulletinBoardReturnsNotFound() {
+    Integer roomId = 70;
+    Integer userId = 71;
+    Room room = room(roomId);
+
+    when(roomRepository.getRoomById(roomId)).thenReturn(room);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, userId)).thenReturn(Role.ADMIN);
+    when(bulletinBoardRepository.isBulletinBoardExists(roomId)).thenReturn(false);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> bulletinBoardService.deleteBulletinBoard(roomId, userId));
+
+    assertEquals("Bulletin board not found for room 70", exception.getMessage());
+    verify(bulletinBoardRepository, never()).deleteBulletinBoard(roomId);
   }
 
   private Room room(Integer roomId) {
