@@ -1,16 +1,29 @@
-# Frontend Structure
+# Frontend
 
-## Active app
+Каталог `frontend` разделён на две части:
 
-- `web` - current production React app (Vite + React + Bootstrap + SCSS).
+- `web` — активное React-приложение
+- `legacy` — старые статические макеты и референсы
 
-## Legacy sources
+Правило простое:
 
-- `legacy/html` - original static HTML mockups.
-- `legacy/styles` - original CSS files for static mockups.
-- `legacy/scripts` - old helper scripts for static pages.
+- весь новый frontend-код пишется только в `frontend/web`
+- `legacy` не участвует в runtime и не должен получать новые фичи
 
-## Rule of thumb
+## Как запустить frontend
 
-- All new frontend work goes only into `web`.
-- `legacy` is reference material only and should not receive new feature work.
+```bash
+cd frontend/web
+npm ci
+npm run dev
+```
+
+Открыть:
+
+```text
+http://localhost:5173
+```
+
+Для локальной разработки frontend ожидает backend на `http://localhost:8080` и использует Vite proxy для `/api`.
+
+Подробности по active app смотри в [frontend/web/README.md](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/README.md).

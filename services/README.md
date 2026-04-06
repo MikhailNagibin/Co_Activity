@@ -1,25 +1,83 @@
-# Service Modules
+# Backend Services
 
-This directory contains the three backend services.
+В каталоге `services` лежат активные backend-модули:
 
-- `core-service` - the only public HTTP API; auth, users, rooms, join requests, facade for Q&A
-- `qa-service` - internal HTTP microservice for Q&A
-- `notifications-service` - Kafka consumer that sends email through Yandex SMTP
+- `core-service` — основной HTTP API, auth, users, rooms, join requests, Q&A
+- `notifications-service` — Kafka consumer для email-уведомлений
 
-Build or run locally:
+## Как они связаны
 
-```bash
-./mvnw -f services/core-service/pom.xml spring-boot:run
-./mvnw -f services/qa-service/pom.xml spring-boot:run
-./mvnw -f services/notifications-service/pom.xml spring-boot:run
-```
-
-Before running `core-service` or `qa-service`, set `JWT_SECRET_BASE64` to your own Base64-encoded secret.
-
-Canonical runtime flow:
+Схема работы:
 
 ```text
 client -> core-service
-core-service -> qa-service (HTTP)
-core-service -> Kafka -> notifications-service -> Yandex SMTP
+core-service -> Kafka -> notifications-service -> SMTP
+```
+
+Важно:
+
+- `core-service` — единственный публичный backend
+- `notifications-service` не используется как business API напрямую
+- auth работает через Spring Security + Spring Session + Redis
+- JWT больше не используется
+
+## Локальный запуск сервисов
+
+Сначала подними инфраструктуру:
+
+```bash
+docker compose up -d postgres kafka redis
+```
+
+Потом в каждой новой shell-сессии загрузи `.env`:
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env
+set +a
+```
+
+### `core-service`
+
+```bash
+./mvnw -f services/core-service/pom.xml spring-boot:run
+```
+
+Порт:
+
+- `http://localhost:8080`
+
+Зависимости:
+
+- PostgreSQL
+- Redis
+- Kafka
+
+### `notifications-service`
+
+```bash
+./mvnw -f services/notifications-service/pom.xml spring-boot:run
+```
+
+Порт:
+
+- `http://localhost:8082`
+
+Зависимости:
+
+- Kafka
+- SMTP credentials в `.env`, если нужна реальная отправка email
+
+## Тесты
+
+```bash
+./mvnw -f services/core-service/pom.xml test
+./mvnw -f services/notifications-service/pom.xml test
+```
+
+Docker integration tests для `core-service`:
+
+```bash
+./mvnw -f services/core-service/pom.xml -Pwith-docker-tests test
 ```

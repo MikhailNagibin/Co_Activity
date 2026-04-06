@@ -1,16 +1,79 @@
-# React + Vite
+# `frontend/web`
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Это активный frontend Co_Activity на React + Vite.
 
-Currently, two official plugins are available:
+## Команды
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Установка зависимостей:
 
-## React Compiler
+```bash
+npm ci
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Запуск dev-сервера:
 
-## Expanding the ESLint configuration
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Lint:
+
+```bash
+npm run lint
+```
+
+Production build:
+
+```bash
+npm run build
+```
+
+Preview production build:
+
+```bash
+npm run preview
+```
+
+## Как frontend подключается к backend
+
+Локально frontend не должен напрямую ходить в другой origin с CORS-настройками.
+
+Нормальная схема:
+
+- frontend открыт на `http://localhost:5173`
+- запросы на `/api/*` проксируются Vite на `http://localhost:8080`
+
+Это настроено в [vite.config.js](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/vite.config.js).
+
+## Backend, который нужен frontend
+
+Чтобы приложение реально работало, должен быть запущен `core-service` на:
+
+```text
+http://localhost:8080
+```
+
+Auth работает через cookie-based session:
+
+- session cookie: `COACTIVITY_SESSION`
+- CSRF cookie: `XSRF-TOKEN`
+
+Frontend не хранит auth token в `localStorage`.
+
+## Переопределение API base URL
+
+По умолчанию код уже рассчитан на локальный backend.
+
+Если всё же нужно вручную переопределить API URL:
+
+```bash
+cp .env.example .env
+```
+
+И задать:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080/api
+```
+
+Обычно для локальной разработки это не нужно, потому что Vite proxy уже решает задачу.

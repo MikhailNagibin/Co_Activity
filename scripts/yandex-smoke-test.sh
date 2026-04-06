@@ -17,6 +17,9 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
+COOKIE_JAR="$(mktemp /tmp/coactivity_smoke_cookies.XXXXXX)"
+trap 'rm -f "${COOKIE_JAR}"' EXIT
+
 prompt_if_empty() {
   local var_name="$1"
   local prompt_text="$2"
@@ -114,12 +117,12 @@ if [[ -z "${SPRING_MAIL_USERNAME}" || -z "${SPRING_MAIL_PASSWORD}" ]]; then
 fi
 
 if [[ -z "${TEST_LOGIN_EMAIL:-}" ]]; then
-  read -r -p "Verification email address [${SPRING_MAIL_USERNAME}]: " TEST_LOGIN_EMAIL
+  read -r -p "Registration verification email address [${SPRING_MAIL_USERNAME}]: " TEST_LOGIN_EMAIL
   TEST_LOGIN_EMAIL="${TEST_LOGIN_EMAIL:-${SPRING_MAIL_USERNAME}}"
 fi
 
 if [[ -z "${TEST_LOGIN_EMAIL}" ]]; then
-  echo "Verification email address is required" >&2
+  echo "Registration verification email address is required" >&2
   exit 1
 fi
 
@@ -143,12 +146,35 @@ wait_for_core_health
 echo "Waiting for notifications-service to start..."
 wait_for_notifications_health
 
+echo "Fetching CSRF token..."
+csrf_status="$(curl -sS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" \
+  -o /tmp/coactivity_csrf.out -w "%{http_code}" \
+  http://localhost:8080/api/auth/csrf)"
+
+if [[ "${csrf_status}" != "200" ]]; then
+  if [[ -s /tmp/coactivity_csrf.out ]]; then
+    cat /tmp/coactivity_csrf.out
+    echo
+  fi
+  echo "Failed to fetch CSRF token, HTTP ${csrf_status}" >&2
+  exit 1
+fi
+
+XSRF_TOKEN="$(awk '$6 == "XSRF-TOKEN" {print $7}' "${COOKIE_JAR}" | tail -n 1)"
+if [[ -z "${XSRF_TOKEN}" ]]; then
+  echo "XSRF-TOKEN cookie was not returned by /api/auth/csrf" >&2
+  exit 1
+fi
+
 echo "Registering a temporary user for email smoke test..."
+delivery_check_since="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 register_status="$(curl -sS -o /tmp/coactivity_register.out -w "%{http_code}" \
-  -X POST http://localhost:8080/api/users \
+  -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" \
+  -X POST http://localhost:8080/api/auth/register \
   -H 'Content-Type: application/json' \
+  -H "X-XSRF-TOKEN: ${XSRF_TOKEN}" \
   -d "{
-    \"login\": \"${TEST_LOGIN_EMAIL}\",
+    \"email\": \"${TEST_LOGIN_EMAIL}\",
     \"userName\": \"${TEST_USERNAME}\",
     \"password\": \"${TEST_PASSWORD}\",
     \"dateOfBirth\": \"2000-01-01T00:00:00Z\",
@@ -169,43 +195,20 @@ if [[ "${register_status}" != "201" && "${register_status}" != "409" ]]; then
 fi
 
 if [[ "${register_status}" == "409" ]]; then
-  echo "User already exists, continuing with login flow..."
+  echo "User already exists. Registration verification email is only sent for a new account." >&2
+  cat <<EOF
+
+Use a fresh inbox alias (for example a plus-alias) or delete the existing test user first.
+EOF
+  exit 1
 fi
 
-delivery_check_since="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-
-echo "Triggering login verification email through core-service..."
-login_status="$(curl -sS -o /tmp/coactivity_login.out -w "%{http_code}" \
-  -X POST http://localhost:8080/api/users/login \
-  -H 'Content-Type: application/json' \
-  -d "{
-    \"login\": \"${TEST_LOGIN_EMAIL}\",
-    \"password\": \"${TEST_PASSWORD}\"
-  }")"
-
-if [[ -s /tmp/coactivity_login.out ]]; then
-  cat /tmp/coactivity_login.out
-  echo
-fi
-
-echo "HTTP status: ${login_status}"
 echo
 echo "Recent core-service logs:"
 docker compose logs core-service --tail=100 || true
 echo
 echo "Recent notifications-service logs:"
 docker compose logs notifications-service --tail=100 || true
-
-if [[ "${login_status}" != "202" ]]; then
-  cat <<EOF
-
-Login verification flow did not return 202.
-Typical causes:
-- 401: the user already exists with a different password
-- 503: Kafka publish or notifications delivery pipeline is unavailable
-EOF
-  exit 1
-fi
 
 echo
 echo "Waiting for notifications-service delivery confirmation..."
@@ -223,6 +226,6 @@ fi
 
 cat <<EOF
 
-Login verification flow returned 202 and notifications-service confirmed email delivery.
+Registration returned 201 and notifications-service confirmed email delivery.
 Now verify the message in the inbox or spam folder of: ${TEST_LOGIN_EMAIL}
 EOF
