@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { getAccessToken } from '../api/tokenStorage.js'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { useTheme } from '../theme/useTheme.js'
 
 function AppHeader({
@@ -8,9 +8,9 @@ function AppHeader({
   activeTab = null,
 }) {
   const { theme, toggleTheme } = useTheme()
-  const hasToken = Boolean(getAccessToken())
-  const actionLabel = hasToken ? 'Профиль' : authActionLabel
-  const actionTo = hasToken ? '/profile' : authActionTo
+  const { isAuthenticated } = useAuthSession()
+  const actionLabel = isAuthenticated ? 'Профиль' : authActionLabel
+  const actionTo = isAuthenticated ? '/profile' : authActionTo
 
   return (
     <header id="main-header" className="app-header">

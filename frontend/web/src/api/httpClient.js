@@ -1,12 +1,12 @@
 import { getApiBaseUrl } from './config.js'
-import { getAccessToken } from './tokenStorage.js'
 
 export class ApiError extends Error {
-  constructor(message, status, details = null) {
+  constructor(message, status, details = null, code = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.details = details
+    this.code = code
   }
 }
 
@@ -49,7 +49,39 @@ function joinUrl(baseUrl, path) {
   return `${normalizedBase}${normalizedPath}`
 }
 
-function buildHeaders(customHeaders = {}, withAuth = false, jsonBody = false) {
+function readCookie(name) {
+  if (typeof document === 'undefined' || !document.cookie) {
+    return null
+  }
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+async function ensureCsrfToken() {
+  const existing = readCookie('XSRF-TOKEN')
+  if (existing) {
+    return existing
+  }
+
+  const response = await fetch(joinUrl(getApiBaseUrl(), '/auth/csrf'), {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  try {
+    const payload = await response.json()
+    return readCookie('XSRF-TOKEN') || payload?.token || null
+  } catch {
+    return readCookie('XSRF-TOKEN')
+  }
+}
+
+function buildHeaders(customHeaders = {}, jsonBody = false, csrfToken = null) {
   const headers = {
     ...customHeaders,
   }
@@ -58,11 +90,8 @@ function buildHeaders(customHeaders = {}, withAuth = false, jsonBody = false) {
     headers['Content-Type'] = 'application/json'
   }
 
-  if (withAuth) {
-    const token = getAccessToken()
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
+  if (csrfToken) {
+    headers['X-XSRF-TOKEN'] = csrfToken
   }
 
   return headers
@@ -87,11 +116,15 @@ function normalizeDetails(details) {
 
 function parseApiErrorPayload(payload) {
   if (!payload || typeof payload !== 'object') {
-    return { message: null, details: null }
+    return { message: null, details: null, code: null }
   }
 
   const rawDetails = payload.details ?? null
   const details = normalizeDetails(rawDetails)
+  const code =
+    typeof payload.code === 'string' && payload.code.trim()
+      ? payload.code
+      : null
   const message =
     typeof payload.message === 'string' && payload.message.trim()
       ? payload.message
@@ -99,7 +132,7 @@ function parseApiErrorPayload(payload) {
         ? payload.error
         : null
 
-  return { message, details }
+  return { message, details, code }
 }
 
 async function parseResponse(response) {
@@ -127,13 +160,18 @@ async function parseResponse(response) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = 'GET', body, headers, withAuth = false, signal } = options
+  const { method = 'GET', body, headers, signal } = options
   const hasJsonBody = body !== undefined
+  const upperMethod = String(method).toUpperCase()
+  const csrfToken = ['GET', 'HEAD', 'OPTIONS'].includes(upperMethod)
+    ? null
+    : await ensureCsrfToken()
   const response = await fetch(joinUrl(getApiBaseUrl(), path), {
     method,
-    headers: buildHeaders(headers, withAuth, hasJsonBody),
+    headers: buildHeaders(headers, hasJsonBody, csrfToken),
     body: hasJsonBody ? JSON.stringify(body) : undefined,
     signal,
+    credentials: 'include',
   })
 
   const payload = await parseResponse(response)
@@ -145,7 +183,7 @@ export async function apiRequest(path, options = {}) {
       parsedError.details && parsedError.details !== baseMessage
         ? `${baseMessage}${baseMessage.endsWith('.') ? '' : '.'} ${parsedError.details}`
         : baseMessage
-    throw new ApiError(fullMessage, response.status, parsedError.details)
+    throw new ApiError(fullMessage, response.status, parsedError.details, parsedError.code)
   }
 
   return payload

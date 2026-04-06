@@ -1,11 +1,11 @@
 import AppHeader from '../components/AppHeader.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
-import { getAccessToken } from '../api/tokenStorage.js'
 import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
@@ -16,17 +16,17 @@ const QUESTION_MAX_LENGTH = 2000
 
 function CreateQuestionPage() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthSession()
   const [category, setCategory] = useState('Education')
   const [question, setQuestion] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const hasToken = Boolean(getAccessToken())
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
 
-    if (!getAccessToken()) {
+    if (!isAuthenticated) {
       setErrorMessage('Войдите в аккаунт, чтобы задать вопрос')
       return
     }
@@ -71,7 +71,7 @@ function CreateQuestionPage() {
         </section>
 
         <main className="main-page-content qa-create-main">
-          {!hasToken ? (
+          {!isAuthenticated ? (
             <p className="create-room-hint">
               <Link to="/sign-in">Войдите</Link>, чтобы задавать вопросы, или{' '}
               <Link to="/sign-up">зарегистрируйтесь</Link>.
@@ -110,7 +110,7 @@ function CreateQuestionPage() {
 
           {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
 
-          <button type="submit" className="create-room-submit" disabled={isSubmitting || !hasToken}>
+          <button type="submit" className="create-room-submit" disabled={isSubmitting || !isAuthenticated}>
             {isSubmitting ? 'Отправка...' : 'Задать вопрос'}
           </button>
           </form>

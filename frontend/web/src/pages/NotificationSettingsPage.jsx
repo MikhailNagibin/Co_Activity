@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import ProfileAuthRail from '../components/ProfileAuthRail.jsx'
-import { clearAccessToken, getAccessToken } from '../api/tokenStorage.js'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import {
@@ -13,7 +13,7 @@ import { getMyProfile, logout, updateMyNotificationSettings } from '../services/
 
 function NotificationSettingsPage() {
   const navigate = useNavigate()
-  const hasToken = Boolean(getAccessToken())
+  const { isAuthenticated, clearSession } = useAuthSession()
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -66,7 +66,7 @@ function NotificationSettingsPage() {
       }
     }
 
-    if (hasToken) {
+    if (isAuthenticated) {
       load()
     } else {
       setIsLoading(false)
@@ -75,7 +75,7 @@ function NotificationSettingsPage() {
     return () => {
       isMounted = false
     }
-  }, [hasToken, navigate])
+  }, [isAuthenticated, navigate])
 
   const notificationsDisabled = useMemo(
     () =>
@@ -132,14 +132,14 @@ function NotificationSettingsPage() {
     try {
       await logout()
     } catch {
-      // Even if backend logout fails, local token should be removed.
+      // Even if backend logout fails, local session state should be reset.
     } finally {
-      clearAccessToken()
+      clearSession()
       navigate('/sign-in')
     }
   }
 
-  const sessionEnded = Boolean(hasToken && !isLoading && !profile)
+  const sessionEnded = Boolean(isAuthenticated && !isLoading && !profile)
 
   return (
     <>
@@ -156,24 +156,24 @@ function NotificationSettingsPage() {
           </section>
 
           <main className="profile-page">
-        {!hasToken ? (
+        {!isAuthenticated ? (
           <p className="create-room-hint">
             <Link to="/sign-in">Войдите</Link>, чтобы изменить уведомления.
           </p>
         ) : null}
 
-        {hasToken && isLoading ? <p>Загрузка...</p> : null}
+        {isAuthenticated && isLoading ? <p>Загрузка...</p> : null}
         {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
         {successMessage ? <p className="profile-success">{successMessage}</p> : null}
 
-        {hasToken && !isLoading && !profile ? (
+        {isAuthenticated && !isLoading && !profile ? (
           <section className="profile-panel profile-session-fallback">
             <h3>Настройки не загрузились</h3>
             <p className="gray-elem">Войдите снова.</p>
           </section>
         ) : null}
 
-        {hasToken && !isLoading && profile ? (
+        {isAuthenticated && !isLoading && profile ? (
           <section className="profile-panel notification-settings-panel">
             <form onSubmit={handleSaveNotifications} className="profile-form">
               <label className="profile-checkbox">
@@ -225,7 +225,7 @@ function NotificationSettingsPage() {
         ) : null}
           </main>
         </div>
-        <ProfileAuthRail hasToken={hasToken} onLogout={handleLogout} sessionEnded={sessionEnded} />
+        <ProfileAuthRail hasToken={isAuthenticated} onLogout={handleLogout} sessionEnded={sessionEnded} />
       </div>
     </>
   )

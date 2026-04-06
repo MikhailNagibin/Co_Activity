@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
-import { getAccessToken } from '../api/tokenStorage.js'
+import { useAuthSession } from '../auth/authSessionContext.js'
 
 function DefaultCard0() {
-  const isAuthenticated = Boolean(getAccessToken())
+  const { isAuthenticated } = useAuthSession()
 
   return (
     <>

@@ -1,11 +1,11 @@
 import AppHeader from '../components/AppHeader.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
-import { getAccessToken } from '../api/tokenStorage.js'
 import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
@@ -25,6 +25,7 @@ function localDateTimeToInstantIso(value) {
 
 function CreateRoomPage() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthSession()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -38,7 +39,6 @@ function CreateRoomPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const hasToken = Boolean(getAccessToken())
 
   const handleFieldChange = (event) => {
     const { name, value, type, checked } = event.target
@@ -52,7 +52,7 @@ function CreateRoomPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (!getAccessToken()) {
+    if (!isAuthenticated) {
       setErrorMessage('Войдите в аккаунт, чтобы создать событие')
       return
     }
@@ -148,7 +148,7 @@ function CreateRoomPage() {
       </section>
 
       <main className="create-room-page">
-        {!hasToken ? (
+        {!isAuthenticated ? (
           <p className="create-room-hint">
             <Link to="/sign-in">Войдите</Link>, чтобы создать событие, или{' '}
             <Link to="/sign-up">зарегистрируйтесь</Link>.
@@ -291,7 +291,7 @@ function CreateRoomPage() {
           <button
             type="submit"
             className="create-room-submit"
-            disabled={isSubmitting || !hasToken}
+            disabled={isSubmitting || !isAuthenticated}
           >
             {isSubmitting ? 'Создание...' : 'Создать событие'}
           </button>

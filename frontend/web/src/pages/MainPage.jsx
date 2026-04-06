@@ -20,7 +20,7 @@ import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
-import { getAccessToken } from '../api/tokenStorage.js'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { getRooms } from '../services/roomsService.js'
 import { mapRoomsToActivityCards } from '../services/uiMappers.js'
 
@@ -29,7 +29,7 @@ const DEFAULT_SORT = 'created-desc'
 function MainPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const isAuthenticated = Boolean(getAccessToken())
+  const { isAuthenticated } = useAuthSession()
   const [activities, setActivities] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')

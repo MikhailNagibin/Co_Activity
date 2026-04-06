@@ -1,17 +1,15 @@
 import { isApiError } from '../api/httpClient.js'
-import { clearAccessToken } from '../api/tokenStorage.js'
 
 /**
- * В core-service 401 соответствует только TokenValidationException (сессия/токен).
- * Неверный пароль при входе — 403, не 401.
+ * В core-service 401 означает, что сессия отсутствует или истекла.
+ * Неверный пароль при входе приходит как 403 от domain-level исключения.
  */
 export function isUnauthorizedApiError(error) {
   return isApiError(error) && error.status === 401
 }
 
-/** Сбрасывает токен и ведёт на вход с подсказкой о сроке сессии. */
+/** Ведёт на вход с подсказкой о сроке сессии. */
 export function redirectToSignInForExpiredSession(navigate, options = {}) {
-  clearAccessToken()
   const params = new URLSearchParams()
   params.set('session', 'expired')
   const next = options.next

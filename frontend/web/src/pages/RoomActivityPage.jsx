@@ -1,8 +1,8 @@
 import AppHeader from '../components/AppHeader.jsx'
 import { useCallback, useEffect, useState } from 'react'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
-import { getAccessToken } from '../api/tokenStorage.js'
 import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
@@ -60,9 +60,9 @@ function isOwnerOrAdminRole(role) {
 
 function RoomActivityPage() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthSession()
   const { roomId: roomIdParam } = useParams()
   const roomId = Number.parseInt(String(roomIdParam), 10)
-  const isAuthenticated = Boolean(getAccessToken())
 
   const [room, setRoom] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -89,34 +89,27 @@ function RoomActivityPage() {
     setErrorMessage('')
     setJoinFeedback('')
 
-    const token = getAccessToken()
-
     try {
-      const payload = await getRoomById(roomId, { withAuth: Boolean(token) })
+      const payload = await getRoomById(roomId)
       setRoom(payload)
 
-      if (token) {
-        const [bannedPayload, sentPayload] = await Promise.all([
-          getBannedRooms().catch(() => []),
-          getSentJoinRequests().catch(() => []),
-        ])
-        const bannedIds = new Set(
-          toArray(bannedPayload)
-            .map((r) => r.id ?? r.roomId)
-            .filter((id) => id != null),
-        )
-        setIsBanned(bannedIds.has(roomId))
+      const [bannedPayload, sentPayload] = await Promise.all([
+        getBannedRooms().catch(() => []),
+        getSentJoinRequests().catch(() => []),
+      ])
+      const bannedIds = new Set(
+        toArray(bannedPayload)
+          .map((r) => r.id ?? r.roomId)
+          .filter((id) => id != null),
+      )
+      setIsBanned(bannedIds.has(roomId))
 
-        const pending = toArray(sentPayload).some(
-          (req) =>
-            (req.roomId === roomId || req.roomId === String(roomId)) &&
-            String(req.status).toUpperCase() === 'CONSIDERATION',
-        )
-        setHasPendingRequest(pending)
-      } else {
-        setIsBanned(false)
-        setHasPendingRequest(false)
-      }
+      const pending = toArray(sentPayload).some(
+        (req) =>
+          (req.roomId === roomId || req.roomId === String(roomId)) &&
+          String(req.status).toUpperCase() === 'CONSIDERATION',
+      )
+      setHasPendingRequest(pending)
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -145,7 +138,7 @@ function RoomActivityPage() {
     setBulletinDraft('')
     setBulletinFeedback('')
 
-    if (!room || !getAccessToken() || room.hasProtectedAccess !== true) {
+    if (!room || !isAuthenticated || room.hasProtectedAccess !== true) {
       setCanModerateBulletin(false)
       return () => {
         cancelled = true
@@ -173,7 +166,7 @@ function RoomActivityPage() {
     return () => {
       cancelled = true
     }
-  }, [room, roomId])
+  }, [room, roomId, isAuthenticated])
 
   const participantCount = room?.participantCount ?? 0
   const maxPeople = room?.maximumParticipants ?? 0

@@ -2162,6 +2162,54 @@ button.cta-black-button {
   gap: 10px;
 }
 
+.profile-deletion-plan {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.14);
+}
+
+.profile-deletion-rooms {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-deletion-room {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+
+  select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 7px;
+    border: 1px solid #767676;
+    background-color: #fff;
+    font-size: small;
+  }
+}
+
+.profile-deletion-room__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-delete-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+
+  input {
+    margin-top: 3px;
+  }
+}
+
 .profile-delete-btn {
   margin-top: 8px;
   padding: 12px 20px;

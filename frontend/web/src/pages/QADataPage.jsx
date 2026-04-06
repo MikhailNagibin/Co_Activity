@@ -15,20 +15,19 @@ import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
-import { getAccessToken } from '../api/tokenStorage.js'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { getQuestions } from '../services/qaService.js'
 import { mapQuestionsToPreview } from '../services/uiMappers.js'
 
 function QADataPage() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthSession()
   const [questions, setQuestions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all-categories')
   const [sortBy, setSortBy] = useState('created-desc')
-  const hasToken = Boolean(getAccessToken())
-
   useEffect(() => {
     let isMounted = true
 
@@ -130,7 +129,7 @@ function QADataPage() {
               onChange={setSortBy}
             />
 
-            {hasToken ? (
+            {isAuthenticated ? (
               <Link className="main-create-activity-btn qa-ask-btn" to="/qa/new">
                 Задать вопрос
               </Link>

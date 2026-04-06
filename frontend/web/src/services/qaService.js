@@ -10,11 +10,11 @@ export function getQuestionWithAnswers(questionId) {
 }
 
 export function createQuestion(payload, options = {}) {
-  return post('/qa/questions', payload, { ...options, withAuth: true })
+  return post('/qa/questions', payload, options)
 }
 
 export function postAnswer(payload, options = {}) {
-  return post('/qa/answers', payload, { ...options, withAuth: true })
+  return post('/qa/answers', payload, options)
 }
 
 /**

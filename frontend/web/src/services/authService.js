@@ -1,28 +1,25 @@
-import { ApiError, get, post } from '../api/httpClient.js'
-import { setAccessToken } from '../api/tokenStorage.js'
+import { get, post } from '../api/httpClient.js'
 
 export function register(userData) {
-  return post('/users', userData)
+  return post('/auth/register', userData)
 }
 
-export function loginStep1({ login, password }) {
-  return post('/users/login', { login, password })
+export function verifyRegistration({ email, code }) {
+  return post('/auth/register/verify', { email, code })
 }
 
-export async function verifyCode({ login, code }) {
-  const loginParam = encodeURIComponent(login)
-  const codeParam = encodeURIComponent(code)
-  const payload = await post(`/users/login/verify?login=${loginParam}&code=${codeParam}`)
+export function login({ email, password }) {
+  return post('/auth/login', { email, password })
+}
 
-  const token = payload?.token
-  if (!token || typeof token !== 'string') {
-    throw new ApiError('Не удалось завершить вход. Повторите попытку.', 200, null)
-  }
-  setAccessToken(token)
-
-  return payload
+export function logout() {
+  return post('/auth/logout')
 }
 
 export function me() {
-  return get('/users/me', { withAuth: true })
+  return get('/auth/me')
+}
+
+export function getCsrf() {
+  return get('/auth/csrf')
 }

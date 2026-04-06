@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8080/api'
+const DEFAULT_API_BASE_URL = '/api'
 
 /**
  * VITE_API_BASE_URL should end with `/api` (same prefix as Spring `@RequestMapping` on controllers).

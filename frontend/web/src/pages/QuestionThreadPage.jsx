@@ -2,8 +2,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCallback, useEffect, useState } from 'react'
 import AppHeader from '../components/AppHeader.jsx'
 import { isApiError } from '../api/httpClient.js'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
-import { getAccessToken } from '../api/tokenStorage.js'
 import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
@@ -39,6 +39,7 @@ function answersWord(n) {
 
 function QuestionThreadPage() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthSession()
   const { questionId: questionIdParam } = useParams()
   const questionId = Number(questionIdParam)
   const [payload, setPayload] = useState(null)
@@ -47,8 +48,6 @@ function QuestionThreadPage() {
   const [postError, setPostError] = useState('')
   const [answerText, setAnswerText] = useState('')
   const [isPostingAnswer, setIsPostingAnswer] = useState(false)
-
-  const hasToken = Boolean(getAccessToken())
 
   const loadThread = useCallback(async () => {
     setIsLoading(true)
@@ -101,7 +100,7 @@ function QuestionThreadPage() {
   const handlePostAnswer = async (event) => {
     event.preventDefault()
     setPostError('')
-    if (!hasToken) {
+    if (!isAuthenticated) {
       return
     }
     const trimmed = answerText.trim()
@@ -226,7 +225,7 @@ function QuestionThreadPage() {
               })}
             </section>
 
-            {hasToken ? (
+            {isAuthenticated ? (
               <section className="qa-thread-reply" aria-label="Ваш ответ">
                 <h2 className="qa-thread-answers-heading">Добавить ответ</h2>
                 <form className="qa-thread-reply-form" onSubmit={handlePostAnswer}>
