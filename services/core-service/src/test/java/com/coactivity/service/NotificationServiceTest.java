@@ -63,7 +63,6 @@ class NotificationServiceTest {
         testUserId,
         testUserEmail,
         "testuser",
-        "hashedPassword",
         Instant.now(),
         "Test Country",
         "Test City",
@@ -105,9 +104,9 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("Always publishes Kafka email command for login verification")
-  void sendLoginVerificationCode_publishesKafkaCommand() throws Exception {
-    boolean delivered = notificationService.sendLoginVerificationCode(testUserEmail, "123456");
+  @DisplayName("Always publishes Kafka email command for registration verification")
+  void sendRegistrationVerificationCode_publishesKafkaCommand() throws Exception {
+    boolean delivered = notificationService.sendRegistrationVerificationCode(testUserEmail, "123456");
 
     assertTrue(delivered);
 
@@ -115,18 +114,18 @@ class NotificationServiceTest {
     verify(kafkaTemplate, times(1)).send(eq(TOPIC), eq(testUserEmail), payloadCaptor.capture());
 
     JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
-    assertTrue(payload.get("subject").asText().contains("verification code"));
+    assertTrue(payload.get("subject").asText().toLowerCase().contains("coactivity"));
     assertTrue(payload.get("body").asText().contains("123456"));
   }
 
   @Test
-  @DisplayName("Returns false for login verification when Kafka template is missing")
-  void sendLoginVerificationCode_returnsFalseWhenKafkaTemplateMissing() {
+  @DisplayName("Returns false for registration verification when Kafka template is missing")
+  void sendRegistrationVerificationCode_returnsFalseWhenKafkaTemplateMissing() {
     NotificationService notificationServiceWithoutKafka =
         new NotificationService(userRepository, objectMapper);
     notificationServiceWithoutKafka.setNotificationsKafkaTopic(TOPIC);
 
-    boolean delivered = notificationServiceWithoutKafka.sendLoginVerificationCode(testUserEmail,
+    boolean delivered = notificationServiceWithoutKafka.sendRegistrationVerificationCode(testUserEmail,
         "123456");
 
     assertFalse(delivered);

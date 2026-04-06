@@ -12,7 +12,7 @@ public interface RoomMemberJpaRepository extends JpaRepository<RoomMemberEntity,
   @EntityGraph(attributePaths = {"user", "role"})
   List<RoomMemberEntity> findAllByRoom_Id(Integer roomId);
 
-  @EntityGraph(attributePaths = {"room", "room.category"})
+  @EntityGraph(attributePaths = {"room", "room.category", "role"})
   List<RoomMemberEntity> findAllByUser_Id(Integer userId);
 
   @EntityGraph(attributePaths = {"role"})

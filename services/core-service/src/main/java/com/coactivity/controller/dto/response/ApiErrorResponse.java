@@ -8,6 +8,7 @@ public record ApiErrorResponse(
     int status,
     String error,
     String message,
+    String code,
     String path,
     List<String> details) {
 
@@ -15,4 +16,3 @@ public record ApiErrorResponse(
     details = details == null ? List.of() : List.copyOf(details);
   }
 }
-

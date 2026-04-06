@@ -155,7 +155,6 @@ class RoomServiceTest {
         id,
         login,
         username,
-        "password",
         Instant.parse("2000-01-01T00:00:00Z"),
         "Russia",
         "Moscow",

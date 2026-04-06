@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.coactivity.CoActivityApplication;
+import com.coactivity.TestcontainersConfiguration;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -20,32 +20,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.context.annotation.Import;
 
-@Testcontainers
-@SpringBootTest(classes = CoActivityApplication.class, properties = "spring.jpa.hibernate.ddl-auto=none")
+@Import(TestcontainersConfiguration.class)
+@SpringBootTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @Tag("docker")
 @DisplayName("UserRepository delete user integration tests")
 class UserRepositoryDeleteIntegrationTest {
-
-  @Container
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.2")
-      .withDatabaseName("delete_user_test_db")
-      .withUsername("postgres")
-      .withPassword("postgres");
-
-  @DynamicPropertySource
-  static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-  }
 
   @Autowired
   private UserRepositoryImpl userRepository;
@@ -57,11 +38,8 @@ class UserRepositoryDeleteIntegrationTest {
 
   @BeforeEach
   void setUp() throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
-      ScriptUtils.executeSqlScript(connection, new ClassPathResource("sql/init_tables.sql"));
-      cleanupTables(connection);
-      seedCategory(connection);
-    }
+    cleanupTables();
+    categoryId = loadCategoryId("Sport");
   }
 
   @Test
@@ -101,42 +79,41 @@ class UserRepositoryDeleteIntegrationTest {
 
   private Integer createUser(String login, String username) {
     UserRegistrationRequest request = new UserRegistrationRequest();
-    request.setLogin(login);
+    request.setEmail(login);
     request.setUserName(username);
     request.setPassword("password123");
     request.setDateOfBirth(Instant.now().minus(20, ChronoUnit.YEARS));
     return userRepository.createUser(request).getId();
   }
 
-  private void cleanupTables(Connection connection) throws SQLException {
-    try (PreparedStatement disableTriggers =
-             connection.prepareStatement("SET session_replication_role = 'replica'");
-         PreparedStatement enableTriggers =
-             connection.prepareStatement("SET session_replication_role = 'origin'")) {
-      disableTriggers.executeUpdate();
-      for (String table : new String[]{
-          "user_notifications", "bulletin_board", "answers", "questions", "bans", "room_requests",
-          "room_members", "pictures", "rooms", "notifications", "request_statuses", "roles",
-          "categories", "users"}) {
-        try (PreparedStatement deleteStatement =
-                 connection.prepareStatement("DELETE FROM " + table)) {
-          deleteStatement.executeUpdate();
-        }
-      }
-      enableTriggers.executeUpdate();
+  private void cleanupTables() throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             TRUNCATE TABLE
+               bulletin_board,
+               user_notifications,
+               answers,
+               questions,
+               bans,
+               room_requests,
+               room_members,
+               pictures,
+               rooms,
+               users
+             RESTART IDENTITY CASCADE
+             """)) {
+      statement.executeUpdate();
     }
   }
 
-  private void seedCategory(Connection connection) throws SQLException {
-    try (PreparedStatement insert =
-             connection.prepareStatement(
-                 "INSERT INTO categories (name) VALUES ('Sport') ON CONFLICT (name) DO NOTHING");
-         PreparedStatement select =
-             connection.prepareStatement("SELECT id FROM categories WHERE name = 'Sport'")) {
-      insert.executeUpdate();
-      try (ResultSet resultSet = select.executeQuery()) {
+  private Integer loadCategoryId(String categoryName) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement =
+             connection.prepareStatement("SELECT id FROM categories WHERE name = ?")) {
+      statement.setString(1, categoryName);
+      try (ResultSet resultSet = statement.executeQuery()) {
         resultSet.next();
-        categoryId = resultSet.getInt(1);
+        return resultSet.getInt(1);
       }
     }
   }

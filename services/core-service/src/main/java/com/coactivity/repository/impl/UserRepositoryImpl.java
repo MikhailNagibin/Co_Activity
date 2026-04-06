@@ -1,5 +1,6 @@
 package com.coactivity.repository.impl;
 
+import com.coactivity.auth.model.UserStatus;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.Notification;
@@ -7,7 +8,6 @@ import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.persistence.CoreDomainMapper;
 import com.coactivity.persistence.CoreLookupMapper;
-import com.coactivity.persistence.CorePasswordHasher;
 import com.coactivity.persistence.entity.NotificationEntity;
 import com.coactivity.persistence.entity.UserEntity;
 import com.coactivity.persistence.entity.UserNotificationEntity;
@@ -17,9 +17,14 @@ import com.coactivity.persistence.repository.RoomMemberJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.persistence.repository.UserNotificationJpaRepository;
 import com.coactivity.repository.UserRepository;
+import com.coactivity.service.exception.ConflictException;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +36,7 @@ public class UserRepositoryImpl implements UserRepository {
   private final RoomMemberJpaRepository roomMemberJpaRepository;
   private final UserNotificationJpaRepository userNotificationJpaRepository;
   private final NotificationLookupRepository notificationLookupRepository;
+  private final PasswordEncoder passwordEncoder;
 
   @PersistenceContext
   private EntityManager entityManager;
@@ -38,19 +44,24 @@ public class UserRepositoryImpl implements UserRepository {
   public UserRepositoryImpl(UserJpaRepository userJpaRepository,
       RoomMemberJpaRepository roomMemberJpaRepository,
       UserNotificationJpaRepository userNotificationJpaRepository,
-      NotificationLookupRepository notificationLookupRepository) {
+      NotificationLookupRepository notificationLookupRepository,
+      PasswordEncoder passwordEncoder) {
     this.userJpaRepository = userJpaRepository;
     this.roomMemberJpaRepository = roomMemberJpaRepository;
     this.userNotificationJpaRepository = userNotificationJpaRepository;
     this.notificationLookupRepository = notificationLookupRepository;
+    this.passwordEncoder = passwordEncoder;
   }
 
   @Override
   public User createUser(UserRegistrationRequest request) {
     UserEntity entity = new UserEntity();
-    entity.setLogin(request.getLogin());
-    entity.setUserName(request.getUserName());
-    entity.setPassword(CorePasswordHasher.sha256(request.getPassword()));
+    entity.setEmail(request.getEmail().trim());
+    entity.setEmailNormalized(request.getEmail().trim().toLowerCase(Locale.ROOT));
+    entity.setUserName(request.getUserName().trim());
+    entity.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+    entity.setStatus(UserStatus.ACTIVE);
+    entity.setEmailVerifiedAt(Instant.now());
     entity.setDataOfBirth(request.getDateOfBirth());
     entity.setCountry(request.getCountry());
     entity.setCity(request.getCity());
@@ -66,19 +77,23 @@ public class UserRepositoryImpl implements UserRepository {
     UserEntity entity = getExistingUserEntity(userId);
 
     if (request.getUsername() != null) {
-      entity.setUserName(request.getUsername());
+      String normalizedUserName = request.getUsername().trim();
+      if (userJpaRepository.existsByUserNameIgnoreCaseAndIdNot(normalizedUserName, userId)) {
+        throw new ConflictException("USERNAME_ALREADY_TAKEN", "Username is already taken");
+      }
+      entity.setUserName(normalizedUserName);
     }
     if (request.getDateOfBirth() != null) {
       entity.setDataOfBirth(request.getDateOfBirth());
     }
     if (request.getCountry() != null) {
-      entity.setCountry(request.getCountry());
+      entity.setCountry(blankToNull(request.getCountry()));
     }
     if (request.getCity() != null) {
-      entity.setCity(request.getCity());
+      entity.setCity(blankToNull(request.getCity()));
     }
     if (request.getDescription() != null) {
-      entity.setDescription(request.getDescription());
+      entity.setDescription(blankToNull(request.getDescription()));
     }
     if (request.getAvatarId() != null) {
       entity.setAvatarId(request.getAvatarId());
@@ -134,16 +149,8 @@ public class UserRepositoryImpl implements UserRepository {
         .executeUpdate();
 
     if (affectedRows == 0) {
-      throw new RuntimeException("User not found for delete: " + userId);
+      throw new ResourceNotFoundException("User not found");
     }
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public User getUser(String login, String password) {
-    return userJpaRepository.findByLoginAndPassword(login, CorePasswordHasher.sha256(password))
-        .map(this::toDomain)
-        .orElse(null);
   }
 
   @Override
@@ -152,20 +159,6 @@ public class UserRepositoryImpl implements UserRepository {
     return userJpaRepository.findById(userId)
         .map(this::toDomain)
         .orElse(null);
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public User getUserByLogin(String login) {
-    return userJpaRepository.findByLogin(login)
-        .map(this::toDomain)
-        .orElse(null);
-  }
-
-  @Override
-  public void updatePassword(Integer userId, String newPassword) {
-    UserEntity entity = getExistingUserEntity(userId);
-    entity.setPassword(CorePasswordHasher.sha256(newPassword));
   }
 
   @Override
@@ -206,7 +199,7 @@ public class UserRepositoryImpl implements UserRepository {
 
   private UserEntity getExistingUserEntity(Integer userId) {
     return userJpaRepository.findById(userId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
   }
 
   private User toDomain(UserEntity entity) {
@@ -218,5 +211,10 @@ public class UserRepositoryImpl implements UserRepository {
         .map(link -> CoreLookupMapper.toNotification(link.getNotification().getNotificationName()))
         .toList();
     return CoreDomainMapper.toUser(entity, rooms, notifications);
+  }
+
+  private String blankToNull(String value) {
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 }

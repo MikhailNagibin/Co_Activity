@@ -76,7 +76,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getLogin() == null) {
+    if (user == null || user.getEmail() == null) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return true;
     }
@@ -99,17 +99,17 @@ public class NotificationService {
 """, roomName);
 
     try {
-      boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(user.getEmail(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish membership accepted notification for userId={}", userId);
         return false;
       }
       log.info("Membership accepted email command published to Kafka for userId={}, email={}", userId,
-          user.getLogin());
+          user.getEmail());
       return true;
     } catch (Exception e) {
       log.error("Failed to send membership accepted notification to userId={}, email={}", userId,
-          user.getLogin(), e);
+          user.getEmail(), e);
       return false;
     }
   }
@@ -122,7 +122,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getLogin() == null) {
+    if (user == null || user.getEmail() == null) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return true;
     }
@@ -146,17 +146,17 @@ public class NotificationService {
 """, roomName);
 
     try {
-      boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(user.getEmail(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish membership rejected notification for userId={}", userId);
         return false;
       }
       log.info("Membership rejected email command published to Kafka for userId={}, email={}", userId,
-          user.getLogin());
+          user.getEmail());
       return true;
     } catch (Exception e) {
       log.error("Failed to send membership rejected notification to userId={}, email={}", userId,
-          user.getLogin(), e);
+          user.getEmail(), e);
       return false;
     }
   }
@@ -167,7 +167,7 @@ public class NotificationService {
         roomName);
 
     User user = userRepository.getUserById(userId);
-    if (user == null || user.getLogin() == null) {
+    if (user == null || user.getEmail() == null) {
       log.warn("Cannot send notification: user {} not found or has no email", userId);
       return;
     }
@@ -190,16 +190,16 @@ public class NotificationService {
         """, roomName);
 
     try {
-      boolean delivered = publishEmailCommand(user.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(user.getEmail(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish activity closed notification for userId={}", userId);
         return;
       }
       log.info("Activity closed email command published to Kafka for userId={}, email={}", userId,
-          user.getLogin());
+          user.getEmail());
     } catch (Exception e) {
       log.error("Failed to send activity closed notification to userId={}, email={}", userId,
-          user.getLogin(), e);
+          user.getEmail(), e);
     }
   }
 
@@ -209,7 +209,7 @@ public class NotificationService {
         roomName);
 
     User admin = userRepository.getUserById(adminId);
-    if (admin == null || admin.getLogin() == null) {
+    if (admin == null || admin.getEmail() == null) {
       log.warn("Cannot send notification: admin {} not found or has no email", adminId);
       return;
     }
@@ -232,31 +232,31 @@ public class NotificationService {
         """, roomName, requesterUsername);
 
     try {
-      boolean delivered = publishEmailCommand(admin.getLogin(), subject, message);
+      boolean delivered = publishEmailCommand(admin.getEmail(), subject, message);
       if (!delivered) {
         log.warn("Failed to publish new join request notification for adminId={}", adminId);
         return;
       }
       log.info("New join request email command published to Kafka for adminId={}, email={}", adminId,
-          admin.getLogin());
+          admin.getEmail());
     } catch (Exception e) {
       log.error("Failed to send new join request notification to adminId={}, email={}", adminId,
-          admin.getLogin(), e);
+          admin.getEmail(), e);
     }
   }
 
-  public boolean sendLoginVerificationCode(String userEmail, String verificationCode) {
-    log.debug("Attempting to send login verification code to email={}", userEmail);
+  public boolean sendRegistrationVerificationCode(String userEmail, String verificationCode) {
+    log.debug("Attempting to send registration verification code to email={}", userEmail);
 
-    String subject = "Your CoActivity verification code";
+    String subject = "Подтверждение регистрации в CoActivity";
     String message = String.format("""
         Hello!
 
-        Use the verification code below to finish signing in:
+        Use the verification code below to finish creating your account:
 
         %s
 
-        The code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
+        The code expires in 10 minutes. If you did not register in CoActivity, you can ignore this email.
 
         Stay secure,
         The CoActivity Team
@@ -265,13 +265,13 @@ public class NotificationService {
     try {
       boolean delivered = publishEmailCommand(userEmail, subject, message);
       if (!delivered) {
-        log.warn("Failed to publish login verification code for email={}", userEmail);
+        log.warn("Failed to publish registration verification code for email={}", userEmail);
         return false;
       }
-      log.info("Login verification email command published to Kafka for email={}", userEmail);
+      log.info("Registration verification email command published to Kafka for email={}", userEmail);
       return true;
     } catch (Exception e) {
-      log.error("Failed to send login verification code to email={}", userEmail, e);
+      log.error("Failed to send registration verification code to email={}", userEmail, e);
       return false;
     }
   }

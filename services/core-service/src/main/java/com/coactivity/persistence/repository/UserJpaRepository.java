@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserJpaRepository extends JpaRepository<UserEntity, Integer> {
 
-  Optional<UserEntity> findByLogin(String login);
+  Optional<UserEntity> findByEmailNormalized(String emailNormalized);
 
-  Optional<UserEntity> findByLoginAndPassword(String login, String password);
+  boolean existsByEmailNormalized(String emailNormalized);
+
+  boolean existsByUserNameIgnoreCase(String userName);
+
+  boolean existsByUserNameIgnoreCaseAndIdNot(String userName, Integer id);
 }

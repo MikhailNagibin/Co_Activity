@@ -7,14 +7,7 @@ import com.coactivity.domain.User;
 
 public interface UserRepository {
 
-  /**
-   * Создание нового пользователя
-   *
-   * @param request
-   * @return
-   */
   User createUser(UserRegistrationRequest request);
-
 
   /**
    * Обновление персональных данных
@@ -33,26 +26,12 @@ public interface UserRepository {
   void deleteUser(Integer userId);
 
   /**
-   * Получение юзера по логину и паролю
-   *
-   * @param login
-   * @param password
-   * @return
-   */
-
-  User getUser(String login, String password);
-
-  /**
    * Получение юзера по id
    *
    * @param userId
    * @return
    */
   User getUserById(Integer userId);
-
-  User getUserByLogin(String login);
-
-  void updatePassword(Integer userId, String newPassword);
 
   void setNotification(Integer id, Notification notification);
 

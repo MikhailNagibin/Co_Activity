@@ -32,6 +32,8 @@ public interface RoomRepository {
    */
   List<Room> getAllRooms();
 
+  List<Room> getRoomsOwnedByUser(Integer userId);
+
   /**
    *
    * @param roomId

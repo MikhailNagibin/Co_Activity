@@ -63,10 +63,9 @@ public class RoomService {
   }
 
   /**
-   * Public room listing with basic filtering and sorting.
+   * Authenticated room listing with basic filtering and sorting.
    * <p>
-   * If a token is provided, the response annotates whether the current user participates in each
-   * room.
+   * The response annotates whether the current user participates in each room.
    * </p>
    */
   public List<RoomSummaryResponse> getRooms(Integer currentUserId, RoomFilter filter,
@@ -281,8 +280,7 @@ public class RoomService {
         return entry.getKey();
       }
     }
-    // Fallback: return any user if owner is not explicitly set
-    return users.keySet().iterator().next();
+    return null;
   }
 
   private BulletinBoardResponse mapBulletinBoardToResponse(BulletinBoard board) {

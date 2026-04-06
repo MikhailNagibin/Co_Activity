@@ -109,7 +109,7 @@ class BulletinBoardServiceTest {
   }
 
   private User user(Integer userId) {
-    return new User(userId, "user@example.com", "user", "hashed", null,
+    return new User(userId, "user@example.com", "user", null,
         "RU", "Moscow", "desc", null, List.of(), List.of());
   }
 }

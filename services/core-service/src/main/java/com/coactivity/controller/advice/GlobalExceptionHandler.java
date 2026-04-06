@@ -2,10 +2,9 @@ package com.coactivity.controller.advice;
 
 import com.coactivity.controller.dto.response.ApiErrorResponse;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.NotificationDeliveryException;
-import com.coactivity.service.exception.QaServiceUnavailableException;
 import com.coactivity.service.exception.ResourceNotFoundException;
-import com.coactivity.service.exception.TokenValidationException;
 import com.coactivity.service.exception.ValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -32,39 +31,32 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ResourceNotFoundException.class)
   public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex,
       HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND, request, null);
+    return buildResponse(ex.getMessage(), null, HttpStatus.NOT_FOUND, request, null);
   }
 
   @ExceptionHandler(AuthorizationException.class)
   public ResponseEntity<ApiErrorResponse> handleAuthorization(AuthorizationException ex,
       HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.FORBIDDEN, request, null);
-  }
-
-  @ExceptionHandler(TokenValidationException.class)
-  public ResponseEntity<ApiErrorResponse> handleToken(TokenValidationException ex,
-      HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED, request, null);
+    return buildResponse(ex.getMessage(), null, HttpStatus.FORBIDDEN, request, null);
   }
 
   @ExceptionHandler(ValidationException.class)
   public ResponseEntity<ApiErrorResponse> handleValidation(ValidationException ex,
       HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request, null);
+    return buildResponse(ex.getMessage(), null, HttpStatus.BAD_REQUEST, request, null);
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex,
+      HttpServletRequest request) {
+    return buildResponse(ex.getMessage(), ex.getCode(), HttpStatus.CONFLICT, request, null);
   }
 
   @ExceptionHandler(NotificationDeliveryException.class)
   public ResponseEntity<ApiErrorResponse> handleNotificationDelivery(
       NotificationDeliveryException ex,
       HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request, null);
-  }
-
-  @ExceptionHandler(QaServiceUnavailableException.class)
-  public ResponseEntity<ApiErrorResponse> handleQaServiceUnavailable(
-      QaServiceUnavailableException ex,
-      HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request, null);
+    return buildResponse(ex.getMessage(), null, HttpStatus.SERVICE_UNAVAILABLE, request, null);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -74,7 +66,7 @@ public class GlobalExceptionHandler {
     List<String> details = ex.getBindingResult().getFieldErrors().stream()
         .map(error -> error.getField() + ": " + error.getDefaultMessage())
         .collect(Collectors.toList());
-    return buildResponse("Validation failed", HttpStatus.BAD_REQUEST, request, details);
+    return buildResponse("Validation failed", null, HttpStatus.BAD_REQUEST, request, details);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
@@ -84,7 +76,7 @@ public class GlobalExceptionHandler {
     List<String> details = ex.getConstraintViolations().stream()
         .map(ConstraintViolation::getMessage)
         .collect(Collectors.toList());
-    return buildResponse("Validation failed", HttpStatus.BAD_REQUEST, request, details);
+    return buildResponse("Validation failed", null, HttpStatus.BAD_REQUEST, request, details);
   }
 
   @ExceptionHandler(Exception.class)
@@ -92,17 +84,19 @@ public class GlobalExceptionHandler {
       HttpServletRequest request) {
     log.error("Unexpected error while processing {} {}", request.getMethod(),
         request.getRequestURI(), ex);
-    return buildResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR, request,
+    return buildResponse("Internal server error", null, HttpStatus.INTERNAL_SERVER_ERROR, request,
         null);
   }
 
-  private ResponseEntity<ApiErrorResponse> buildResponse(String message, HttpStatus status,
+  private ResponseEntity<ApiErrorResponse> buildResponse(String message, String code,
+      HttpStatus status,
       HttpServletRequest request, List<String> details) {
     ApiErrorResponse body = new ApiErrorResponse(
         Instant.now(),
         status.value(),
         status.getReasonPhrase(),
         message,
+        code,
         request.getRequestURI(),
         details);
     return ResponseEntity.status(status).body(body);

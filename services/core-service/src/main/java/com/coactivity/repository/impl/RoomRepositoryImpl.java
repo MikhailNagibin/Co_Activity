@@ -105,6 +105,16 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<Room> getRoomsOwnedByUser(Integer userId) {
+    return roomMemberJpaRepository.findAllByUser_Id(userId).stream()
+        .filter(membership -> CoreLookupMapper.toRole(membership.getRole().getRoleName()) == Role.OWNER)
+        .map(RoomMemberEntity::getRoom)
+        .map(CoreDomainMapper::toRoom)
+        .toList();
+  }
+
+  @Override
   public void addUserToRoom(Integer roomId, Integer userId, Role role) {
     if (isUserBannedInRoom(roomId, userId)) {
       throw new RuntimeException("User is banned from room");

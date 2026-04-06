@@ -14,7 +14,7 @@ public class UserProfileResponse {
 
   private Integer id;
 
-  private String login;
+  private String email;
 
   private String username;
 

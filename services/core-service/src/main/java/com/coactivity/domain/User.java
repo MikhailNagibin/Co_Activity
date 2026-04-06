@@ -12,9 +12,8 @@ import lombok.Setter;
 public class User {
 
   private Integer id;
-  private String login;
+  private String email;
   private String userName;
-  private String password;
   private Instant dataOfBirth;
   private String country;
   private String city;

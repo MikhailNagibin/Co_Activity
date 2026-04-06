@@ -1,7 +1,10 @@
 package com.coactivity.persistence.entity;
 
+import com.coactivity.auth.model.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,13 +30,23 @@ public class UserEntity {
   private Integer id;
 
   @Column(name = "login", nullable = false)
-  private String login;
+  private String email;
+
+  @Column(name = "email_normalized", nullable = false, unique = true)
+  private String emailNormalized;
 
   @Column(name = "username", nullable = false)
   private String userName;
 
-  @Column(name = "password", nullable = false)
-  private String password;
+  @Column(name = "password_hash", nullable = false)
+  private String passwordHash;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false)
+  private UserStatus status;
+
+  @Column(name = "email_verified_at")
+  private Instant emailVerifiedAt;
 
   @Column(name = "birthday")
   private Instant dataOfBirth;

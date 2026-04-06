@@ -10,11 +10,10 @@
   <packaging>pom</packaging>
 
   <name>CoActivity Platform</name>
-  <description>Monorepo for core-service, qa-service, notifications-service</description>
+  <description>Monorepo for core-service and notifications-service</description>
 
   <modules>
     <module>services/core-service</module>
-    <module>services/qa-service</module>
     <module>services/notifications-service</module>
   </modules>
 </project>

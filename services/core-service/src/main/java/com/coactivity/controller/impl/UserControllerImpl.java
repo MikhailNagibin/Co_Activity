@@ -1,31 +1,32 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.controller.dto.request.LoginRequest;
+import com.coactivity.auth.service.AuthApplicationService;
+import com.coactivity.controller.dto.request.AccountDeletionRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
-import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import com.coactivity.controller.dto.response.AccountDeletionPreviewResponse;
 import com.coactivity.controller.dto.response.JoinRequestResponse;
-import com.coactivity.controller.dto.response.LoginResponse;
 import com.coactivity.controller.dto.response.NotificationSettingsResponse;
-import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
-import com.coactivity.service.AuthService;
 import com.coactivity.service.JoinRequestService;
+import com.coactivity.service.AccountDeletionService;
 import com.coactivity.service.RoomMembershipService;
-import com.coactivity.service.TokenService;
 import com.coactivity.service.UserProfileService;
-import com.coactivity.service.exception.TokenValidationException;
+import com.coactivity.auth.service.SessionInvalidationService;
+import com.coactivity.security.CurrentUserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +34,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,212 +44,170 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserControllerImpl {
 
   private final UserProfileService userProfileService;
-  private final AuthService authService;
-  private final TokenService tokenService;
   private final RoomMembershipService roomMembershipService;
   private final JoinRequestService joinRequestService;
+  private final SessionInvalidationService sessionInvalidationService;
+  private final AccountDeletionService accountDeletionService;
+  private final AuthApplicationService authApplicationService;
 
-  public UserControllerImpl(UserProfileService userProfileService, AuthService authService,
-      TokenService tokenService, RoomMembershipService roomMembershipService,
-      JoinRequestService joinRequestService) {
+  public UserControllerImpl(UserProfileService userProfileService,
+      RoomMembershipService roomMembershipService,
+      JoinRequestService joinRequestService,
+      SessionInvalidationService sessionInvalidationService,
+      AccountDeletionService accountDeletionService,
+      AuthApplicationService authApplicationService) {
     this.userProfileService = userProfileService;
-    this.authService = authService;
-    this.tokenService = tokenService;
     this.roomMembershipService = roomMembershipService;
     this.joinRequestService = joinRequestService;
-  }
-
-  @PostMapping
-  public ResponseEntity<RegistrationResponse> registerUser(
-    @Valid @RequestBody UserRegistrationRequest request) {
-    RegistrationResponse response = userProfileService.registerUser(request);
-    URI location = URI.create("/api/users/" + response.getUserId());
-    return ResponseEntity.created(location).body(response);
-  }
-
-  @PostMapping("/login")
-  public ResponseEntity<Void> loginUser(@Valid @RequestBody LoginRequest request) {
-    authService.loginUser(request);
-    return ResponseEntity.accepted().build();
-  }
-
-  @PostMapping("/login/verify")
-  public ResponseEntity<LoginResponse> verifyLogin(
-      @NotBlank @RequestParam("login") String login,
-      @NotBlank @RequestParam("code") String verificationCode) {
-    LoginResponse response = authService.verifyLogin(login, verificationCode);
-    return ResponseEntity.ok(response);
-  }
-
-  @PostMapping("/logout")
-  public ResponseEntity<Void> logoutUser(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = requireAuthorizedToken(token);
-    authService.logoutUser(authToken);
-    return ResponseEntity.noContent().build();
+    this.sessionInvalidationService = sessionInvalidationService;
+    this.accountDeletionService = accountDeletionService;
+    this.authApplicationService = authApplicationService;
   }
 
   @GetMapping("/me")
   public ResponseEntity<UserProfileResponse> getUserProfile(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = requireAuthorizedToken(token);
-    UserProfileResponse response = userProfileService.getUserProfile(authToken);
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    UserProfileResponse response = userProfileService.getUserProfile(currentUser.getUserId());
     return ResponseEntity.ok(response);
   }
 
   @GetMapping("/{userId}")
   public ResponseEntity<UserSummaryResponse> getPublicUserProfileById(
-      @RequestHeader(name = "Authorization", required = false) String token,
       @Positive @PathVariable Integer userId) {
-    String authToken = requireAuthorizedToken(token);
-    UserSummaryResponse response = userProfileService.getPublicUserProfileById(authToken, userId);
+    UserSummaryResponse response = userProfileService.getPublicUserProfileById(userId);
     return ResponseEntity.ok(response);
   }
 
   @PutMapping("/me")
   public ResponseEntity<UserProfileResponse> updateUserProfile(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Valid @RequestBody UserProfileUpdateRequest request) {
-    String authToken = requireAuthorizedToken(token);
-    userProfileService.updateUserProfile(authToken, request);
-    UserProfileResponse response = userProfileService.getUserProfile(authToken);
-    return ResponseEntity.ok(response);
-  }
-
-  @PutMapping("/me/password")
-  public ResponseEntity<LoginResponse> updatePassword(
-      @RequestHeader(name = "Authorization", required = false) String token,
-      @NotBlank @RequestParam String currentPassword,
-      @NotBlank @RequestParam String newPassword) {
-    String authToken = requireAuthorizedToken(token);
-    LoginResponse response = authService.updatePassword(authToken, currentPassword, newPassword);
+    userProfileService.updateUserProfile(currentUser.getUserId(), request);
+    UserProfileResponse response = userProfileService.getUserProfile(currentUser.getUserId());
     return ResponseEntity.ok(response);
   }
 
   @PutMapping("/me/notifications")
   public ResponseEntity<NotificationSettingsResponse> configureNotificationSettings(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Valid @RequestBody NotificationSettingsRequest request) {
-    String authToken = requireAuthorizedToken(token);
-    NotificationSettingsResponse response = userProfileService.configureNotificationSettings(authToken,
-        request);
+    NotificationSettingsResponse response = userProfileService.configureNotificationSettings(
+        currentUser.getUserId(), request);
+    return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/me/deletion-preview")
+  public ResponseEntity<AccountDeletionPreviewResponse> getDeletionPreview(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    AccountDeletionPreviewResponse response =
+        accountDeletionService.getDeletionPreview(currentUser.getUserId());
     return ResponseEntity.ok(response);
   }
 
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteAccount(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    String authToken = requireAuthorizedToken(token);
-    userProfileService.deleteAccount(authToken);
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      Authentication authentication,
+      HttpServletRequest request,
+      HttpServletResponse response) {
+    accountDeletionService.deleteAccountIfNoOwnedRooms(currentUser.getUserId());
+    completeAccountDeletion(currentUser, authentication, request, response);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/me/deletion")
+  public ResponseEntity<Void> deleteAccountWithOwnedRooms(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      Authentication authentication,
+      HttpServletRequest request,
+      HttpServletResponse response,
+      @Valid @RequestBody AccountDeletionRequest deletionRequest) {
+    accountDeletionService.deleteAccount(currentUser.getUserId(), deletionRequest);
+    completeAccountDeletion(currentUser, authentication, request, response);
     return ResponseEntity.noContent().build();
   }
 
   @PostMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> assignAdminRole(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId,
       @Positive @PathVariable Integer userId) {
-
-    Integer requesterId = resolveAuthorizedUserId(token);
     RoleAssignmentResponse response =
-        roomMembershipService.assignAdminRole(requesterId, roomId, userId);
+        roomMembershipService.assignAdminRole(currentUser.getUserId(), roomId, userId);
     return ResponseEntity.ok(response);
   }
 
   @DeleteMapping("/rooms/{roomId}/admins/{userId}")
   public ResponseEntity<RoleAssignmentResponse> demoteAdminRole(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId,
       @Positive @PathVariable Integer userId) {
-    Integer requesterId = resolveAuthorizedUserId(token);
     RoleAssignmentResponse response =
-        roomMembershipService.demoteAdminRole(requesterId, roomId, userId);
+        roomMembershipService.demoteAdminRole(currentUser.getUserId(), roomId, userId);
     return ResponseEntity.ok(response);
   }
 
   @GetMapping("/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequests(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    Integer userId = resolveAuthorizedUserId(token);
-
-    List<JoinRequestResponse> responses = joinRequestService.getPendingRequests(userId);
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    List<JoinRequestResponse> responses = joinRequestService.getPendingRequests(
+        currentUser.getUserId());
     return ResponseEntity.ok(responses);
   }
 
   @GetMapping("/rooms/{roomId}/requests/pending")
   public ResponseEntity<List<JoinRequestResponse>> getPendingRequestsForRoom(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId) {
-    Integer userId = resolveAuthorizedUserId(token);
-    List<JoinRequestResponse> responses = joinRequestService.getPendingRequestsForRoom(userId,
+    List<JoinRequestResponse> responses = joinRequestService.getPendingRequestsForRoom(
+        currentUser.getUserId(),
         roomId);
     return ResponseEntity.ok(responses);
   }
 
   @PostMapping("/requests/{requestId}")
   public ResponseEntity<Void> processJoinRequest(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer requestId,
       @NotNull @RequestParam("action") RequestStatus action) {
-    Integer userId = resolveAuthorizedUserId(token);
-    joinRequestService.processJoinRequest(userId, requestId, action);
+    joinRequestService.processJoinRequest(currentUser.getUserId(), requestId, action);
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/requests/sent")
   public ResponseEntity<List<JoinRequestResponse>> getSentRequests(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    Integer userId = resolveAuthorizedUserId(token);
-    List<JoinRequestResponse> responses = joinRequestService.getSentRequests(userId);
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    List<JoinRequestResponse> responses = joinRequestService.getSentRequests(
+        currentUser.getUserId());
     return ResponseEntity.ok(responses);
   }
 
   @DeleteMapping("/requests/{requestId}")
   public ResponseEntity<Void> cancelRequest(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer requestId) {
-    Integer userId = resolveAuthorizedUserId(token);
-    joinRequestService.cancelRequest(userId, requestId);
+    joinRequestService.cancelRequest(currentUser.getUserId(), requestId);
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/banned-rooms")
   public ResponseEntity<List<RoomSummaryResponse>> getBanRooms(
-      @RequestHeader(name = "Authorization", required = false) String token) {
-    Integer userId = resolveAuthorizedUserId(token);
-    List<RoomSummaryResponse> rooms = roomMembershipService.getBanRooms(userId);
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    List<RoomSummaryResponse> rooms = roomMembershipService.getBanRooms(currentUser.getUserId());
     return ResponseEntity.ok(rooms);
   }
 
   @GetMapping("/rooms/{roomId}/membership")
   public ResponseEntity<Boolean> isUserInRoom(
-      @RequestHeader(name = "Authorization", required = false) String token,
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId) {
-    Integer userId = resolveAuthorizedUserId(token);
-    Boolean result = roomMembershipService.isUserInRoom(userId, roomId);
+    Boolean result = roomMembershipService.isUserInRoom(currentUser.getUserId(), roomId);
     return ResponseEntity.ok(result);
   }
 
-  private String requireAuthorizedToken(String rawToken) {
-    String token = extractToken(rawToken);
-    if (token == null || token.isBlank()) {
-      throw new TokenValidationException("Authorization token is required");
-    }
-    if (!tokenService.isTokenActive(token)) {
-      throw new TokenValidationException("Token is inactive or expired");
-    }
-    return token;
-  }
-
-  private Integer resolveAuthorizedUserId(String tokenHeader) {
-    String token = requireAuthorizedToken(tokenHeader);
-    return tokenService.decodeToken(token).userId();
-  }
-
-  private String extractToken(String rawToken) {
-    if (rawToken == null || rawToken.isBlank()) {
-      return null;
-    }
-    return rawToken.startsWith("Bearer ") ? rawToken.substring(7) : rawToken;
+  private void completeAccountDeletion(CurrentUserPrincipal currentUser,
+      Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
+    authApplicationService.logout(request, response, authentication);
+    sessionInvalidationService.invalidateAllSessions(currentUser.getUsername());
   }
 }

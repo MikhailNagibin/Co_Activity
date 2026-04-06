@@ -12,4 +12,8 @@ public class RegistrationResponse {
   private Integer userId;
 
   private String userName;
+
+  private String email;
+
+  private String status;
 }

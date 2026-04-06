@@ -26,9 +26,8 @@ public final class CoreDomainMapper {
     }
     return new User(
         entity.getId(),
-        entity.getLogin(),
+        entity.getEmail(),
         entity.getUserName(),
-        entity.getPassword(),
         entity.getDataOfBirth(),
         entity.getCountry(),
         entity.getCity(),
