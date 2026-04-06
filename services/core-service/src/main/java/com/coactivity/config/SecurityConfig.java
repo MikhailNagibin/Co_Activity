@@ -3,6 +3,7 @@ package com.coactivity.config;
 import com.coactivity.security.CurrentUserDetailsService;
 import com.coactivity.security.RestAccessDeniedHandler;
 import com.coactivity.security.RestAuthenticationEntryPoint;
+import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,6 +56,10 @@ public class SecurityConfig {
             .securityContextRepository(securityContextRepository()))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/rooms/me").authenticated()
+            .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/qa/questions",
+                "/api/qa/questions/category", "/api/qa/questions/*").permitAll()
             .requestMatchers("/api/auth/register",
                 "/api/auth/register/verify",
                 "/api/auth/login",

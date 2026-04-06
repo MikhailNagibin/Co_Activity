@@ -85,7 +85,8 @@ public class RoomControllerImpl {
       @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Valid @ModelAttribute RoomFilter filter,
       @RequestParam(name = "sortBy", required = false) RoomSort sortBy) {
-    List<RoomSummaryResponse> rooms = roomService.getRooms(currentUser.getUserId(), filter, sortBy);
+    Integer currentUserId = currentUser != null ? currentUser.getUserId() : null;
+    List<RoomSummaryResponse> rooms = roomService.getRooms(currentUserId, filter, sortBy);
     return ResponseEntity.ok(rooms);
   }
 
@@ -93,7 +94,8 @@ public class RoomControllerImpl {
   public ResponseEntity<RoomDetailedResponse> getRoomById(
       @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId) {
-    RoomDetailedResponse response = roomService.getRoomById(roomId, currentUser.getUserId());
+    Integer currentUserId = currentUser != null ? currentUser.getUserId() : null;
+    RoomDetailedResponse response = roomService.getRoomById(roomId, currentUserId);
     return ResponseEntity.ok(response);
   }
 
