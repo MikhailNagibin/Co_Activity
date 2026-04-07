@@ -23,6 +23,8 @@ public class RoomParticipantResponse {
 
   private Integer avatarId;
 
+  private String avatarUrl;
+
   private String description;
 
   private Role role;

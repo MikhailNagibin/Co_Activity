@@ -23,7 +23,6 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
-import com.coactivity.repository.PictureRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
@@ -42,7 +41,7 @@ import org.mockito.Mockito;
 class RoomServiceTest {
 
     private RoomRepository roomRepository;
-    private PictureRepository pictureRepository;
+    private RoomImageService roomImageService;
     private BulletinBoardRepository bulletinBoardRepository;
     private NotificationService notificationService;
     private RoomService roomService;
@@ -55,10 +54,10 @@ class RoomServiceTest {
     @BeforeEach
     void setUp() {
         roomRepository = Mockito.mock(RoomRepository.class);
-        pictureRepository = Mockito.mock(PictureRepository.class);
+        roomImageService = Mockito.mock(RoomImageService.class);
         bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
         notificationService = Mockito.mock(NotificationService.class);
-        roomService = new RoomService(roomRepository, pictureRepository, bulletinBoardRepository,
+        roomService = new RoomService(roomRepository, roomImageService, bulletinBoardRepository,
                 notificationService);
 
         ownerId = 10;
@@ -72,6 +71,7 @@ class RoomServiceTest {
         roomUsers.put(participant, Role.PARTICIPANT);
 
         room = createRoom(roomId, false, roomUsers);
+        when(roomImageService.listRoomImages(Mockito.anyInt())).thenReturn(List.of());
 
         when(roomRepository.getRoomById(roomId)).thenReturn(room);
         when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
@@ -286,6 +286,7 @@ class RoomServiceTest {
 
         roomService.deleteRoom(ownerId, roomId);
 
+        verify(roomImageService).deleteAllImagesForRoom(roomId);
         verify(notificationService).sendActivityClosed(ownerId, "Morning Run");
         verify(notificationService).sendActivityClosed(20, "Morning Run");
     }
@@ -473,6 +474,7 @@ class RoomServiceTest {
                 "Moscow",
                 username,
                 1,
+                null,
                 List.of(),
                 List.of(Notification.ACTIVITY_CLOSED));
     }

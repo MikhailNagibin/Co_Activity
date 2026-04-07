@@ -6,6 +6,7 @@ import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomImageResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
@@ -13,11 +14,11 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
-import com.coactivity.repository.PictureRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
+import com.coactivity.util.AvatarUrlResolver;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -30,16 +31,16 @@ import org.springframework.stereotype.Service;
 public class RoomService {
 
   private final RoomRepository roomRepository;
-  private final PictureRepository pictureRepository;
+  private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
 
   public RoomService(RoomRepository roomRepository,
-      PictureRepository pictureRepository,
+      RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
       NotificationService notificationService) {
     this.roomRepository = roomRepository;
-    this.pictureRepository = pictureRepository;
+    this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.notificationService = notificationService;
   }
@@ -125,6 +126,7 @@ public class RoomService {
     detailed.setCreator(summary.getCreator());
     detailed.setIsCurrentUserParticipant(summary.getIsCurrentUserParticipant());
     detailed.setImageIds(summary.getImageIds());
+    detailed.setImages(summary.getImages());
     detailed.setHasProtectedAccess(hasProtectedAccess);
     detailed.setChatLink(hasProtectedAccess ? room.getChatLink() : null);
     detailed.setBulletinBoard(bulletinDto);
@@ -147,6 +149,7 @@ public class RoomService {
 
     List<Integer> participantIds = collectParticipantIds(room);
 
+    roomImageService.deleteAllImagesForRoom(roomId);
     roomRepository.deleteRoom(roomId);
 
     for (Integer participantId : participantIds) {
@@ -276,17 +279,15 @@ public class RoomService {
     }
 
     response.setIsCurrentUserParticipant(isCurrentUserParticipant);
-
-    List<Integer> imageIds = new ArrayList<>();
-    try {
-      pictureRepository.getRoomPictures(room.getId())
-          .forEach(p -> imageIds.add(p.getPhotoId()));
-    } catch (Exception e) {
-      // If pictures cannot be loaded, leave empty list
-    }
-    response.setImageIds(imageIds);
+    populateRoomImages(response, room.getId());
 
     return response;
+  }
+
+  private void populateRoomImages(RoomSummaryResponse response, Integer roomId) {
+    List<RoomImageResponse> images = roomImageService.listRoomImages(roomId);
+    response.setImages(images);
+    response.setImageIds(images.stream().map(RoomImageResponse::getId).toList());
   }
 
   private UserSummaryResponse mapUserToSummaryResponse(User user) {
@@ -298,6 +299,7 @@ public class RoomService {
     dto.setCountry(user.getCountry());
     dto.setDescription(user.getDescription());
     dto.setAvatarId(user.getAvatarId());
+    dto.setAvatarUrl(AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()));
     return dto;
   }
 

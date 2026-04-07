@@ -4,24 +4,24 @@ import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomImageResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
-import com.coactivity.domain.Picture;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
-import com.coactivity.repository.PictureRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
+import com.coactivity.util.AvatarUrlResolver;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,20 +35,20 @@ public class RoomMembershipService {
   private final UserRepository userRepository;
   private final RoomRepository roomRepository;
   private final RoomsRequestRepository roomsRequestRepository;
-  private final PictureRepository pictureRepository;
+  private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
 
   public RoomMembershipService(UserRepository userRepository,
       RoomRepository roomRepository,
       RoomsRequestRepository roomsRequestRepository,
-      PictureRepository pictureRepository,
+      RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
       NotificationService notificationService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
-    this.pictureRepository = pictureRepository;
+    this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.notificationService = notificationService;
   }
@@ -287,6 +287,7 @@ public class RoomMembershipService {
         user.getCity(),
         user.getCountry(),
         user.getAvatarId(),
+        AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()),
         user.getDescription(),
         role
     );
@@ -322,6 +323,7 @@ public class RoomMembershipService {
     target.setCreator(source.getCreator());
     target.setIsCurrentUserParticipant(source.getIsCurrentUserParticipant());
     target.setImageIds(source.getImageIds());
+    target.setImages(source.getImages());
   }
 
   private RoomSummaryResponse mapRoomToSummaryResponse(Room room, Integer currentUserId) {
@@ -349,7 +351,7 @@ public class RoomMembershipService {
 
     response.setIsCurrentUserParticipant(
         currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId));
-    response.setImageIds(loadImageIds(room.getId()));
+    populateRoomImages(response, room.getId());
     return response;
   }
 
@@ -364,18 +366,10 @@ public class RoomMembershipService {
         .orElse(null);
   }
 
-  private List<Integer> loadImageIds(Integer roomId) {
-    try {
-      List<Picture> pictures = pictureRepository.getRoomPictures(roomId);
-      if (pictures == null) {
-        return Collections.emptyList();
-      }
-      return pictures.stream()
-          .map(Picture::getPhotoId)
-          .collect(Collectors.toList());
-    } catch (Exception e) {
-      return Collections.emptyList();
-    }
+  private void populateRoomImages(RoomSummaryResponse response, Integer roomId) {
+    List<RoomImageResponse> images = roomImageService.listRoomImages(roomId);
+    response.setImages(images);
+    response.setImageIds(images.stream().map(RoomImageResponse::getId).toList());
   }
 
   private BulletinBoardResponse mapBulletinBoardToResponse(BulletinBoard board) {
@@ -399,6 +393,7 @@ public class RoomMembershipService {
     response.setCountry(user.getCountry());
     response.setDescription(user.getDescription());
     response.setAvatarId(user.getAvatarId());
+    response.setAvatarUrl(AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()));
     return response;
   }
 

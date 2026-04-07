@@ -8,7 +8,6 @@ import com.coactivity.persistence.entity.CategoryEntity;
 import com.coactivity.persistence.repository.BanJpaRepository;
 import com.coactivity.persistence.repository.BulletinBoardJpaRepository;
 import com.coactivity.persistence.repository.CategoryLookupRepository;
-import com.coactivity.persistence.repository.PictureJpaRepository;
 import com.coactivity.persistence.repository.RoleLookupRepository;
 import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.persistence.repository.RoomMemberJpaRepository;
@@ -39,8 +38,7 @@ class RoomRepositoryImplTest {
         Mockito.mock(RoleLookupRepository.class),
         Mockito.mock(UserJpaRepository.class),
         Mockito.mock(RoomsRequestJpaRepository.class),
-        Mockito.mock(BulletinBoardJpaRepository.class),
-        Mockito.mock(PictureJpaRepository.class));
+        Mockito.mock(BulletinBoardJpaRepository.class));
   }
 
   @Test

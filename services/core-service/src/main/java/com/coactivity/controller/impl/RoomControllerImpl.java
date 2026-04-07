@@ -7,11 +7,14 @@ import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
+import com.coactivity.controller.dto.response.RoomImageResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.Role;
 import com.coactivity.security.CurrentUserPrincipal;
 import com.coactivity.service.BulletinBoardService;
+import com.coactivity.service.RoomImageContent;
+import com.coactivity.service.RoomImageService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import jakarta.validation.Valid;
@@ -20,6 +23,10 @@ import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -33,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -42,13 +50,16 @@ public class RoomControllerImpl {
   private final RoomService roomService;
   private final RoomMembershipService roomMembershipService;
   private final BulletinBoardService bulletinBoardService;
+  private final RoomImageService roomImageService;
 
   public RoomControllerImpl(RoomService roomService,
       RoomMembershipService roomMembershipService,
-      BulletinBoardService bulletinBoardService) {
+      BulletinBoardService bulletinBoardService,
+      RoomImageService roomImageService) {
     this.roomService = roomService;
     this.roomMembershipService = roomMembershipService;
     this.bulletinBoardService = bulletinBoardService;
+    this.roomImageService = roomImageService;
   }
 
   @PostMapping("/createRoom")
@@ -99,6 +110,19 @@ public class RoomControllerImpl {
     return ResponseEntity.ok(response);
   }
 
+  @GetMapping("/{roomId}/images/{imageId}")
+  public ResponseEntity<ByteArrayResource> getRoomImage(
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer imageId) {
+    RoomImageContent imageContent = roomImageService.getRoomImageContent(roomId, imageId);
+    ByteArrayResource resource = new ByteArrayResource(imageContent.bytes());
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(imageContent.contentType()))
+        .contentLength(imageContent.sizeBytes())
+        .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+        .body(resource);
+  }
+
   @GetMapping("/me")
   public ResponseEntity<List<RoomDetailedResponse>> getUserRooms(
       @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
@@ -128,6 +152,26 @@ public class RoomControllerImpl {
       @Positive @PathVariable Integer roomId) {
     roomService.deleteRoom(currentUser.getUserId(), roomId);
     return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping(value = "/{roomId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<List<RoomImageResponse>> uploadRoomImages(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @RequestParam("files") MultipartFile[] files) {
+    List<RoomImageResponse> response =
+        roomImageService.uploadRoomImages(currentUser.getUserId(), roomId, files);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/{roomId}/images/{imageId}")
+  public ResponseEntity<List<RoomImageResponse>> deleteRoomImage(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer imageId) {
+    List<RoomImageResponse> response =
+        roomImageService.deleteRoomImage(currentUser.getUserId(), roomId, imageId);
+    return ResponseEntity.ok(response);
   }
 
   @GetMapping("/{roomId}/participants")

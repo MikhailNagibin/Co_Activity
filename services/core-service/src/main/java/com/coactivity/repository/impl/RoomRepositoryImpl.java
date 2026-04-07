@@ -17,7 +17,6 @@ import com.coactivity.persistence.entity.UserEntity;
 import com.coactivity.persistence.repository.BanJpaRepository;
 import com.coactivity.persistence.repository.BulletinBoardJpaRepository;
 import com.coactivity.persistence.repository.CategoryLookupRepository;
-import com.coactivity.persistence.repository.PictureJpaRepository;
 import com.coactivity.persistence.repository.RoleLookupRepository;
 import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.persistence.repository.RoomMemberJpaRepository;
@@ -43,7 +42,6 @@ public class RoomRepositoryImpl implements RoomRepository {
   private final UserJpaRepository userJpaRepository;
   private final RoomsRequestJpaRepository roomsRequestJpaRepository;
   private final BulletinBoardJpaRepository bulletinBoardJpaRepository;
-  private final PictureJpaRepository pictureJpaRepository;
 
   public RoomRepositoryImpl(RoomJpaRepository roomJpaRepository,
       RoomMemberJpaRepository roomMemberJpaRepository,
@@ -52,8 +50,7 @@ public class RoomRepositoryImpl implements RoomRepository {
       RoleLookupRepository roleLookupRepository,
       UserJpaRepository userJpaRepository,
       RoomsRequestJpaRepository roomsRequestJpaRepository,
-      BulletinBoardJpaRepository bulletinBoardJpaRepository,
-      PictureJpaRepository pictureJpaRepository) {
+      BulletinBoardJpaRepository bulletinBoardJpaRepository) {
     this.roomJpaRepository = roomJpaRepository;
     this.roomMemberJpaRepository = roomMemberJpaRepository;
     this.banJpaRepository = banJpaRepository;
@@ -62,7 +59,6 @@ public class RoomRepositoryImpl implements RoomRepository {
     this.userJpaRepository = userJpaRepository;
     this.roomsRequestJpaRepository = roomsRequestJpaRepository;
     this.bulletinBoardJpaRepository = bulletinBoardJpaRepository;
-    this.pictureJpaRepository = pictureJpaRepository;
   }
 
   @Override
@@ -143,7 +139,6 @@ public class RoomRepositoryImpl implements RoomRepository {
     banJpaRepository.deleteAllByRoom_Id(roomId);
     roomsRequestJpaRepository.deleteAllByRoom_Id(roomId);
     roomMemberJpaRepository.deleteAllByRoom_Id(roomId);
-    pictureJpaRepository.deleteAllByRoom_Id(roomId);
     roomJpaRepository.delete(roomEntity);
   }
 

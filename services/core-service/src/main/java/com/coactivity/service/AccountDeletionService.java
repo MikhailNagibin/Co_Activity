@@ -30,12 +30,18 @@ public class AccountDeletionService {
   private final UserRepository userRepository;
   private final RoomRepository roomRepository;
   private final NotificationService notificationService;
+  private final UserAvatarService userAvatarService;
+  private final RoomImageService roomImageService;
 
   public AccountDeletionService(UserRepository userRepository, RoomRepository roomRepository,
-      NotificationService notificationService) {
+      NotificationService notificationService,
+      UserAvatarService userAvatarService,
+      RoomImageService roomImageService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.notificationService = notificationService;
+    this.userAvatarService = userAvatarService;
+    this.roomImageService = roomImageService;
   }
 
   @Transactional(readOnly = true)
@@ -53,6 +59,7 @@ public class AccountDeletionService {
       throw new ConflictException("OWNED_ROOMS_RESOLUTION_REQUIRED",
           "Resolve owned rooms before deleting the account");
     }
+    userAvatarService.deleteAvatar(userId);
     userRepository.deleteUser(userId);
   }
 
@@ -95,6 +102,7 @@ public class AccountDeletionService {
       throw new ValidationException("Unsupported account deletion mode");
     }
 
+    userAvatarService.deleteAvatar(userId);
     userRepository.deleteUser(userId);
   }
 
@@ -205,6 +213,7 @@ public class AccountDeletionService {
         .distinct()
         .toList();
 
+    roomImageService.deleteAllImagesForRoom(room.getId());
     roomRepository.deleteRoom(room.getId());
 
     for (Integer participantId : participantIds) {

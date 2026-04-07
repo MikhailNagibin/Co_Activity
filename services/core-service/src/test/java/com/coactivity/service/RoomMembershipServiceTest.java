@@ -17,7 +17,6 @@ import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
-import com.coactivity.repository.PictureRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
@@ -38,7 +37,7 @@ class RoomMembershipServiceTest {
   private UserRepository userRepository;
   private RoomRepository roomRepository;
   private RoomsRequestRepository roomsRequestRepository;
-  private PictureRepository pictureRepository;
+  private RoomImageService roomImageService;
   private BulletinBoardRepository bulletinBoardRepository;
   private NotificationService notificationService;
   private RoomMembershipService roomMembershipService;
@@ -53,7 +52,7 @@ class RoomMembershipServiceTest {
     userRepository = Mockito.mock(UserRepository.class);
     roomRepository = Mockito.mock(RoomRepository.class);
     roomsRequestRepository = Mockito.mock(RoomsRequestRepository.class);
-    pictureRepository = Mockito.mock(PictureRepository.class);
+    roomImageService = Mockito.mock(RoomImageService.class);
     bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
     notificationService = Mockito.mock(NotificationService.class);
 
@@ -61,9 +60,10 @@ class RoomMembershipServiceTest {
         userRepository,
         roomRepository,
         roomsRequestRepository,
-        pictureRepository,
+        roomImageService,
         bulletinBoardRepository,
         notificationService);
+    when(roomImageService.listRoomImages(Mockito.anyInt())).thenReturn(List.of());
 
     userId = 7;
     roomId = 100;
@@ -416,6 +416,7 @@ class RoomMembershipServiceTest {
         "Moscow",
         username,
         1,
+        null,
         List.of(),
         List.of(Notification.ACTIVITY_CLOSED));
   }

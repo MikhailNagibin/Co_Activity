@@ -34,6 +34,8 @@ class AccountDeletionServiceTest {
   private UserRepository userRepository;
   private RoomRepository roomRepository;
   private NotificationService notificationService;
+  private UserAvatarService userAvatarService;
+  private RoomImageService roomImageService;
   private AccountDeletionService accountDeletionService;
 
   @BeforeEach
@@ -41,8 +43,10 @@ class AccountDeletionServiceTest {
     userRepository = Mockito.mock(UserRepository.class);
     roomRepository = Mockito.mock(RoomRepository.class);
     notificationService = Mockito.mock(NotificationService.class);
+    userAvatarService = Mockito.mock(UserAvatarService.class);
+    roomImageService = Mockito.mock(RoomImageService.class);
     accountDeletionService = new AccountDeletionService(userRepository, roomRepository,
-        notificationService);
+        notificationService, userAvatarService, roomImageService);
   }
 
   @Test
@@ -131,6 +135,7 @@ class AccountDeletionServiceTest {
 
     accountDeletionService.deleteAccountIfNoOwnedRooms(1);
 
+    verify(userAvatarService).deleteAvatar(1);
     verify(userRepository).deleteUser(1);
   }
 
@@ -141,6 +146,7 @@ class AccountDeletionServiceTest {
 
     accountDeletionService.deleteAccountIfNoOwnedRooms(1);
 
+    verify(userAvatarService).deleteAvatar(1);
     verify(userRepository).deleteUser(1);
   }
 
@@ -264,10 +270,12 @@ class AccountDeletionServiceTest {
 
     accountDeletionService.deleteAccount(1, request);
 
+    verify(roomImageService).deleteAllImagesForRoom(10);
     verify(roomRepository).deleteRoom(10);
     verify(notificationService).sendActivityClosed(3, "Deleted room");
     verify(roomRepository).setRoleByUserIdAndRoomId(2, 11, Role.OWNER);
     verify(roomRepository).setRoleByUserIdAndRoomId(1, 11, Role.PARTICIPANT);
+    verify(userAvatarService).deleteAvatar(1);
     verify(userRepository).deleteUser(1);
   }
 
@@ -285,8 +293,10 @@ class AccountDeletionServiceTest {
 
     accountDeletionService.deleteAccount(1, request);
 
+    verify(roomImageService).deleteAllImagesForRoom(10);
     verify(roomRepository).deleteRoom(10);
     verify(notificationService, never()).sendActivityClosed(Mockito.anyInt(), Mockito.anyString());
+    verify(userAvatarService).deleteAvatar(1);
     verify(userRepository).deleteUser(1);
   }
 
@@ -325,7 +335,7 @@ class AccountDeletionServiceTest {
 
   private User user(Integer id, String userName) {
     return new User(id, userName + "@example.com", userName, Instant.now(), null, null, null, null,
-        List.of(), List.of());
+        null, List.of(), List.of());
   }
 
   private Room room(Integer id, String name) {
