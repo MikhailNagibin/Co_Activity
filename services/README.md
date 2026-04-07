@@ -24,6 +24,7 @@ core-service -> Kafka -> notifications-service -> SMTP
 - корневой `docker-compose.yml` нужен для local/dev, а не как production deployment config
 - `notifications-service` использует профиль `local` для Mailpit и профиль `prod` для реального SMTP
 - для dockerized Yandex SMTP запуска используй `docker-compose.prod.yml` и `.env.prod`
+- cookie сессии `COACTIVITY_SESSION` использует env-политику `SESSION_COOKIE_SECURE` (Option C): `false` для local/dev HTTP, `true` для HTTPS-окружений
 
 ## Локальный запуск сервисов
 

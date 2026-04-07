@@ -39,3 +39,7 @@ services/core-service/src/main/resources/config.json
 .env.local
 .env.prod
 .env.*.local
+
+### Tools ###
+.serena
+qodana.yaml

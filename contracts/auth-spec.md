@@ -14,6 +14,7 @@
 ## Public auth endpoints
 - `POST /api/auth/register`
 - `POST /api/auth/register/verify`
+- `POST /api/auth/register/resend`
 - `POST /api/auth/login`
 - `GET /api/auth/csrf`
 
@@ -25,6 +26,7 @@
 ## Registration verification
 - User is created in status `PENDING_VERIFICATION`.
 - Verification code is short-lived and stored server-side in Redis.
+- Resend endpoint applies cooldown and returns `429` with code `REGISTRATION_CODE_RESEND_COOLDOWN` while cooldown is active.
 - Login is allowed only after successful email verification.
 
 ## Session rules

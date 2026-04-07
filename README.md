@@ -70,6 +70,7 @@ cp .env.prod.example .env.prod
 - `NOTIFICATIONS_KAFKA_TOPIC` и `NOTIFICATIONS_KAFKA_DLT_TOPIC` — имена Kafka topic'ов для email-контракта
 - `SPRING_DATA_REDIS_HOST=localhost`, `SPRING_DATA_REDIS_PORT=6379` — Redis для Spring Session
 - `SPRING_PROFILES_ACTIVE=local` — локальный профиль `notifications-service` для Mailpit
+- `SESSION_COOKIE_SECURE` — политика cookie сессии: `false` для local/dev по HTTP, `true` для HTTPS-окружений
 
 Для стандартного Docker Compose из этого репозитория `SPRING_DATA_REDIS_PASSWORD` не нужен.
 Redis поднимается без auth. Указывай пароль только если сам подключаешь приложение к внешнему Redis с включённой аутентификацией.
@@ -88,6 +89,12 @@ Redis поднимается без auth. Указывай пароль толь
 `docker-compose.yml` в этом репозитории предназначен для local/dev. Он всегда поднимает `notifications-service` в профиле `local` и направляет почту в `mailpit`.
 
 Для production-like запуска через Docker Compose используй `docker-compose.prod.yml`. Он не поднимает `mailpit` и читает реальные SMTP-настройки из `.env.prod`.
+
+### Session cookie policy
+
+- local/dev (`docker-compose.yml` + `.env.local`): `SESSION_COOKIE_SECURE=false`
+- production-like / production с HTTPS (`docker-compose.prod.yml` + `.env.prod`): `SESSION_COOKIE_SECURE=true`
+- если осознанно запускаешь production-like стек на plain HTTP localhost, временно поставь `SESSION_COOKIE_SECURE=false`, иначе браузер не отправит `COACTIVITY_SESSION`
 
 ### 2. Поднять backend
 
@@ -379,11 +386,11 @@ Docker-tagged integration tests:
 
 - backend слушает `localhost:8080`
 - frontend запущен из `frontend/web`
-- Vite proxy не менялся в [vite.config.js](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/vite.config.js)
+- Vite proxy не менялся в [vite.config.js]
 
 ## Куда смотреть дальше
 
-- backend сервисы: [services/README.md](/Users/bomnik/IdeaProjects/Co_Activity/services/README.md)
-- frontend структура: [frontend/README.md](/Users/bomnik/IdeaProjects/Co_Activity/frontend/README.md)
-- frontend app: [frontend/web/README.md](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/README.md)
-- auth контракт: [contracts/auth-spec.md](/Users/bomnik/IdeaProjects/Co_Activity/contracts/auth-spec.md)
+- backend сервисы: [services/README.md]
+- frontend структура: [frontend/README.md]
+- frontend app: [frontend/web/README.md]
+- auth контракт: [contracts/auth-spec.md]
