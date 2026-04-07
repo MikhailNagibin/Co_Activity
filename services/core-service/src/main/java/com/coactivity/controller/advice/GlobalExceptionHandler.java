@@ -5,6 +5,7 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.NotificationDeliveryException;
 import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.TooManyRequestsException;
 import com.coactivity.service.exception.ValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(AuthorizationException.class)
   public ResponseEntity<ApiErrorResponse> handleAuthorization(AuthorizationException ex,
       HttpServletRequest request) {
-    return buildResponse(ex.getMessage(), null, HttpStatus.FORBIDDEN, request, null);
+    return buildResponse(ex.getMessage(), ex.getCode(), HttpStatus.FORBIDDEN, request, null);
   }
 
   @ExceptionHandler(ValidationException.class)
@@ -62,6 +63,12 @@ public class GlobalExceptionHandler {
       NotificationDeliveryException ex,
       HttpServletRequest request) {
     return buildResponse(ex.getMessage(), null, HttpStatus.SERVICE_UNAVAILABLE, request, null);
+  }
+
+  @ExceptionHandler(TooManyRequestsException.class)
+  public ResponseEntity<ApiErrorResponse> handleTooManyRequests(TooManyRequestsException ex,
+      HttpServletRequest request) {
+    return buildResponse(ex.getMessage(), ex.getCode(), HttpStatus.TOO_MANY_REQUESTS, request, null);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

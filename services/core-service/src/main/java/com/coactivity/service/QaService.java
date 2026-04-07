@@ -5,7 +5,6 @@ import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
 import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
-import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.repository.QaRepository;
 import com.coactivity.repository.QaRepository.AnswerEntity;
 import com.coactivity.repository.QaRepository.QuestionEntity;

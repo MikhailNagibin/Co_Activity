@@ -252,6 +252,93 @@
     color: rgba(232, 232, 236, 0.65);
   }
 
+  .auth-page-hero__eyebrow {
+    color: rgba(232, 232, 236, 0.45);
+  }
+
+  .auth-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  .auth-card__footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .auth-card__footer-text {
+    color: rgba(232, 232, 236, 0.68);
+
+    a {
+      color: #f2f2f4;
+    }
+  }
+
+  .auth-field__label {
+    color: #f2f2f4;
+  }
+
+  .auth-field__meta {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .auth-field__input,
+  .auth-field__textarea,
+  .profile-form input,
+  .profile-form textarea,
+  .profile-deletion-room select {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    }
+
+    &:disabled {
+      background: rgba(255, 255, 255, 0.04);
+    }
+  }
+
+  .auth-banner--neutral {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(232, 232, 236, 0.72);
+  }
+
+  .auth-banner--error {
+    border-color: rgba(255, 120, 140, 0.24);
+    background: rgba(176, 0, 32, 0.14);
+    color: #ffb8c5;
+  }
+
+  .auth-banner--success {
+    border-color: rgba(74, 222, 128, 0.2);
+    background: rgba(20, 108, 67, 0.18);
+    color: #9ce5bb;
+  }
+
+  .auth-secondary-button {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:not(:disabled):hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .auth-text-button {
+    color: #f2f2f4;
+
+    &:not(:disabled):hover {
+      color: rgba(232, 232, 236, 0.72);
+    }
+  }
+
   .activity-card {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.1);
@@ -681,13 +768,30 @@
     color: #e8e8ea;
   }
 
-  .profile-form {
-    input,
-    textarea {
-      border-color: rgba(255, 255, 255, 0.16);
-      background-color: #242428;
+  .profile-kicker,
+  .profile-summary-card__label {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .profile-overview__avatar {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+
+    i {
       color: #e8e8ea;
     }
+  }
+
+  .profile-summary-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .profile-summary-card__value,
+  .profile-form-row label,
+  .profile-panel h3,
+  .profile-panel h4 {
+    color: #f2f2f4;
   }
 
   .profile-links {
@@ -705,6 +809,15 @@
 
   .notification-settings-back:hover {
     border-bottom-color: rgba(255, 255, 255, 0.45);
+  }
+
+  .profile-deletion-plan {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .profile-deletion-room {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .cta-black-button {

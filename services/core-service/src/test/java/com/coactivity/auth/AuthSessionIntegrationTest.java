@@ -1,6 +1,7 @@
 package com.coactivity.auth;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.mockito.Mockito.reset;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,7 +26,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Import(TestcontainersConfiguration.class)
 @AutoConfigureMockMvc
-@SpringBootTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
+@SpringBootTest(properties = {
+    "spring.jpa.hibernate.ddl-auto=validate",
+    "app.auth.challenge.resend-cooldown=1s"
+})
 @Tag("docker")
 @DisplayName("Auth session integration tests")
 class AuthSessionIntegrationTest extends AbstractSessionWebIntegrationTest {
@@ -99,6 +103,140 @@ class AuthSessionIntegrationTest extends AbstractSessionWebIntegrationTest {
     mockMvc.perform(get("/api/auth/me").cookie(sessionCookie))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("fresh-login@example.com"));
+  }
+
+  @Test
+  void resendRegistrationCodeRejectsImmediateRepeatRequests() throws Exception {
+    CsrfContext csrf = fetchCsrf();
+
+    mockMvc.perform(post("/api/auth/register")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "resend-cooldown@example.com",
+                  "userName": "resendCooldown",
+                  "password": "Password123",
+                  "dateOfBirth": "2000-01-01T00:00:00Z"
+                }
+                """))
+        .andExpect(status().isCreated());
+
+    mockMvc.perform(post("/api/auth/register/resend")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "resend-cooldown@example.com"
+                }
+                """))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.code").value("REGISTRATION_CODE_RESEND_COOLDOWN"));
+  }
+
+  @Test
+  void resendRegistrationCodeInvalidatesPreviousCodeAfterCooldownExpires() throws Exception {
+    CsrfContext csrf = fetchCsrf();
+    String email = "resend-flow@example.com";
+
+    mockMvc.perform(post("/api/auth/register")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "resend-flow@example.com",
+                  "userName": "resendFlow",
+                  "password": "Password123",
+                  "dateOfBirth": "2000-01-01T00:00:00Z"
+                }
+                """))
+        .andExpect(status().isCreated());
+
+    ArgumentCaptor<String> firstCodeCaptor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendRegistrationVerificationCode(anyString(), firstCodeCaptor.capture());
+
+    reset(notificationService);
+    when(notificationService.sendRegistrationVerificationCode(anyString(), anyString()))
+        .thenReturn(true);
+
+    Thread.sleep(1100L);
+
+    mockMvc.perform(post("/api/auth/register/resend")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "resend-flow@example.com"
+                }
+                """))
+        .andExpect(status().isNoContent());
+
+    ArgumentCaptor<String> secondCodeCaptor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendRegistrationVerificationCode(anyString(), secondCodeCaptor.capture());
+    assertNotEquals(firstCodeCaptor.getValue(), secondCodeCaptor.getValue());
+
+    mockMvc.perform(post("/api/auth/register/verify")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content(objectMapper.writeValueAsString(
+                java.util.Map.of("email", email, "code", firstCodeCaptor.getValue()))))
+        .andExpect(status().isForbidden());
+
+    mockMvc.perform(post("/api/auth/register/verify")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content(objectMapper.writeValueAsString(
+                java.util.Map.of("email", email, "code", secondCodeCaptor.getValue()))))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void resendRegistrationCodeRejectsAlreadyVerifiedAccount() throws Exception {
+    CsrfContext csrf = fetchCsrf();
+    String email = "verified-resend@example.com";
+
+    mockMvc.perform(post("/api/auth/register")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "verified-resend@example.com",
+                  "userName": "verifiedResend",
+                  "password": "Password123",
+                  "dateOfBirth": "2000-01-01T00:00:00Z"
+                }
+                """))
+        .andExpect(status().isCreated());
+
+    ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendRegistrationVerificationCode(anyString(), codeCaptor.capture());
+
+    mockMvc.perform(post("/api/auth/register/verify")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content(objectMapper.writeValueAsString(
+                java.util.Map.of("email", email, "code", codeCaptor.getValue()))))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/auth/register/resend")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "verified-resend@example.com"
+                }
+                """))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_VERIFIED"));
   }
 
   @Test

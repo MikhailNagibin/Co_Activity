@@ -64,6 +64,7 @@ public class SecurityConfig {
                 "/api/qa/questions/category", "/api/qa/questions/*").permitAll()
             .requestMatchers("/api/auth/register",
                 "/api/auth/register/verify",
+                "/api/auth/register/resend",
                 "/api/auth/login",
                 "/api/auth/csrf")
             .permitAll()
@@ -111,8 +112,7 @@ public class SecurityConfig {
   @Bean
   public AuthenticationProvider authenticationProvider(CurrentUserDetailsService userDetailsService,
       PasswordEncoder passwordEncoder) {
-    DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-    provider.setUserDetailsService(userDetailsService);
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
     provider.setPasswordEncoder(passwordEncoder);
     return provider;
   }

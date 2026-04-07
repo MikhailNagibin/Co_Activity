@@ -2,7 +2,6 @@ package com.coactivity.security;
 
 import com.coactivity.auth.model.UserStatus;
 import java.io.Serial;
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -11,7 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 @Getter
-public class CurrentUserPrincipal implements UserDetails, Serializable {
+public class CurrentUserPrincipal implements UserDetails {
 
   @Serial
   private static final long serialVersionUID = 1L;

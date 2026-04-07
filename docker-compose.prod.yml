@@ -1,5 +1,5 @@
-# Local development / test compose only.
-# Production should provision infrastructure and secrets outside this file.
+# Production-like compose profile.
+# Uses real SMTP provider settings from .env / env file and does not start Mailpit.
 services:
   postgres:
     image: postgres:16.2
@@ -72,14 +72,6 @@ services:
       retries: 20
     restart: unless-stopped
 
-  mailpit:
-    image: axllent/mailpit:v1.27
-    container_name: coactivity_mailpit
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    restart: unless-stopped
-
   notifications-service:
     container_name: coactivity_notifications_service
     build:
@@ -90,22 +82,22 @@ services:
         condition: service_started
       kafka-topics-init:
         condition: service_completed_successfully
-      mailpit:
-        condition: service_started
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      SPRING_MAIL_HOST: mailpit
-      SPRING_MAIL_PORT: 1025
-      SPRING_MAIL_SMTP_AUTH: false
-      SPRING_MAIL_SMTP_STARTTLS_ENABLE: false
-      SPRING_MAIL_SMTP_STARTTLS_REQUIRED: false
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.yandex.ru}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-true}
+      SPRING_MAIL_SMTP_STARTTLS_REQUIRED: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:-true}
       NOTIFICATIONS_MAIL_FROM: ${NOTIFICATIONS_MAIL_FROM:-}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
       NOTIFICATIONS_KAFKA_DLT_TOPIC: ${NOTIFICATIONS_KAFKA_DLT_TOPIC:-}
       NOTIFICATIONS_KAFKA_GROUP_ID: ${NOTIFICATIONS_KAFKA_GROUP_ID:-notifications-service-v1}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
-      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-never}
       NOTIFICATIONS_HEALTH_KAFKA_TOPICS_TIMEOUT_MS: ${NOTIFICATIONS_HEALTH_KAFKA_TOPICS_TIMEOUT_MS:-5000}
       SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL: ${SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL:-true}
     healthcheck:
@@ -138,7 +130,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SPRING_DATA_REDIS_PASSWORD: ${SPRING_DATA_REDIS_PASSWORD:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
       NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS: ${NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS:-5000}

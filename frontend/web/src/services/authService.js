@@ -8,6 +8,10 @@ export function verifyRegistration({ email, code }) {
   return post('/auth/register/verify', { email, code })
 }
 
+export function resendRegistrationVerificationCode({ email }) {
+  return post('/auth/register/resend', { email })
+}
+
 export function login({ email, password }) {
   return post('/auth/login', { email, password })
 }

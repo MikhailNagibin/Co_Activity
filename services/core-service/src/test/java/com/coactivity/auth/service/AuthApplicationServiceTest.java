@@ -14,7 +14,9 @@ import static org.mockito.Mockito.when;
 import com.coactivity.auth.model.UserStatus;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
+import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.persistence.entity.UserEntity;
 import com.coactivity.persistence.repository.UserJpaRepository;
@@ -25,6 +27,7 @@ import com.coactivity.service.UserProfileService;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.NotificationDeliveryException;
+import com.coactivity.service.exception.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -201,6 +204,32 @@ class AuthApplicationServiceTest {
   }
 
   @Test
+  void registerCreatesVerificationChallengeAndStartsResendCooldown() {
+    UserRegistrationRequest request = new UserRegistrationRequest();
+    request.setEmail("new-user@example.com");
+    request.setUserName("newUser");
+    request.setPassword("Password123");
+    request.setDateOfBirth(Instant.parse("2000-01-01T00:00:00Z"));
+
+    when(userJpaRepository.existsByEmailNormalized("new-user@example.com")).thenReturn(false);
+    when(userJpaRepository.existsByUserNameIgnoreCase("newUser")).thenReturn(false);
+    when(passwordEncoder.encode("Password123")).thenReturn("encoded-password");
+    when(userJpaRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(invocation -> {
+      UserEntity entity = invocation.getArgument(0);
+      entity.setId(42);
+      return entity;
+    });
+    when(notificationService.sendRegistrationVerificationCode(eq("new-user@example.com"),
+        anyString())).thenReturn(true);
+
+    RegistrationResponse response = authApplicationService.register(request);
+
+    assertEquals("PENDING_VERIFICATION", response.getStatus());
+    verify(challengeStore).create(eq("new-user@example.com"), eq(42), anyString());
+    verify(challengeStore).markResendCooldown("new-user@example.com");
+  }
+
+  @Test
   void verifyRegistrationActivatesPendingUserAndSetsTimestamp() {
     UserEntity pendingUser = new UserEntity();
     pendingUser.setId(12);
@@ -237,7 +266,95 @@ class AuthApplicationServiceTest {
         () -> authApplicationService.verifyRegistration(
             new RegisterVerificationRequest("verify@example.com", "000000")));
 
+    assertEquals("INVALID_VERIFICATION_CODE", exception.getCode());
     assertEquals("Invalid verification code", exception.getMessage());
+  }
+
+  @Test
+  void resendRegistrationCodeReissuesCodeForPendingUser() {
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(12);
+    pendingUser.setEmail("verify@example.com");
+    pendingUser.setEmailNormalized("verify@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+    when(challengeStore.tryActivateResendCooldown("verify@example.com")).thenReturn(true);
+    when(notificationService.sendRegistrationVerificationCode(eq("verify@example.com"), anyString()))
+        .thenReturn(true);
+
+    authApplicationService.resendRegistrationCode(
+        new ResendRegistrationVerificationRequest("verify@example.com"));
+
+    verify(challengeStore).tryActivateResendCooldown("verify@example.com");
+    verify(challengeStore).create(eq("verify@example.com"), eq(12), anyString());
+    verify(notificationService).sendRegistrationVerificationCode(eq("verify@example.com"),
+        anyString());
+  }
+
+  @Test
+  void resendRegistrationCodeRejectsRequestsDuringCooldown() {
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(12);
+    pendingUser.setEmail("verify@example.com");
+    pendingUser.setEmailNormalized("verify@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+    when(challengeStore.tryActivateResendCooldown("verify@example.com")).thenReturn(false);
+
+    TooManyRequestsException exception = assertThrows(TooManyRequestsException.class,
+        () -> authApplicationService.resendRegistrationCode(
+            new ResendRegistrationVerificationRequest("verify@example.com")));
+
+    assertEquals("REGISTRATION_CODE_RESEND_COOLDOWN", exception.getCode());
+    verify(challengeStore, never()).create(anyString(), any(), anyString());
+    verify(notificationService, never()).sendRegistrationVerificationCode(anyString(), anyString());
+  }
+
+  @Test
+  void resendRegistrationCodeRollsBackNewCodeWhenEmailDeliveryFails() {
+    UserEntity pendingUser = new UserEntity();
+    pendingUser.setId(12);
+    pendingUser.setEmail("verify@example.com");
+    pendingUser.setEmailNormalized("verify@example.com");
+    pendingUser.setStatus(UserStatus.PENDING_VERIFICATION);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(pendingUser));
+    when(challengeStore.tryActivateResendCooldown("verify@example.com")).thenReturn(true);
+    when(notificationService.sendRegistrationVerificationCode(eq("verify@example.com"), anyString()))
+        .thenReturn(false);
+
+    assertThrows(NotificationDeliveryException.class,
+        () -> authApplicationService.resendRegistrationCode(
+            new ResendRegistrationVerificationRequest("verify@example.com")));
+
+    verify(challengeStore).create(eq("verify@example.com"), eq(12), anyString());
+    verify(challengeStore).delete("verify@example.com");
+    verify(challengeStore).clearResendCooldown("verify@example.com");
+  }
+
+  @Test
+  void resendRegistrationCodeRejectsAlreadyVerifiedUser() {
+    UserEntity activeUser = new UserEntity();
+    activeUser.setId(12);
+    activeUser.setEmail("verify@example.com");
+    activeUser.setEmailNormalized("verify@example.com");
+    activeUser.setStatus(UserStatus.ACTIVE);
+
+    when(userJpaRepository.findByEmailNormalized("verify@example.com"))
+        .thenReturn(Optional.of(activeUser));
+
+    ConflictException exception = assertThrows(ConflictException.class,
+        () -> authApplicationService.resendRegistrationCode(
+            new ResendRegistrationVerificationRequest("verify@example.com")));
+
+    assertEquals("EMAIL_ALREADY_VERIFIED", exception.getCode());
+    verify(challengeStore, never()).create(anyString(), any(), anyString());
+    verify(notificationService, never()).sendRegistrationVerificationCode(anyString(), anyString());
   }
 
   @Test
@@ -259,6 +376,7 @@ class AuthApplicationServiceTest {
         () -> authApplicationService.login(
             new LoginRequest("pending@example.com", "Password123"), request, response));
 
+    assertEquals("EMAIL_NOT_VERIFIED", exception.getCode());
     assertEquals("Email is not verified", exception.getMessage());
   }
 

@@ -20,6 +20,12 @@ const BY_STATUS = {
 
 const BY_CODE = {
   EMAIL_ALREADY_REGISTERED: 'Эта почта уже занята.',
+  EMAIL_ALREADY_VERIFIED: 'Эта почта уже подтверждена. Войдите в аккаунт.',
+  EMAIL_NOT_VERIFIED: 'Подтвердите почту перед входом.',
+  INVALID_VERIFICATION_CODE: 'Неверный код подтверждения.',
+  TOO_MANY_VERIFICATION_ATTEMPTS: 'Слишком много попыток. Запросите новый код.',
+  VERIFICATION_CODE_EXPIRED: 'Срок действия кода истёк. Запросите новый код.',
+  REGISTRATION_CODE_RESEND_COOLDOWN: 'Новый код можно запросить только раз в минуту.',
   USERNAME_ALREADY_TAKEN: 'Это имя пользователя уже занято.',
   OWNED_ROOMS_RESOLUTION_REQUIRED: 'Сначала решите, что делать с активностями, где вы владелец.',
   INVALID_OWNERSHIP_TRANSFER: 'Передать владение можно только текущему участнику комнаты.',

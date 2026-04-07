@@ -11,22 +11,20 @@ function AuthLayout({
   return (
     <>
       <AppHeader authActionLabel={authActionLabel} authActionTo={authActionTo} />
-      <div className="virtual-elem"></div>
-      <fieldset className="sign-field">
-        <h2>{title}</h2>
-        <h4 className="gray-elem">{subtitle}</h4>
-        <br />
-        <hr />
-        <br />
-        <section>{children}</section>
-        {footer ? (
-          <>
-            <hr />
-            <br />
-            {footer}
-          </>
-        ) : null}
-      </fieldset>
+      <div className="main-page-shell auth-page-shell">
+        <section className="main-hero auth-page-hero">
+          <p className="auth-page-hero__eyebrow">CoActivity</p>
+          <h2>{title}</h2>
+          <h3>{subtitle}</h3>
+        </section>
+
+        <main className="auth-layout" aria-label={title}>
+          <section className="auth-card">
+            <section className="auth-card__content">{children}</section>
+            {footer ? <footer className="auth-card__footer">{footer}</footer> : null}
+          </section>
+        </main>
+      </div>
     </>
   )
 }

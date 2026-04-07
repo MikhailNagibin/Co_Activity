@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.coactivity.notifications.monitoring.NotificationDeliveryMetrics;
 import com.coactivity.notifications.service.InvalidEmailCommandException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -35,8 +36,9 @@ class KafkaConsumerConfigTest {
   @DisplayName("Should publish failed record to default DLT topic")
   void shouldPublishFailedRecordToDefaultDltTopic() {
     KafkaOperations<Object, Object> kafkaOperations = mockKafkaOperations();
+    NotificationDeliveryMetrics metrics = Mockito.mock(NotificationDeliveryMetrics.class);
     DeadLetterPublishingRecoverer recoverer =
-        config.kafkaDeadLetterPublishingRecoverer(kafkaOperations, TOPIC, "");
+        config.kafkaDeadLetterPublishingRecoverer(kafkaOperations, metrics, TOPIC, "");
     ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 1, 42L,
         "student@example.com", "{\"to\":\"student@example.com\"}");
 
@@ -49,14 +51,17 @@ class KafkaConsumerConfigTest {
     assertEquals(TOPIC + ".dlt", dltRecord.topic());
     assertEquals("student@example.com", dltRecord.key());
     assertEquals("{\"to\":\"student@example.com\"}", dltRecord.value());
+    verify(metrics).recordDltPublish(eq(TOPIC + ".dlt"), any(MailSendException.class));
   }
 
   @Test
   @DisplayName("Should use configured DLT topic override")
   void shouldUseConfiguredDltTopicOverride() {
     KafkaOperations<Object, Object> kafkaOperations = mockKafkaOperations();
+    NotificationDeliveryMetrics metrics = Mockito.mock(NotificationDeliveryMetrics.class);
     DeadLetterPublishingRecoverer recoverer =
-        config.kafkaDeadLetterPublishingRecoverer(kafkaOperations, TOPIC, "notifications.email.failures");
+        config.kafkaDeadLetterPublishingRecoverer(kafkaOperations, metrics, TOPIC,
+            "notifications.email.failures");
     ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 11L,
         "student@example.com", "payload");
 
@@ -65,6 +70,7 @@ class KafkaConsumerConfigTest {
     ArgumentCaptor<ProducerRecord<Object, Object>> captor = producerRecordCaptor();
     verify(kafkaOperations).send(captor.capture());
     assertEquals("notifications.email.failures", captor.getValue().topic());
+    verify(metrics).recordDltPublish(eq("notifications.email.failures"), any(MailSendException.class));
   }
 
   @Test
@@ -90,7 +96,8 @@ class KafkaConsumerConfigTest {
     KafkaOperations<Object, Object> kafkaOperations = Mockito.mock(KafkaOperations.class);
     CompletableFuture<SendResult<Object, Object>> sendResult =
         CompletableFuture.completedFuture(null);
-    when(kafkaOperations.send(any(ProducerRecord.class))).thenReturn(sendResult);
+    when(kafkaOperations.send(Mockito.<ProducerRecord<Object, Object>>any())).thenReturn(
+        sendResult);
     return kafkaOperations;
   }
 

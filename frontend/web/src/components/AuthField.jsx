@@ -10,12 +10,16 @@ function AuthField({
   disabled = false,
 }) {
   return (
-    <div>
+    <div className="auth-field">
       <div className={inlineRight ? 'field-head field-head--between' : 'field-head'}>
-        <h3>{label}</h3>
+        <label htmlFor={name} className="auth-field__label">
+          {label}
+        </label>
         {inlineRight}
       </div>
       <input
+        id={name}
+        className="auth-field__input"
         type={type}
         name={name}
         placeholder={placeholder}

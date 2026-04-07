@@ -41,12 +41,12 @@ function App() {
       <Route path="/sign-up" element={<PublicOnlyRoute><SignUp /></PublicOnlyRoute>} />
       <Route path="/main" element={<MainPage />} />
       <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
-      <Route path="/create-room" element={<RequireAuth><CreateRoomPage /></RequireAuth>} />
+      <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
       <Route path="/qa" element={<QADataPage />} />
-      <Route path="/qa/new" element={<RequireAuth><CreateQuestionPage /></RequireAuth>} />
-      <Route path="/cards/default-0" element={<RequireAuth><DefaultCard0 /></RequireAuth>} />
+      <Route path="/qa/new" element={<CreateQuestionPage />} />
+      <Route path="/cards/default-0" element={<DefaultCard0 />} />
       <Route path="/questions/default-0" element={<Navigate to="/questions/demo" replace />} />
       <Route path="/questions/demo" element={<DefaultQuestion0 />} />
       <Route path="/questions/:questionId" element={<QuestionThreadPage />} />

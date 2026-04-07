@@ -19,6 +19,21 @@ function readSessionExpiredFromUrl() {
   }
 }
 
+function isEmailNotVerifiedError(error) {
+  return (
+    isApiError(error) &&
+    (error.code === 'EMAIL_NOT_VERIFIED' ||
+      /email is not verified/i.test(String(error.message ?? '')))
+  )
+}
+
+function appendSafeNextParam(searchParams, params) {
+  const next = searchParams.get('next')
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    params.set('next', next)
+  }
+}
+
 function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -84,6 +99,17 @@ function SignIn() {
         })
         return
       }
+      if (isEmailNotVerifiedError(error)) {
+        const next = searchParams.get('next')
+        const params = new URLSearchParams()
+        params.set('step', 'verify')
+        params.set('email', email)
+        if (next && next.startsWith('/') && !next.startsWith('//')) {
+          params.set('next', next)
+        }
+        navigate({ pathname: '/sign-up', search: `?${params.toString()}` }, { replace: true })
+        return
+      }
       if (isApiError(error)) {
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось войти. Попробуйте снова.'))
       } else {
@@ -94,24 +120,38 @@ function SignIn() {
     }
   }
 
+  const handleOpenVerification = () => {
+    const email = formData.email.trim()
+    if (!email) {
+      setErrorMessage('Укажите почту, чтобы запросить код подтверждения')
+      return
+    }
+
+    const params = new URLSearchParams()
+    params.set('step', 'verify')
+    params.set('email', email)
+    appendSafeNextParam(searchParams, params)
+    navigate({ pathname: '/sign-up', search: `?${params.toString()}` })
+  }
+
   return (
     <AuthLayout
       title="Войти в CoActivity"
-      subtitle="Введите почту и пароль"
+      subtitle="Продолжите работу с активностями, вопросами и личным кабинетом"
       authActionLabel="Войти"
       authActionTo="/sign-in"
       footer={
-        <h3>
+        <p className="auth-card__footer-text">
           У вас нет аккаунта? <Link to="/sign-up">Зарегистрироваться</Link>
-        </h3>
+        </p>
       }
     >
       {sessionExpiredBanner ? (
-        <div className="sign-in-session-notice" role="status">
+        <div className="auth-banner auth-banner--info" role="status">
           Сессия истекла. Требуется заново войти в аккаунт
         </div>
       ) : null}
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="auth-form">
         <AuthField
           label="Почта"
           name="email"
@@ -130,23 +170,17 @@ function SignIn() {
           onChange={handleFieldChange}
           autoComplete="current-password"
           disabled={isSubmitting}
-          inlineRight={
-            <em>
-              <a className="gray-elem" href="#">
-                Забыли пароль?
-              </a>
-            </em>
-          }
         />
-        {errorMessage ? (
-          <p style={{ color: '#b00020', marginTop: '12px', marginBottom: 0 }}>{errorMessage}</p>
-        ) : null}
+        {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
         <button
-          type="submit"
-          style={{ backgroundColor: 'black', color: 'white', padding: '12px', marginTop: '20px' }}
-          className="enter-button"
+          type="button"
+          className="auth-text-button"
           disabled={isSubmitting}
+          onClick={handleOpenVerification}
         >
+          Подтвердить почту или запросить код заново
+        </button>
+        <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
           {isSubmitting ? 'Вход...' : 'Войти'}
         </button>
       </form>

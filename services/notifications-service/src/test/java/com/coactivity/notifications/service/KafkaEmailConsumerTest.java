@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.coactivity.notifications.dto.SendEmailRequest;
+import com.coactivity.notifications.monitoring.NotificationDeliveryMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -23,13 +24,17 @@ class KafkaEmailConsumerTest {
   @Mock
   private EmailService emailService;
 
+  @Mock
+  private NotificationDeliveryMetrics metrics;
+
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
   @Test
   @DisplayName("Should deserialize Kafka payload and call EmailService")
   void shouldConsumeAndDispatchEmail() throws Exception {
-    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator);
+    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator,
+        metrics);
     SendEmailRequest request = new SendEmailRequest(
         "student@example.com",
         "Welcome",
@@ -39,22 +44,26 @@ class KafkaEmailConsumerTest {
     consumer.consumeEmailCommand(objectMapper.writeValueAsString(request));
 
     verify(emailService).sendEmail(request);
+    verify(metrics).recordDelivered();
   }
 
   @Test
   @DisplayName("Should skip malformed Kafka payload without calling EmailService")
   void shouldSkipMalformedPayload() {
-    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator);
+    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator,
+        metrics);
 
     assertThrows(InvalidEmailCommandException.class,
         () -> consumer.consumeEmailCommand("not-json"));
     verify(emailService, never()).sendEmail(org.mockito.ArgumentMatchers.any());
+    verify(metrics).recordInvalidPayload();
   }
 
   @Test
   @DisplayName("Should skip invalid Kafka payload that violates email DTO constraints")
   void shouldSkipInvalidDtoPayload() throws Exception {
-    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator);
+    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator,
+        metrics);
     SendEmailRequest request = new SendEmailRequest(
         "not-an-email",
         "",
@@ -65,12 +74,14 @@ class KafkaEmailConsumerTest {
         () -> consumer.consumeEmailCommand(objectMapper.writeValueAsString(request)));
 
     verify(emailService, never()).sendEmail(org.mockito.ArgumentMatchers.any());
+    verify(metrics).recordInvalidPayload();
   }
 
   @Test
   @DisplayName("Should rethrow mail delivery errors so Kafka retries can happen")
   void shouldRethrowMailDeliveryError() throws Exception {
-    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator);
+    KafkaEmailConsumer consumer = new KafkaEmailConsumer(emailService, objectMapper, validator,
+        metrics);
     SendEmailRequest request = new SendEmailRequest(
         "student@example.com",
         "Welcome",
@@ -82,5 +93,6 @@ class KafkaEmailConsumerTest {
 
     assertThrows(MailSendException.class,
         () -> consumer.consumeEmailCommand(objectMapper.writeValueAsString(request)));
+    verify(metrics).recordFailed();
   }
 }

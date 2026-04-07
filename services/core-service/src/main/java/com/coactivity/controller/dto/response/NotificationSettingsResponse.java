@@ -1,6 +1,5 @@
 package com.coactivity.controller.dto.response;
 
-import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;

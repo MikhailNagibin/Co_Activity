@@ -4,6 +4,7 @@ import com.coactivity.auth.model.UserStatus;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
+import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
@@ -17,6 +18,7 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.NotificationDeliveryException;
 import com.coactivity.service.exception.ResourceNotFoundException;
+import com.coactivity.service.exception.TooManyRequestsException;
 import com.coactivity.service.exception.ValidationException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -102,6 +104,7 @@ public class AuthApplicationService {
         userJpaRepository.delete(saved);
         throw new NotificationDeliveryException("Unable to deliver verification code");
       }
+      challengeStore.markResendCooldown(normalizedEmail);
       return new RegistrationResponse(saved.getId(), saved.getUserName(), saved.getEmail(),
           saved.getStatus().name());
     } catch (DataIntegrityViolationException ex) {
@@ -129,11 +132,49 @@ public class AuthApplicationService {
         user.setStatus(UserStatus.ACTIVE);
         user.setEmailVerifiedAt(Instant.now());
       }
-      case INVALID_CODE -> throw new AuthorizationException("Invalid verification code");
-      case TOO_MANY_ATTEMPTS -> throw new AuthorizationException("Too many verification attempts");
-      case EXPIRED_OR_MISSING -> throw new AuthorizationException(
+      case INVALID_CODE -> throw new AuthorizationException("INVALID_VERIFICATION_CODE",
+          "Invalid verification code");
+      case TOO_MANY_ATTEMPTS -> throw new AuthorizationException(
+          "TOO_MANY_VERIFICATION_ATTEMPTS", "Too many verification attempts");
+      case EXPIRED_OR_MISSING -> throw new AuthorizationException("VERIFICATION_CODE_EXPIRED",
           "Verification code is expired or missing");
       default -> throw new AuthorizationException("Unable to verify registration");
+    }
+  }
+
+  @Transactional
+  public void resendRegistrationCode(ResendRegistrationVerificationRequest request) {
+    if (request == null) {
+      throw new ValidationException("Verification resend request is required");
+    }
+
+    String normalizedEmail = normalizeEmail(request.getEmail());
+    UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+    if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
+      throw new ConflictException("EMAIL_ALREADY_VERIFIED", "Email is already verified");
+    }
+
+    if (!challengeStore.tryActivateResendCooldown(normalizedEmail)) {
+      throw new TooManyRequestsException("REGISTRATION_CODE_RESEND_COOLDOWN",
+          "Please wait before requesting a new verification code");
+    }
+
+    String code = generateCode();
+    boolean challengeCreated = false;
+    try {
+      challengeStore.create(normalizedEmail, user.getId(), code);
+      challengeCreated = true;
+      if (!notificationService.sendRegistrationVerificationCode(user.getEmail(), code)) {
+        throw new NotificationDeliveryException("Unable to deliver verification code");
+      }
+    } catch (RuntimeException ex) {
+      if (challengeCreated) {
+        challengeStore.delete(normalizedEmail);
+      }
+      challengeStore.clearResendCooldown(normalizedEmail);
+      throw ex;
     }
   }
 
@@ -162,7 +203,7 @@ public class AuthApplicationService {
     } catch (DisabledException ex) {
       UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail).orElse(null);
       if (user != null && user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-        throw new AuthorizationException("Email is not verified");
+        throw new AuthorizationException("EMAIL_NOT_VERIFIED", "Email is not verified");
       }
       throw new AuthorizationException("User account is disabled");
     } catch (BadCredentialsException ex) {

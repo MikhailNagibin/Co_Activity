@@ -4,6 +4,7 @@ import com.coactivity.auth.service.AuthApplicationService;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
+import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.controller.dto.response.CsrfTokenResponse;
 import com.coactivity.controller.dto.response.RegistrationResponse;
@@ -46,6 +47,13 @@ public class AuthController {
   public ResponseEntity<Void> verifyRegistration(
       @Valid @RequestBody RegisterVerificationRequest request) {
     authApplicationService.verifyRegistration(request);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/register/resend")
+  public ResponseEntity<Void> resendRegistrationCode(
+      @Valid @RequestBody ResendRegistrationVerificationRequest request) {
+    authApplicationService.resendRegistrationCode(request);
     return ResponseEntity.noContent().build();
   }
 

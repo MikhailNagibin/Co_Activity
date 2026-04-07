@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthField from '../components/AuthField.jsx'
 import AuthLayout from '../components/AuthLayout.jsx'
 import { useAuthSession } from '../auth/authSessionContext.js'
@@ -9,7 +9,11 @@ import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
-import { register, verifyRegistration } from '../services/authService.js'
+import {
+  register,
+  resendRegistrationVerificationCode,
+  verifyRegistration,
+} from '../services/authService.js'
 
 function birthDateInputToInstant(isoDate) {
   if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
@@ -18,8 +22,16 @@ function birthDateInputToInstant(isoDate) {
   return `${isoDate}T00:00:00Z`
 }
 
+function appendSafeNextParam(searchParams, params) {
+  const next = searchParams.get('next')
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    params.set('next', next)
+  }
+}
+
 function SignUp() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuthSession()
   const [formData, setFormData] = useState({
     email: '',
@@ -37,12 +49,55 @@ function SignUp() {
   const [pendingEmail, setPendingEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [step, setStep] = useState('register')
+  const [isResendingCode, setIsResendingCode] = useState(false)
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
 
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/main', { replace: true })
     }
   }, [isAuthenticated, navigate])
+
+  useEffect(() => {
+    const requestedStep = searchParams.get('step')
+    const emailFromUrl = searchParams.get('email')?.trim() ?? ''
+
+    if (requestedStep === 'verify' && emailFromUrl) {
+      setFormData((prev) =>
+        prev.email === emailFromUrl ? prev : { ...prev, email: emailFromUrl },
+      )
+      setPendingEmail(emailFromUrl)
+      setStep('verify')
+      setErrorMessage('')
+      setSuccessMessage('Аккаунт ещё не подтверждён. Введите код из письма, чтобы завершить регистрацию.')
+      setResendCooldownSeconds(0)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) {
+      return undefined
+    }
+    const timerId = window.setTimeout(() => {
+      setResendCooldownSeconds((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => window.clearTimeout(timerId)
+  }, [resendCooldownSeconds])
+
+  const openVerifyStep = (email, message, cooldownSeconds = 0) => {
+    const params = new URLSearchParams()
+    params.set('step', 'verify')
+    params.set('email', email)
+    appendSafeNextParam(searchParams, params)
+    setFormData((prev) => ({ ...prev, email }))
+    setPendingEmail(email)
+    setVerificationCode('')
+    setStep('verify')
+    setErrorMessage('')
+    setSuccessMessage(message)
+    setResendCooldownSeconds(cooldownSeconds)
+    navigate({ pathname: '/sign-up', search: `?${params.toString()}` }, { replace: true })
+  }
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target
@@ -94,9 +149,7 @@ function SignUp() {
     setIsSubmitting(true)
     try {
       await register(payload)
-      setPendingEmail(email)
-      setStep('verify')
-      setSuccessMessage('Аккаунт создан. Введите код из письма, чтобы активировать его.')
+      openVerifyStep(email, 'Аккаунт создан. Введите код из письма, чтобы активировать его.', 60)
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/sign-up' })
@@ -126,7 +179,18 @@ function SignUp() {
     setIsSubmitting(true)
     try {
       await verifyRegistration({ email: pendingEmail, code })
-      navigate('/sign-in', { replace: true })
+      const next = searchParams.get('next')
+      const params = new URLSearchParams()
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        params.set('next', next)
+      }
+      navigate(
+        {
+          pathname: '/sign-in',
+          search: params.toString() ? `?${params.toString()}` : '',
+        },
+        { replace: true },
+      )
     } catch (error) {
       if (isApiError(error)) {
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось подтвердить почту.'))
@@ -138,24 +202,54 @@ function SignUp() {
     }
   }
 
+  const handleResendCode = async () => {
+    if (!pendingEmail || resendCooldownSeconds > 0) {
+      return
+    }
+
+    setIsResendingCode(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      await resendRegistrationVerificationCode({ email: pendingEmail })
+      setVerificationCode('')
+      setSuccessMessage('Новый код отправлен на почту. Проверьте входящие и спам.')
+      setResendCooldownSeconds(60)
+    } catch (error) {
+      if (isApiError(error)) {
+        if (
+          error.code === 'REGISTRATION_CODE_RESEND_COOLDOWN' ||
+          (error.status === 429 && resendCooldownSeconds <= 0)
+        ) {
+          setResendCooldownSeconds(60)
+        }
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось отправить новый код.'))
+      } else {
+        setErrorMessage('Не удалось отправить новый код.')
+      }
+    } finally {
+      setIsResendingCode(false)
+    }
+  }
+
   return (
     <AuthLayout
       title="Создать аккаунт в CoActivity"
       subtitle={
         step === 'register'
-          ? 'Заполните поля для регистрации'
+          ? 'Заполните профиль и начните искать активности в едином пространстве'
           : 'Подтвердите почту кодом из письма'
       }
       authActionLabel="Регистрация"
       authActionTo="/sign-in"
       footer={
-        <h3>
+        <p className="auth-card__footer-text">
           Уже есть аккаунт? <Link to="/sign-in">Войти</Link>
-        </h3>
+        </p>
       }
     >
       {step === 'register' ? (
-        <form onSubmit={handleRegister}>
+        <form onSubmit={handleRegister} className="auth-form">
           <AuthField
             label="Почта"
             name="email"
@@ -203,10 +297,11 @@ function SignUp() {
             disabled={isSubmitting}
           />
 
-          <div className="split-fields">
+          <div className="auth-grid auth-grid--two">
             <AuthField
               label="Страна"
               name="country"
+              placeholder="Например, Россия"
               value={formData.country}
               onChange={handleFieldChange}
               disabled={isSubmitting}
@@ -214,47 +309,39 @@ function SignUp() {
             <AuthField
               label="Город"
               name="city"
+              placeholder="Например, Москва"
               value={formData.city}
               onChange={handleFieldChange}
               disabled={isSubmitting}
             />
           </div>
 
-          <div>
-            <h3>О себе</h3>
+          <div className="auth-field">
+            <label htmlFor="about" className="auth-field__label">
+              О себе
+            </label>
             <textarea
+              id="about"
+              className="auth-field__textarea"
               name="about"
               rows="5"
               value={formData.about}
               onChange={handleFieldChange}
               disabled={isSubmitting}
-            ></textarea>
+              placeholder="Расскажите коротко о своих интересах"
+            />
           </div>
 
-          {errorMessage ? (
-            <p style={{ color: '#b00020', marginTop: '12px', marginBottom: 0 }}>{errorMessage}</p>
-          ) : null}
-          {successMessage ? (
-            <p style={{ color: '#146c43', marginTop: '12px', marginBottom: 0 }}>{successMessage}</p>
-          ) : null}
+          {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
+          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
-          <button
-            type="submit"
-            style={{
-              marginTop: '20px',
-              backgroundColor: 'black',
-              color: 'white',
-              padding: '12px',
-            }}
-            className="enter-button"
-            disabled={isSubmitting}
-          >
+          <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
             {isSubmitting ? 'Создание...' : 'Создать аккаунт'}
           </button>
         </form>
       ) : (
-        <form onSubmit={handleVerify}>
-          <p className="gray-elem" style={{ marginBottom: '12px', textAlign: 'left' }}>
+        <form onSubmit={handleVerify} className="auth-form">
+          <p className="auth-banner auth-banner--neutral">
             Код отправлен на <strong>{pendingEmail}</strong>. Без подтверждения почты вход запрещён.
           </p>
 
@@ -268,32 +355,57 @@ function SignUp() {
             disabled={isSubmitting}
           />
 
-          {errorMessage ? (
-            <p style={{ color: '#b00020', marginTop: '12px', marginBottom: 0 }}>{errorMessage}</p>
-          ) : null}
-          {successMessage ? (
-            <p style={{ color: '#146c43', marginTop: '12px', marginBottom: 0 }}>{successMessage}</p>
-          ) : null}
+          {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
+          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+          <div className="auth-verify-help">
+            <p className="auth-field__meta">
+              Код истёк или потерялся? Запросите новый. Повторная отправка доступна раз в минуту.
+            </p>
             <button
               type="button"
-              style={{ padding: '12px' }}
-              className="enter-button"
-              disabled={isSubmitting}
+              className="auth-text-button"
+              disabled={isSubmitting || isResendingCode || resendCooldownSeconds > 0}
+              onClick={handleResendCode}
+            >
+              {isResendingCode
+                ? 'Отправка...'
+                : resendCooldownSeconds > 0
+                  ? `Отправить код заново через ${resendCooldownSeconds} сек`
+                  : 'Отправить код заново'}
+            </button>
+          </div>
+
+          <div className="auth-actions auth-actions--split">
+            <button
+              type="button"
+              className="auth-secondary-button"
+              disabled={isSubmitting || isResendingCode}
               onClick={() => {
+                const params = new URLSearchParams()
+                appendSafeNextParam(searchParams, params)
+                navigate(
+                  {
+                    pathname: '/sign-up',
+                    search: params.toString() ? `?${params.toString()}` : '',
+                  },
+                  { replace: true },
+                )
+                setFormData((prev) => ({ ...prev, email: pendingEmail || prev.email }))
+                setPendingEmail('')
+                setVerificationCode('')
                 setStep('register')
                 setErrorMessage('')
                 setSuccessMessage('')
+                setResendCooldownSeconds(0)
               }}
             >
               Назад
             </button>
             <button
               type="submit"
-              style={{ backgroundColor: 'black', color: 'white', padding: '12px' }}
-              className="enter-button"
-              disabled={isSubmitting}
+              className="auth-submit-button"
+              disabled={isSubmitting || isResendingCode}
             >
               {isSubmitting ? 'Проверка...' : 'Подтвердить почту'}
             </button>

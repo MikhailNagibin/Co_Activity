@@ -1,6 +1,7 @@
 package com.coactivity.notifications.service;
 
 import com.coactivity.notifications.dto.SendEmailRequest;
+import com.coactivity.notifications.monitoring.NotificationDeliveryMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -20,12 +21,14 @@ public class KafkaEmailConsumer {
   private final EmailService emailService;
   private final ObjectMapper objectMapper;
   private final Validator validator;
+  private final NotificationDeliveryMetrics metrics;
 
   public KafkaEmailConsumer(EmailService emailService, ObjectMapper objectMapper,
-      Validator validator) {
+      Validator validator, NotificationDeliveryMetrics metrics) {
     this.emailService = emailService;
     this.objectMapper = objectMapper;
     this.validator = validator;
+    this.metrics = metrics;
   }
 
   @KafkaListener(
@@ -35,8 +38,10 @@ public class KafkaEmailConsumer {
     SendEmailRequest request = deserializeAndValidate(payload);
     try {
       emailService.sendEmail(request);
+      metrics.recordDelivered();
       log.info("Kafka email command delivered to {}", request.to());
     } catch (MailException e) {
+      metrics.recordFailed();
       log.error("Failed to deliver Kafka email command: {}", payload, e);
       throw e;
     }
@@ -47,6 +52,7 @@ public class KafkaEmailConsumer {
     try {
       request = objectMapper.readValue(payload, SendEmailRequest.class);
     } catch (Exception e) {
+      metrics.recordInvalidPayload();
       log.error("Rejecting invalid Kafka email command payload: {}", payload, e);
       throw new InvalidEmailCommandException("Kafka email command payload is not valid JSON", e);
     }
@@ -56,6 +62,7 @@ public class KafkaEmailConsumer {
       String violationMessage = violations.stream()
           .map(ConstraintViolation::getMessage)
           .collect(Collectors.joining(", "));
+      metrics.recordInvalidPayload();
       log.error("Rejecting invalid Kafka email command: {}", violationMessage);
       throw new InvalidEmailCommandException(
           "Kafka email command violates DTO constraints: " + violationMessage);

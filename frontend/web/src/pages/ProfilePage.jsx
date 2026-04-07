@@ -351,7 +351,35 @@ function ProfilePage() {
 
             {isAuthenticated && !isLoading && profile ? (
               <div className="profile-grid">
+                <section className="profile-panel profile-panel--overview">
+                  <div className="profile-overview">
+                    <div className="profile-overview__avatar" aria-hidden="true">
+                      <i className="fa-regular fa-circle-user"></i>
+                    </div>
+                    <div className="profile-overview__body">
+                      <p className="profile-kicker">Профиль</p>
+                      <h3>{profile.username}</h3>
+                      <p className="gray-elem">{profile.email}</p>
+                    </div>
+                  </div>
+                  <div className="profile-summary-grid">
+                    <article className="profile-summary-card">
+                      <span className="profile-summary-card__label">Город</span>
+                      <strong className="profile-summary-card__value">
+                        {profile.city || 'Не указан'}
+                      </strong>
+                    </article>
+                    <article className="profile-summary-card">
+                      <span className="profile-summary-card__label">Страна</span>
+                      <strong className="profile-summary-card__value">
+                        {profile.country || 'Не указана'}
+                      </strong>
+                    </article>
+                  </div>
+                </section>
+
                 <section className="profile-panel">
+                  <p className="profile-kicker">Навигация</p>
                   <h3>Быстрые разделы</h3>
                   <div className="profile-links">
                     <Link to="/profile/notifications" className="profile-links__action">
@@ -370,31 +398,36 @@ function ProfilePage() {
                 </section>
 
                 <section className="profile-panel">
+                  <p className="profile-kicker">Редактирование</p>
                   <h3>Персональные данные</h3>
-                  <p className="gray-elem">Почта: {profile.email}</p>
+                  <p className="gray-elem">Управляйте публичной информацией и описанием аккаунта.</p>
                   <form onSubmit={handleSaveProfile} className="profile-form">
-                    <label htmlFor="username">Имя пользователя</label>
-                    <input
-                      id="username"
-                      name="username"
-                      value={profileForm.username}
-                      onChange={handleProfileChange}
-                      disabled={isSavingProfile}
-                      required
-                    />
+                    <div className="profile-form-row">
+                      <label htmlFor="username">Имя пользователя</label>
+                      <input
+                        id="username"
+                        name="username"
+                        value={profileForm.username}
+                        onChange={handleProfileChange}
+                        disabled={isSavingProfile}
+                        required
+                      />
+                    </div>
 
-                    <label htmlFor="dateOfBirth">Дата рождения</label>
-                    <input
-                      id="dateOfBirth"
-                      name="dateOfBirth"
-                      type="date"
-                      value={profileForm.dateOfBirth}
-                      onChange={handleProfileChange}
-                      disabled={isSavingProfile}
-                    />
+                    <div className="profile-form-row">
+                      <label htmlFor="dateOfBirth">Дата рождения</label>
+                      <input
+                        id="dateOfBirth"
+                        name="dateOfBirth"
+                        type="date"
+                        value={profileForm.dateOfBirth}
+                        onChange={handleProfileChange}
+                        disabled={isSavingProfile}
+                      />
+                    </div>
 
-                    <div className="split-fields">
-                      <div>
+                    <div className="auth-grid auth-grid--two">
+                      <div className="profile-form-row">
                         <label htmlFor="country">Страна</label>
                         <input
                           id="country"
@@ -404,7 +437,7 @@ function ProfilePage() {
                           disabled={isSavingProfile}
                         />
                       </div>
-                      <div>
+                      <div className="profile-form-row">
                         <label htmlFor="city">Город</label>
                         <input
                           id="city"
@@ -416,32 +449,43 @@ function ProfilePage() {
                       </div>
                     </div>
 
-                    <label htmlFor="description">О себе</label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      rows={4}
-                      value={profileForm.description}
-                      onChange={handleProfileChange}
-                      disabled={isSavingProfile}
-                    />
+                    <div className="profile-form-row">
+                      <label htmlFor="description">О себе</label>
+                      <textarea
+                        id="description"
+                        name="description"
+                        rows={4}
+                        value={profileForm.description}
+                        onChange={handleProfileChange}
+                        disabled={isSavingProfile}
+                      />
+                    </div>
 
-                    <label htmlFor="avatarId">ID аватара (опционально)</label>
-                    <input
-                      id="avatarId"
-                      name="avatarId"
-                      type="number"
-                      min={1}
-                      value={profileForm.avatarId}
-                      onChange={handleProfileChange}
-                      disabled={isSavingProfile}
-                    />
+                    <div className="profile-form-row">
+                      <label htmlFor="avatarId">ID аватара (опционально)</label>
+                      <input
+                        id="avatarId"
+                        name="avatarId"
+                        type="number"
+                        min={1}
+                        value={profileForm.avatarId}
+                        onChange={handleProfileChange}
+                        disabled={isSavingProfile}
+                      />
+                    </div>
 
                     <button type="submit" className="create-room-submit" disabled={isSavingProfile}>
                       {isSavingProfile ? 'Сохранение...' : 'Сохранить профиль'}
                     </button>
                   </form>
+                </section>
 
+                <section className="profile-panel profile-panel--danger">
+                  <p className="profile-kicker">Безопасность</p>
+                  <h3>Удаление аккаунта</h3>
+                  <p className="gray-elem">
+                    Перед удалением можно решить, что делать с активностями, где вы владелец.
+                  </p>
                   <div className="profile-actions">
                     <button
                       type="button"
