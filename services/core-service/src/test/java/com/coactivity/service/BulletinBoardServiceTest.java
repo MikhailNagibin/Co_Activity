@@ -185,6 +185,6 @@ class BulletinBoardServiceTest {
 
   private User user(Integer userId) {
     return new User(userId, "user@example.com", "user", null,
-        "RU", "Moscow", "desc", null, List.of(), List.of());
+        "RU", "Moscow", "desc", null, null, List.of(), List.of());
   }
 }

@@ -19,6 +19,7 @@ public class User {
   private String city;
   private String description;
   private Integer avatarId;
+  private Integer avatarFileId;
   private List<Room> rooms;
   private List<Notification> notifications;
 }

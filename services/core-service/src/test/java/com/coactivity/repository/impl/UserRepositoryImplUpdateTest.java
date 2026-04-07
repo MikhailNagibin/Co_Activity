@@ -9,6 +9,7 @@ import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.persistence.entity.UserEntity;
 import com.coactivity.persistence.repository.NotificationLookupRepository;
 import com.coactivity.persistence.repository.RoomMemberJpaRepository;
+import com.coactivity.persistence.repository.UserAvatarJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.persistence.repository.UserNotificationJpaRepository;
 import com.coactivity.service.exception.ConflictException;
@@ -35,6 +36,7 @@ class UserRepositoryImplUpdateTest {
         Mockito.mock(RoomMemberJpaRepository.class),
         Mockito.mock(UserNotificationJpaRepository.class),
         Mockito.mock(NotificationLookupRepository.class),
+        Mockito.mock(UserAvatarJpaRepository.class),
         Mockito.mock(PasswordEncoder.class));
   }
 

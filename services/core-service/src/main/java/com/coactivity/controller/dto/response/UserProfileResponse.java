@@ -28,5 +28,7 @@ public class UserProfileResponse {
 
   private Integer avatarId;
 
+  private String avatarUrl;
+
   private List<Notification> notifications;
 }

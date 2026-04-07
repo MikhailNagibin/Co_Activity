@@ -21,6 +21,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 /**
  * Translates domain and validation exceptions into consistent HTTP responses.
@@ -98,6 +101,21 @@ public class GlobalExceptionHandler {
       HttpServletRequest request) {
     return buildResponse("Validation failed", null, HttpStatus.BAD_REQUEST, request,
         List.of("Request body contains invalid or malformed value"));
+  }
+
+  @ExceptionHandler({MaxUploadSizeExceededException.class, MultipartException.class})
+  public ResponseEntity<ApiErrorResponse> handleMultipartErrors(Exception ex,
+      HttpServletRequest request) {
+    return buildResponse("Validation failed", null, HttpStatus.BAD_REQUEST, request,
+        List.of("Uploaded file exceeds the allowed size or is malformed"));
+  }
+
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  public ResponseEntity<ApiErrorResponse> handleMissingMultipartPart(
+      MissingServletRequestPartException ex,
+      HttpServletRequest request) {
+    return buildResponse("Validation failed", null, HttpStatus.BAD_REQUEST, request,
+        List.of(ex.getRequestPartName() + ": required multipart part is missing"));
   }
 
   @ExceptionHandler(Exception.class)

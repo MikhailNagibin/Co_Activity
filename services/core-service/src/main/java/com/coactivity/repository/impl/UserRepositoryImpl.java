@@ -10,10 +10,12 @@ import com.coactivity.persistence.CoreDomainMapper;
 import com.coactivity.persistence.CoreLookupMapper;
 import com.coactivity.persistence.entity.NotificationEntity;
 import com.coactivity.persistence.entity.UserEntity;
+import com.coactivity.persistence.entity.UserAvatarEntity;
 import com.coactivity.persistence.entity.UserNotificationEntity;
 import com.coactivity.persistence.entity.UserNotificationId;
 import com.coactivity.persistence.repository.NotificationLookupRepository;
 import com.coactivity.persistence.repository.RoomMemberJpaRepository;
+import com.coactivity.persistence.repository.UserAvatarJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.persistence.repository.UserNotificationJpaRepository;
 import com.coactivity.repository.UserRepository;
@@ -37,6 +39,7 @@ public class UserRepositoryImpl implements UserRepository {
   private final RoomMemberJpaRepository roomMemberJpaRepository;
   private final UserNotificationJpaRepository userNotificationJpaRepository;
   private final NotificationLookupRepository notificationLookupRepository;
+  private final UserAvatarJpaRepository userAvatarJpaRepository;
   private final PasswordEncoder passwordEncoder;
 
   @PersistenceContext
@@ -46,11 +49,13 @@ public class UserRepositoryImpl implements UserRepository {
       RoomMemberJpaRepository roomMemberJpaRepository,
       UserNotificationJpaRepository userNotificationJpaRepository,
       NotificationLookupRepository notificationLookupRepository,
+      UserAvatarJpaRepository userAvatarJpaRepository,
       PasswordEncoder passwordEncoder) {
     this.userJpaRepository = userJpaRepository;
     this.roomMemberJpaRepository = roomMemberJpaRepository;
     this.userNotificationJpaRepository = userNotificationJpaRepository;
     this.notificationLookupRepository = notificationLookupRepository;
+    this.userAvatarJpaRepository = userAvatarJpaRepository;
     this.passwordEncoder = passwordEncoder;
   }
 
@@ -163,6 +168,22 @@ public class UserRepositoryImpl implements UserRepository {
     return userJpaRepository.findById(userId)
         .map(this::toDomain)
         .orElse(null);
+  }
+
+  @Override
+  public void updateAvatarFile(Integer userId, Integer avatarFileId) {
+    UserEntity entity = getExistingUserEntity(userId);
+    UserAvatarEntity avatarEntity = userAvatarJpaRepository.findById(avatarFileId)
+        .orElseThrow(() -> new ResourceNotFoundException("Avatar metadata not found"));
+    entity.setAvatarFile(avatarEntity);
+    userJpaRepository.flush();
+  }
+
+  @Override
+  public void clearAvatarFile(Integer userId) {
+    UserEntity entity = getExistingUserEntity(userId);
+    entity.setAvatarFile(null);
+    userJpaRepository.flush();
   }
 
   @Override

@@ -68,6 +68,7 @@ class NotificationServiceTest {
         "Test City",
         "Test description",
         1,
+        null,
         List.of(),
         List.of());
   }

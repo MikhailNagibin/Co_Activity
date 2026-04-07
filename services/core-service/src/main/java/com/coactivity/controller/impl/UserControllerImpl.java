@@ -12,9 +12,11 @@ import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.RequestStatus;
-import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.AccountDeletionService;
+import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.RoomMembershipService;
+import com.coactivity.service.UserAvatarContent;
+import com.coactivity.service.UserAvatarService;
 import com.coactivity.service.UserProfileService;
 import com.coactivity.auth.service.SessionInvalidationService;
 import com.coactivity.security.CurrentUserPrincipal;
@@ -24,6 +26,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,6 +43,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
@@ -49,19 +56,22 @@ public class UserControllerImpl {
   private final SessionInvalidationService sessionInvalidationService;
   private final AccountDeletionService accountDeletionService;
   private final AuthApplicationService authApplicationService;
+  private final UserAvatarService userAvatarService;
 
   public UserControllerImpl(UserProfileService userProfileService,
       RoomMembershipService roomMembershipService,
       JoinRequestService joinRequestService,
       SessionInvalidationService sessionInvalidationService,
       AccountDeletionService accountDeletionService,
-      AuthApplicationService authApplicationService) {
+      AuthApplicationService authApplicationService,
+      UserAvatarService userAvatarService) {
     this.userProfileService = userProfileService;
     this.roomMembershipService = roomMembershipService;
     this.joinRequestService = joinRequestService;
     this.sessionInvalidationService = sessionInvalidationService;
     this.accountDeletionService = accountDeletionService;
     this.authApplicationService = authApplicationService;
+    this.userAvatarService = userAvatarService;
   }
 
   @GetMapping("/me")
@@ -78,6 +88,18 @@ public class UserControllerImpl {
     return ResponseEntity.ok(response);
   }
 
+  @GetMapping("/{userId}/avatar")
+  public ResponseEntity<ByteArrayResource> getUserAvatar(
+      @Positive @PathVariable Integer userId) {
+    UserAvatarContent avatarContent = userAvatarService.getAvatarContent(userId);
+    ByteArrayResource resource = new ByteArrayResource(avatarContent.bytes());
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(avatarContent.contentType()))
+        .contentLength(avatarContent.sizeBytes())
+        .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+        .body(resource);
+  }
+
   @PutMapping("/me")
   public ResponseEntity<UserProfileResponse> updateUserProfile(
       @AuthenticationPrincipal CurrentUserPrincipal currentUser,
@@ -85,6 +107,22 @@ public class UserControllerImpl {
     userProfileService.updateUserProfile(currentUser.getUserId(), request);
     UserProfileResponse response = userProfileService.getUserProfile(currentUser.getUserId());
     return ResponseEntity.ok(response);
+  }
+
+  @PutMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<UserProfileResponse> uploadAvatar(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @RequestParam("file") MultipartFile file) {
+    userAvatarService.uploadAvatar(currentUser.getUserId(), file);
+    UserProfileResponse response = userProfileService.getUserProfile(currentUser.getUserId());
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/me/avatar")
+  public ResponseEntity<Void> deleteAvatar(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    userAvatarService.deleteAvatar(currentUser.getUserId());
+    return ResponseEntity.noContent().build();
   }
 
   @PutMapping("/me/notifications")

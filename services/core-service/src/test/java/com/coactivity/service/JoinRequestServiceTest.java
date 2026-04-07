@@ -238,6 +238,7 @@ class JoinRequestServiceTest {
         "Moscow",
         username,
         1,
+        null,
         rooms,
         List.of(Notification.ACTIVITY_CLOSED));
   }

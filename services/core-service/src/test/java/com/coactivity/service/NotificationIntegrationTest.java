@@ -101,6 +101,7 @@ class NotificationIntegrationTest {
         "City",
         "Description",
         1,
+        null,
         List.of(),
         List.of(Notification.MEMBERSHIP_ACCEPTED, Notification.MEMBERSHIP_REJECTED));
 
@@ -113,6 +114,7 @@ class NotificationIntegrationTest {
         "City",
         "Admin description",
         1,
+        null,
         List.of(),
         List.of());
 

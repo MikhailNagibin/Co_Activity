@@ -57,6 +57,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/rooms/me").authenticated()
+            .requestMatchers(HttpMethod.GET, "/api/users/*/avatar").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/rooms/*/images/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/qa/questions",
                 "/api/qa/questions/category", "/api/qa/questions/*").permitAll()

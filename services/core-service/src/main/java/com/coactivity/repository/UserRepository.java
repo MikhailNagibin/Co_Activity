@@ -33,6 +33,10 @@ public interface UserRepository {
    */
   User getUserById(Integer userId);
 
+  void updateAvatarFile(Integer userId, Integer avatarFileId);
+
+  void clearAvatarFile(Integer userId);
+
   void setNotification(Integer id, Notification notification);
 
   void removeNotification(Integer id, Notification notification);

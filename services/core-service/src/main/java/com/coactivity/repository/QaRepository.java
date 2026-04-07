@@ -11,6 +11,7 @@ import com.coactivity.persistence.repository.CategoryLookupRepository;
 import com.coactivity.persistence.repository.QaAnswerJpaRepository;
 import com.coactivity.persistence.repository.QaQuestionJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
+import com.coactivity.util.AvatarUrlResolver;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -137,7 +138,10 @@ public class QaRepository {
         entity.getCity(),
         entity.getCountry(),
         entity.getDescription(),
-        entity.getAvatarId());
+        entity.getAvatarId(),
+        AvatarUrlResolver.resolveUserAvatarUrl(
+            entity.getId(),
+            entity.getAvatarFile() != null ? entity.getAvatarFile().getId() : null));
   }
 
   public record QuestionEntity(

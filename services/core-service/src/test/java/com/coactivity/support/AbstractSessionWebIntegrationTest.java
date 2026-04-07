@@ -10,6 +10,9 @@ import com.coactivity.persistence.repository.UserJpaRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -18,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,12 +50,16 @@ public abstract class AbstractSessionWebIntegrationTest {
   @Autowired
   protected StringRedisTemplate stringRedisTemplate;
 
+  @Value("${app.storage.local.root}")
+  private String storageRoot;
+
   protected record CsrfContext(String token, Cookie cookie) {
   }
 
   protected void resetState() throws SQLException {
     cleanupTables();
     flushRedis();
+    cleanupStorage();
   }
 
   protected UserEntity createActiveUser(String email, String username, String rawPassword) {
@@ -98,6 +106,14 @@ public abstract class AbstractSessionWebIntegrationTest {
     return Objects.requireNonNull(result.getResponse().getCookie("COACTIVITY_SESSION"));
   }
 
+  protected Path resolveStoragePath(String storageKey) {
+    return Path.of(storageRoot)
+        .toAbsolutePath()
+        .normalize()
+        .resolve(storageKey)
+        .normalize();
+  }
+
   private void cleanupTables() throws SQLException {
     try (Connection connection = dataSource.getConnection();
          PreparedStatement statement = connection.prepareStatement("""
@@ -110,6 +126,7 @@ public abstract class AbstractSessionWebIntegrationTest {
                room_requests,
                room_members,
                pictures,
+               user_avatars,
                rooms,
                users
              RESTART IDENTITY CASCADE
@@ -122,6 +139,29 @@ public abstract class AbstractSessionWebIntegrationTest {
     try (RedisConnection connection =
              Objects.requireNonNull(stringRedisTemplate.getConnectionFactory()).getConnection()) {
       connection.serverCommands().flushDb();
+    }
+  }
+
+  private void cleanupStorage() {
+    try {
+      Path rootPath = Path.of(storageRoot).toAbsolutePath().normalize();
+      if (!Files.exists(rootPath)) {
+        return;
+      }
+      Files.walk(rootPath)
+          .sorted((left, right) -> right.getNameCount() - left.getNameCount())
+          .forEach(path -> {
+            if (path.equals(rootPath)) {
+              return;
+            }
+            try {
+              Files.deleteIfExists(path);
+            } catch (IOException ex) {
+              throw new IllegalStateException("Failed to cleanup test storage", ex);
+            }
+          });
+    } catch (IOException ex) {
+      throw new IllegalStateException("Failed to cleanup test storage", ex);
     }
   }
 }

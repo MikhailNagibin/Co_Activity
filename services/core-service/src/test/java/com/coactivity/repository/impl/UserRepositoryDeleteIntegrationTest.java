@@ -7,17 +7,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.coactivity.TestcontainersConfiguration;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -34,11 +39,15 @@ class UserRepositoryDeleteIntegrationTest {
   @Autowired
   private DataSource dataSource;
 
+  @Value("${app.storage.local.root}")
+  private String storageRoot;
+
   private Integer categoryId;
 
   @BeforeEach
   void setUp() throws SQLException {
     cleanupTables();
+    cleanupStorage();
     categoryId = loadCategoryId("Sport");
   }
 
@@ -82,7 +91,7 @@ class UserRepositoryDeleteIntegrationTest {
     request.setEmail(login);
     request.setUserName(username);
     request.setPassword("password123");
-    request.setDateOfBirth(Instant.now().minus(20, ChronoUnit.YEARS));
+    request.setDateOfBirth(OffsetDateTime.now(ZoneOffset.UTC).minusYears(20).toInstant());
     return userRepository.createUser(request).getId();
   }
 
@@ -98,6 +107,7 @@ class UserRepositoryDeleteIntegrationTest {
                room_requests,
                room_members,
                pictures,
+               user_avatars,
                rooms,
                users
              RESTART IDENTITY CASCADE
@@ -208,6 +218,29 @@ class UserRepositoryDeleteIntegrationTest {
         resultSet.next();
         return resultSet.getInt(1);
       }
+    }
+  }
+
+  private void cleanupStorage() {
+    try {
+      Path rootPath = Path.of(storageRoot).toAbsolutePath().normalize();
+      if (!Files.exists(rootPath)) {
+        return;
+      }
+      Files.walk(rootPath)
+          .sorted((left, right) -> right.getNameCount() - left.getNameCount())
+          .forEach(path -> {
+            if (path.equals(rootPath)) {
+              return;
+            }
+            try {
+              Files.deleteIfExists(path);
+            } catch (IOException ex) {
+              throw new IllegalStateException("Failed to cleanup test storage", ex);
+            }
+          });
+    } catch (IOException ex) {
+      throw new IllegalStateException("Failed to cleanup test storage", ex);
     }
   }
 }

@@ -10,6 +10,7 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
+import com.coactivity.util.AvatarUrlResolver;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,8 @@ public class UserProfileService {
     response.setEmail(user.getEmail());
     response.setUsername(user.getUserName());
     response.setDateOfBirth(user.getDataOfBirth());
+    response.setAvatarUrl(
+        AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()));
     response.setNotifications(user.getNotifications());
     return response;
   }
@@ -51,10 +54,6 @@ public class UserProfileService {
     }
     User user = getExistingUser(userId);
     userRepository.updateUser(user.getId(), request);
-  }
-
-  public void deleteAccount(Integer userId) {
-    userRepository.deleteUser(userId);
   }
 
   public NotificationSettingsResponse configureNotificationSettings(Integer userId,
@@ -120,6 +119,8 @@ public class UserProfileService {
     response.setCountry(user.getCountry());
     response.setDescription(user.getDescription());
     response.setAvatarId(user.getAvatarId());
+    response.setAvatarUrl(
+        AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()));
     return response;
   }
 

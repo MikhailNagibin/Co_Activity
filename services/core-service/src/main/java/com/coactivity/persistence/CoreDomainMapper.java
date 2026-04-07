@@ -7,11 +7,13 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
+import com.coactivity.domain.UserAvatar;
 import com.coactivity.persistence.entity.BulletinBoardEntity;
 import com.coactivity.persistence.entity.PictureEntity;
 import com.coactivity.persistence.entity.RoomEntity;
 import com.coactivity.persistence.entity.RoomsRequestEntity;
 import com.coactivity.persistence.entity.UserEntity;
+import com.coactivity.persistence.entity.UserAvatarEntity;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +35,7 @@ public final class CoreDomainMapper {
         entity.getCity(),
         entity.getDescription(),
         entity.getAvatarId(),
+        entity.getAvatarFile() != null ? entity.getAvatarFile().getId() : null,
         rooms,
         notifications);
   }
@@ -82,7 +85,15 @@ public final class CoreDomainMapper {
     if (entity == null) {
       return null;
     }
-    return new Picture(room, entity.getId());
+    return new Picture(
+        room,
+        entity.getId(),
+        entity.getStorageKey(),
+        entity.getOriginalFilename(),
+        entity.getContentType(),
+        entity.getSizeBytes(),
+        entity.getSortOrder(),
+        entity.getCreatedAt());
   }
 
   public static RoomsRequest toRoomsRequest(RoomsRequestEntity entity, User user, Room room) {
@@ -95,5 +106,18 @@ public final class CoreDomainMapper {
         room,
         entity.getCreatedAt(),
         CoreLookupMapper.toRequestStatus(entity.getStatus().getStatusInfo()));
+  }
+
+  public static UserAvatar toUserAvatar(UserAvatarEntity entity) {
+    if (entity == null) {
+      return null;
+    }
+    return new UserAvatar(
+        entity.getId(),
+        entity.getStorageKey(),
+        entity.getOriginalFilename(),
+        entity.getContentType(),
+        entity.getSizeBytes(),
+        entity.getCreatedAt());
   }
 }

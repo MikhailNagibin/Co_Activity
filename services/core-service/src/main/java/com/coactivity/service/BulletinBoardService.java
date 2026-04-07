@@ -12,6 +12,7 @@ import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
+import com.coactivity.util.AvatarUrlResolver;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -124,6 +125,8 @@ public class BulletinBoardService {
     authorSummary.setCountry(author.getCountry());
     authorSummary.setDescription(author.getDescription());
     authorSummary.setAvatarId(author.getAvatarId());
+    authorSummary.setAvatarUrl(
+        AvatarUrlResolver.resolveUserAvatarUrl(author.getId(), author.getAvatarFileId()));
     return authorSummary;
   }
 }

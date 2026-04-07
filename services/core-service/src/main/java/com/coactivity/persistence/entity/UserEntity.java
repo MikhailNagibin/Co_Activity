@@ -9,6 +9,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -62,6 +64,10 @@ public class UserEntity {
 
   @Column(name = "avatar_id")
   private Integer avatarId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "avatar_file_id")
+  private UserAvatarEntity avatarFile;
 
   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
   private List<RoomMemberEntity> memberships = new ArrayList<>();

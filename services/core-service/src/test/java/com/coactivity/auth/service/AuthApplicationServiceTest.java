@@ -87,7 +87,7 @@ class AuthApplicationServiceTest {
         UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of());
     UserProfileResponse expectedProfile =
         new UserProfileResponse(7, "fresh@example.com", "freshUser", null, null, null, null,
-            null, List.of());
+            null, null, List.of());
 
     when(authenticationManager.authenticate(any())).thenReturn(authentication);
     when(request.getSession(false)).thenReturn(null);
@@ -118,7 +118,7 @@ class AuthApplicationServiceTest {
     when(request.getSession(true)).thenReturn(newSession);
     when(userProfileService.getUserProfile(9)).thenReturn(
         new UserProfileResponse(9, "existing@example.com", "existingUser", null, null, null, null,
-            null, List.of()));
+            null, null, List.of()));
 
     authApplicationService.login(new LoginRequest("existing@example.com", "Password123"), request,
         response);

@@ -23,4 +23,6 @@ public class UserSummaryResponse {
   private String description;
 
   private Integer avatarId;
+
+  private String avatarUrl;
 }

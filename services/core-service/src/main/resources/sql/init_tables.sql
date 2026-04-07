@@ -7,7 +7,17 @@ CREATE TABLE IF NOT EXISTS users (
   country VARCHAR(100),
   city VARCHAR(100),
   description TEXT,
-  avatar_id INT
+  avatar_id INT,
+  avatar_file_id INT
+);
+
+CREATE TABLE IF NOT EXISTS user_avatars (
+  id SERIAL PRIMARY KEY,
+  storage_key VARCHAR(255) NOT NULL UNIQUE,
+  original_filename VARCHAR(255),
+  content_type VARCHAR(100) NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -39,6 +49,12 @@ CREATE TABLE IF NOT EXISTS rooms (
 CREATE TABLE IF NOT EXISTS pictures (
     picture_id SERIAl PRIMARY KEY,
     room_id INT NOT NULL,
+    storage_key VARCHAR(255),
+    original_filename VARCHAR(255),
+    content_type VARCHAR(100),
+    size_bytes BIGINT,
+    sort_order INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES rooms(id)
 );
 
@@ -128,6 +144,20 @@ CREATE TABLE IF NOT EXISTS bulletin_board (
     FOREIGN KEY (room_id) REFERENCES rooms(id),
     FOREIGN KEY (author_id) REFERENCES users(id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_users_avatar_file'
+      AND table_name = 'users'
+  ) THEN
+    ALTER TABLE users
+      ADD CONSTRAINT fk_users_avatar_file
+      FOREIGN KEY (avatar_file_id) REFERENCES user_avatars(id);
+  END IF;
+END $$;
 
 
 --Insert into roles(role) values

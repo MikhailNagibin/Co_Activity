@@ -47,6 +47,7 @@ class UserProfileServiceTest {
     assertEquals("user@example.com", response.getEmail());
     assertEquals("userName", response.getUsername());
     assertEquals("Moscow", response.getCity());
+    assertEquals("/api/users/7/avatar", response.getAvatarUrl());
     assertEquals(2, response.getNotifications().size());
   }
 
@@ -77,6 +78,7 @@ class UserProfileServiceTest {
     assertEquals("userName", response.getUserName());
     assertEquals("Moscow", response.getCity());
     assertEquals("Russia", response.getCountry());
+    assertEquals("/api/users/7/avatar", response.getAvatarUrl());
   }
 
   @Test
@@ -163,6 +165,7 @@ class UserProfileServiceTest {
         "Moscow",
         "About user",
         5,
+        9,
         List.of(),
         notifications);
   }
