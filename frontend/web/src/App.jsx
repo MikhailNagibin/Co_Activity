@@ -16,11 +16,11 @@ import SignIn from './pages/SignIn.jsx'
 import SignUp from './pages/SignUp.jsx'
 
 function LandingPage() {
-  const { isAuthenticated, isLoading } = useAuthSession()
+  const { isLoading } = useAuthSession()
   if (isLoading) {
     return null
   }
-  return <Navigate to={isAuthenticated ? '/main' : '/sign-in'} replace />
+  return <Navigate to="/main" replace />
 }
 
 function PublicOnlyRoute({ children }) {
@@ -39,18 +39,18 @@ function App() {
       <Route path="/register" element={<Navigate to="/sign-up" replace />} />
       <Route path="/sign-in" element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
       <Route path="/sign-up" element={<PublicOnlyRoute><SignUp /></PublicOnlyRoute>} />
-      <Route path="/main" element={<RequireAuth><MainPage /></RequireAuth>} />
-      <Route path="/rooms/:roomId" element={<RequireAuth><RoomActivityPage /></RequireAuth>} />
+      <Route path="/main" element={<MainPage />} />
+      <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
       <Route path="/create-room" element={<RequireAuth><CreateRoomPage /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
-      <Route path="/qa" element={<RequireAuth><QADataPage /></RequireAuth>} />
+      <Route path="/qa" element={<QADataPage />} />
       <Route path="/qa/new" element={<RequireAuth><CreateQuestionPage /></RequireAuth>} />
       <Route path="/cards/default-0" element={<RequireAuth><DefaultCard0 /></RequireAuth>} />
       <Route path="/questions/default-0" element={<Navigate to="/questions/demo" replace />} />
-      <Route path="/questions/demo" element={<RequireAuth><DefaultQuestion0 /></RequireAuth>} />
-      <Route path="/questions/:questionId" element={<RequireAuth><QuestionThreadPage /></RequireAuth>} />
-      <Route path="*" element={<Navigate to="/sign-in" replace />} />
+      <Route path="/questions/demo" element={<DefaultQuestion0 />} />
+      <Route path="/questions/:questionId" element={<QuestionThreadPage />} />
+      <Route path="*" element={<Navigate to="/main" replace />} />
     </Routes>
   )
 }
