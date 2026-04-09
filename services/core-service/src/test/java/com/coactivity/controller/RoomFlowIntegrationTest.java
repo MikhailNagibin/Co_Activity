@@ -84,6 +84,186 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
   }
 
   @Test
+  void ownerCanUpdateRoomFieldsAndStatusIdempotently() throws Exception {
+    UserEntity owner = createActiveUser("update-owner@example.com", "updateOwner", "Password123");
+    UserEntity requester = createActiveUser("update-requester@example.com", "updateRequester",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie requesterSession = login(requester.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Mutable room",
+        "https://chat.example.com/mutable");
+
+    String updatePayload = """
+        {
+          "isPublic": false,
+          "category": "ART",
+          "name": "Archived room",
+          "description": "Updated integration room",
+          "maximumNumberOfPeople": 5,
+          "chatLink": "https://chat.example.com/archived",
+          "dateOfStartEvent": "2025-01-02T10:00:00Z",
+          "dateOfEndEvent": "2025-01-02T12:00:00Z",
+          "status": "INACTIVE",
+          "ageRating": 18
+        }
+        """;
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(updatePayload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INACTIVE"))
+        .andExpect(jsonPath("$.active").value(false))
+        .andExpect(jsonPath("$.name").value("Archived room"))
+        .andExpect(jsonPath("$.isPublic").value(false));
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(updatePayload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INACTIVE"))
+        .andExpect(jsonPath("$.active").value(false))
+        .andExpect(jsonPath("$.name").value("Archived room"));
+
+    mockMvc.perform(get("/api/rooms/" + roomId).cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INACTIVE"))
+        .andExpect(jsonPath("$.active").value(false))
+        .andExpect(jsonPath("$.name").value("Archived room"))
+        .andExpect(jsonPath("$.isPublic").value(false));
+
+    mockMvc.perform(get("/api/rooms").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), requesterSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Only active rooms can accept new participants"));
+  }
+
+  @Test
+  void switchingPrivateRoomToPublicClearsPendingRequestsAndAllowsDirectJoin() throws Exception {
+    UserEntity owner = createActiveUser("visibility-owner@example.com", "visibilityOwner",
+        "Password123");
+    UserEntity requester = createActiveUser("visibility-requester@example.com",
+        "visibilityRequester", "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie requesterSession = login(requester.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, false, "Visibility room",
+        "https://chat.example.com/visibility");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), requesterSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/requests/pending").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1));
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": true,
+                  "category": "SPORT",
+                  "name": "Visibility room",
+                  "description": "Now open",
+                  "maximumNumberOfPeople": 10,
+                  "chatLink": "https://chat.example.com/visibility",
+                  "dateOfStartEvent": "2026-01-02T10:00:00Z",
+                  "dateOfEndEvent": "2026-01-02T12:00:00Z",
+                  "status": "ACTIVE",
+                  "ageRating": 18
+                }
+                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isPublic").value(true))
+        .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/requests/pending").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+
+    mockMvc.perform(get("/api/users/requests/sent").cookie(requesterSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), requesterSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/membership").cookie(requesterSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(true));
+  }
+
+  @Test
+  void switchingRoomToCompletedClosesPendingRequestsAsRefused() throws Exception {
+    UserEntity owner = createActiveUser("completed-owner@example.com", "completedOwner",
+        "Password123");
+    UserEntity requester = createActiveUser("completed-requester@example.com",
+        "completedRequester", "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie requesterSession = login(requester.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, false, "Completed room",
+        "https://chat.example.com/completed");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), requesterSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": false,
+                  "category": "SPORT",
+                  "name": "Completed room",
+                  "description": "Finished",
+                  "maximumNumberOfPeople": 10,
+                  "chatLink": "https://chat.example.com/completed",
+                  "dateOfStartEvent": "2026-01-02T10:00:00Z",
+                  "dateOfEndEvent": "2026-01-02T12:00:00Z",
+                  "status": "COMPLETED",
+                  "ageRating": 18
+                }
+                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.active").value(false));
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/requests/pending").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+
+    mockMvc.perform(get("/api/users/requests/sent").cookie(requesterSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].status").value("REFUSED"));
+  }
+
+  @Test
   void privateJoinRequestCanBeAcceptedAndRequesterGetsProtectedAccess() throws Exception {
     UserEntity owner = createActiveUser("private-owner@example.com", "privateOwner",
         "Password123");
@@ -241,6 +421,97 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.hasProtectedAccess").value(false))
         .andExpect(jsonPath("$.chatLink").value(nullValue()));
+  }
+
+  @Test
+  void nonOwnerCannotUpdateRoom() throws Exception {
+    UserEntity owner = createActiveUser("forbidden-owner@example.com", "forbiddenOwner",
+        "Password123");
+    UserEntity participant = createActiveUser("forbidden-member@example.com", "forbiddenMember",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Protected room",
+        "https://chat.example.com/protected");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": true,
+                  "category": "SPORT",
+                  "name": "Hijacked room",
+                  "description": "Should fail",
+                  "maximumNumberOfPeople": 10,
+                  "chatLink": "https://chat.example.com/hijacked",
+                  "dateOfStartEvent": "2026-01-02T10:00:00Z",
+                  "dateOfEndEvent": "2026-01-02T12:00:00Z",
+                  "status": "ACTIVE",
+                  "ageRating": 18
+                }
+                """))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("Only room owner can manage the room"));
+  }
+
+  @Test
+  void ownerCannotReduceCapacityBelowCurrentParticipantCount() throws Exception {
+    UserEntity owner = createActiveUser("capacity-owner@example.com", "capacityOwner",
+        "Password123");
+    UserEntity participant = createActiveUser("capacity-member@example.com", "capacityMember",
+        "Password123");
+    UserEntity secondParticipant = createActiveUser("capacity-member-two@example.com",
+        "capacityMemberTwo", "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+    Cookie secondParticipantSession = login(secondParticipant.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Capacity room",
+        "https://chat.example.com/capacity");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), secondParticipantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(put("/api/rooms/" + roomId)
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": true,
+                  "category": "SPORT",
+                  "name": "Capacity room",
+                  "description": "Too small",
+                  "maximumNumberOfPeople": 2,
+                  "chatLink": "https://chat.example.com/capacity",
+                  "dateOfStartEvent": "2026-01-02T10:00:00Z",
+                  "dateOfEndEvent": "2026-01-02T12:00:00Z",
+                  "status": "ACTIVE",
+                  "ageRating": 18
+                }
+                """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message")
+            .value("Room capacity cannot be lower than current participant count"));
   }
 
   @Test

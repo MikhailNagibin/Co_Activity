@@ -14,6 +14,7 @@ import com.coactivity.domain.Notification;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
@@ -128,7 +129,7 @@ class RoomMembershipServiceTest {
     publicRoom.setPublic(true);
 
     when(userRepository.getUserById(userId)).thenReturn(user);
-    when(roomRepository.getRoomById(roomId)).thenReturn(publicRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(publicRoom);
     when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
@@ -148,7 +149,7 @@ class RoomMembershipServiceTest {
 
     assertEquals("User id is required", exception.getMessage());
     verifyNoInteractions(userRepository);
-    verify(roomRepository, never()).getRoomById(roomId);
+    verify(roomRepository, never()).getRoomByIdForUpdate(roomId);
   }
 
   @Test
@@ -167,7 +168,7 @@ class RoomMembershipServiceTest {
     users.put(participant, Role.PARTICIPANT);
 
     when(userRepository.getUserById(userId)).thenReturn(requester);
-    when(roomRepository.getRoomById(roomId)).thenReturn(privateRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(privateRoom);
     when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
@@ -191,7 +192,7 @@ class RoomMembershipServiceTest {
     privateRoom.setPublic(false);
 
     when(userRepository.getUserById(userId)).thenReturn(requester);
-    when(roomRepository.getRoomById(roomId)).thenReturn(privateRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(privateRoom);
     when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
@@ -222,7 +223,7 @@ class RoomMembershipServiceTest {
         RequestStatus.REFUSED);
 
     when(userRepository.getUserById(userId)).thenReturn(requester);
-    when(roomRepository.getRoomById(roomId)).thenReturn(privateRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(privateRoom);
     when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
@@ -244,7 +245,7 @@ class RoomMembershipServiceTest {
     Room privateRoom = createRoom(roomId, null);
 
     when(userRepository.getUserById(userId)).thenReturn(requester);
-    when(roomRepository.getRoomById(roomId)).thenReturn(privateRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(privateRoom);
     when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(true);
 
     AuthorizationException exception = assertThrows(AuthorizationException.class,
@@ -253,6 +254,46 @@ class RoomMembershipServiceTest {
     assertEquals("User is banned from this room", exception.getMessage());
     verify(roomsRequestRepository, never()).createRequest(userId, roomId, RequestStatus.CONSIDERATION);
     verify(roomRepository, never()).addUserToRoom(roomId, userId, Role.PARTICIPANT);
+  }
+
+  @Test
+  @DisplayName("joinRoom should reject inactive room")
+  void joinRoom_rejectsInactiveRoom() {
+    User requester = createUser(userId, "student@example.com", "student");
+    Room inactiveRoom = createRoom(roomId, null);
+    inactiveRoom.setStatus(RoomStatus.INACTIVE);
+
+    when(userRepository.getUserById(userId)).thenReturn(requester);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(inactiveRoom);
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> roomMembershipService.joinRoom(userId, roomId));
+
+    assertEquals("Only active rooms can accept new participants", exception.getMessage());
+    verify(roomRepository, never()).addUserToRoom(roomId, userId, Role.PARTICIPANT);
+    verify(roomsRequestRepository, never()).createRequest(userId, roomId, RequestStatus.CONSIDERATION);
+  }
+
+  @Test
+  @DisplayName("joinRoom should accept stale pending request when room is already public")
+  void joinRoom_acceptsStalePendingRequestForPublicRoom() {
+    User requester = createUser(userId, "student@example.com", "student");
+    Room publicRoom = createRoom(roomId, null);
+    publicRoom.setPublic(true);
+    RoomsRequest pendingRequest = new RoomsRequest(55, requester, publicRoom, Instant.now(),
+        RequestStatus.CONSIDERATION);
+
+    when(userRepository.getUserById(userId)).thenReturn(requester);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(publicRoom);
+    when(roomRepository.isUserBannedInRoom(roomId, userId)).thenReturn(false);
+    when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
+    when(roomsRequestRepository.getRequestByUserAndRoom(userId, roomId)).thenReturn(pendingRequest);
+
+    roomMembershipService.joinRoom(userId, roomId);
+
+    verify(roomRepository).addUserToRoom(roomId, userId, Role.PARTICIPANT);
+    verify(roomsRequestRepository).updateRequest(55, RequestStatus.ACCEPTED);
   }
 
   @Test
@@ -276,7 +317,7 @@ class RoomMembershipServiceTest {
         () -> roomMembershipService.isUserInRoom(null, roomId));
 
     assertEquals("User id is required", exception.getMessage());
-    verify(roomRepository, never()).getRoomById(roomId);
+    verify(roomRepository, never()).getRoomByIdForUpdate(roomId);
     verify(roomRepository, never()).isUserInMembers(roomId, null);
   }
 

@@ -12,6 +12,7 @@ import com.coactivity.domain.Notification;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.RoomRepository;
@@ -59,7 +60,7 @@ class JoinRequestServiceTest {
     RoomsRequest request = request(requestId, requesterId, room, RequestStatus.CONSIDERATION);
 
     when(roomsRequestRepository.getRequestById(requestId)).thenReturn(request);
-    when(roomRepository.getRoomById(roomId)).thenReturn(room);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
     when(roomRepository.isUserInMembers(roomId, moderatorId)).thenReturn(true);
     when(roomRepository.getUserRoleByRoomId(roomId, moderatorId)).thenReturn(Role.ADMIN);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(1);
@@ -83,7 +84,7 @@ class JoinRequestServiceTest {
     RoomsRequest request = request(requestId, requesterId, room, RequestStatus.CONSIDERATION);
 
     when(roomsRequestRepository.getRequestById(requestId)).thenReturn(request);
-    when(roomRepository.getRoomById(roomId)).thenReturn(room);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
     when(roomRepository.isUserInMembers(roomId, moderatorId)).thenReturn(true);
     when(roomRepository.getUserRoleByRoomId(roomId, moderatorId)).thenReturn(Role.OWNER);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
@@ -92,6 +93,30 @@ class JoinRequestServiceTest {
         () -> joinRequestService.processJoinRequest(moderatorId, requestId, RequestStatus.ACCEPTED));
 
     assertEquals("Room capacity exceeded", exception.getMessage());
+    verify(roomRepository, never()).addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
+    verify(roomsRequestRepository, never()).updateRequest(requestId, RequestStatus.ACCEPTED);
+    verify(applicationEventPublisher, never()).publishEvent(Mockito.any());
+  }
+
+  @Test
+  void processJoinRequestRejectsAcceptWhenRoomIsInactive() {
+    Integer moderatorId = 10;
+    Integer requesterId = 20;
+    Integer roomId = 30;
+    Integer requestId = 40;
+    Room room = room(roomId, false, "Inactive Room", 5);
+    room.setStatus(RoomStatus.INACTIVE);
+    RoomsRequest request = request(requestId, requesterId, room, RequestStatus.CONSIDERATION);
+
+    when(roomsRequestRepository.getRequestById(requestId)).thenReturn(request);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+    when(roomRepository.isUserInMembers(roomId, moderatorId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, moderatorId)).thenReturn(Role.OWNER);
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> joinRequestService.processJoinRequest(moderatorId, requestId, RequestStatus.ACCEPTED));
+
+    assertEquals("Only active rooms can accept new participants", exception.getMessage());
     verify(roomRepository, never()).addUserToRoom(roomId, requesterId, Role.PARTICIPANT);
     verify(roomsRequestRepository, never()).updateRequest(requestId, RequestStatus.ACCEPTED);
     verify(applicationEventPublisher, never()).publishEvent(Mockito.any());

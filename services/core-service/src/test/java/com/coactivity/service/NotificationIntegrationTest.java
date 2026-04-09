@@ -123,7 +123,7 @@ class NotificationIntegrationTest {
 
     testRoom = new Room(
         roomId,
-        false,
+        true,
         false,
         "https://chat.link",
         Category.SPORT,
@@ -151,7 +151,7 @@ class NotificationIntegrationTest {
   @DisplayName("Accepted request updates membership and publishes Kafka email command")
   void processJoinRequestAcceptedUpdatesStateAndPublishesKafka() {
     when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
-    when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(testRoom);
     when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(3);
@@ -201,7 +201,7 @@ class NotificationIntegrationTest {
   @DisplayName("Accepted request does not publish notification when room capacity is exceeded")
   void processJoinRequestAcceptedWhenRoomFullThrowsAndSkipsKafka() {
     when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
-    when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(testRoom);
     when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
     when(roomRepository.getRoomParticipantCount(roomId))
         .thenReturn(testRoom.getMaximumNumberOfPeople());
@@ -218,7 +218,7 @@ class NotificationIntegrationTest {
   @DisplayName("Accepted request does not publish notification when request status update fails")
   void processJoinRequestAcceptedWhenUpdateFailsSkipsKafka() {
     when(roomsRequestRepository.getRequestById(requestId)).thenReturn(testRequest);
-    when(roomRepository.getRoomById(roomId)).thenReturn(testRoom);
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(testRoom);
     when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
     when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
     when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(3);

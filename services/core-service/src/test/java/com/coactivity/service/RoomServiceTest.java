@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
+import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
@@ -21,9 +22,11 @@ import com.coactivity.domain.Category;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
+import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -43,6 +46,7 @@ class RoomServiceTest {
     private RoomRepository roomRepository;
     private RoomImageService roomImageService;
     private BulletinBoardRepository bulletinBoardRepository;
+    private RoomsRequestRepository roomsRequestRepository;
     private NotificationService notificationService;
     private RoomService roomService;
 
@@ -56,8 +60,9 @@ class RoomServiceTest {
         roomRepository = Mockito.mock(RoomRepository.class);
         roomImageService = Mockito.mock(RoomImageService.class);
         bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
+        roomsRequestRepository = Mockito.mock(RoomsRequestRepository.class);
         notificationService = Mockito.mock(NotificationService.class);
-        roomService = new RoomService(roomRepository, roomImageService, bulletinBoardRepository,
+        roomService = new RoomService(roomRepository, roomsRequestRepository, roomImageService, bulletinBoardRepository,
                 notificationService);
 
         ownerId = 10;
@@ -108,8 +113,10 @@ class RoomServiceTest {
     void getRooms_returnsOnlyPublicRooms() {
         Room publicRoom = createRoom(101, true, null);
         Room privateRoom = createRoom(102, false, null);
+        Room completedRoom = createRoom(103, true, null);
+        completedRoom.setStatus(RoomStatus.COMPLETED);
 
-        when(roomRepository.getAllRooms()).thenReturn(List.of(privateRoom, publicRoom));
+        when(roomRepository.getAllRooms()).thenReturn(List.of(privateRoom, completedRoom, publicRoom));
         when(roomRepository.getUsersInRoom(101)).thenReturn(Map.of());
 
         List<RoomSummaryResponse> responses = roomService.getRooms(null, null, RoomSort.NEWEST);
@@ -451,6 +458,93 @@ class RoomServiceTest {
         assertEquals("Room not found: 404", exception.getMessage());
     }
 
+    @Test
+    @DisplayName("updateRoom should let owner change room fields and lifecycle status")
+    void updateRoom_updatesRoomFieldsAndStatus() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setStatus(RoomStatus.COMPLETED);
+        request.setIsPublic(false);
+        request.setMaximumNumberOfPeople(25);
+        request.setName("Updated room");
+        request.setDescription("Updated description");
+
+        Room updatedRoom = createRoom(roomId, false, roomUsers);
+        updatedRoom.setStatus(RoomStatus.COMPLETED);
+        updatedRoom.setName("Updated room");
+        updatedRoom.setDescription("Updated description");
+        updatedRoom.setMaximumNumberOfPeople(25);
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        RoomDetailedResponse response = roomService.updateRoom(ownerId, roomId, request);
+
+        assertEquals(RoomStatus.COMPLETED, response.getStatus());
+        assertEquals(false, response.isActive());
+        assertEquals(false, response.getIsPublic());
+        assertEquals(25, response.getMaximumParticipants());
+        assertEquals("Updated room", response.getName());
+        verify(roomsRequestRepository).updatePendingRequestsByRoom(roomId, com.coactivity.domain.RequestStatus.REFUSED);
+        verify(roomRepository).updateRoom(roomId, request);
+    }
+
+    @Test
+    @DisplayName("updateRoom should reject non-owner requester")
+    void updateRoom_rejectsNonOwnerRequester() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.PARTICIPANT);
+
+        AuthorizationException exception = assertThrows(AuthorizationException.class,
+                () -> roomService.updateRoom(ownerId, roomId, request));
+
+        assertEquals("Only room owner can manage the room", exception.getMessage());
+        verify(roomRepository, never()).updateRoom(roomId, request);
+    }
+
+    @Test
+    @DisplayName("updateRoom should reject capacity below current participant count")
+    void updateRoom_rejectsCapacityBelowCurrentParticipantCount() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setMaximumNumberOfPeople(2);
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(3);
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> roomService.updateRoom(ownerId, roomId, request));
+
+        assertEquals("Room capacity cannot be lower than current participant count",
+                exception.getMessage());
+        verify(roomRepository, never()).updateRoom(roomId, request);
+    }
+
+    @Test
+    @DisplayName("updateRoom should remove pending requests when room becomes public")
+    void updateRoom_deletesPendingRequestsWhenRoomBecomesPublic() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setIsPublic(true);
+        request.setStatus(RoomStatus.ACTIVE);
+        room.setPublic(false);
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(room);
+        when(roomRepository.getRoomById(roomId)).thenReturn(room);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(roomsRequestRepository).deletePendingRequestsByRoom(roomId);
+        verify(roomsRequestRepository, never())
+                .updatePendingRequestsByRoom(roomId, com.coactivity.domain.RequestStatus.REFUSED);
+    }
+
     private RoomCreationRequest validRoomCreationRequest() {
         RoomCreationRequest request = new RoomCreationRequest();
         request.setIsPublic(true);
@@ -460,6 +554,21 @@ class RoomServiceTest {
         request.setMaximumNumberOfPeople(12);
         request.setDateOfStartEvent(Instant.now().plusSeconds(3600));
         request.setDateOfEndEvent(Instant.now().plusSeconds(7200));
+        request.setAgeRating(18);
+        return request;
+    }
+
+    private RoomUpdateRequest validRoomUpdateRequest() {
+        RoomUpdateRequest request = new RoomUpdateRequest();
+        request.setIsPublic(true);
+        request.setCategory("ART");
+        request.setName("Updated room");
+        request.setDescription("Updated in test");
+        request.setMaximumNumberOfPeople(12);
+        request.setChatLink("https://chat.example.com/updated");
+        request.setDateOfStartEvent(Instant.parse("2030-01-02T10:00:00Z"));
+        request.setDateOfEndEvent(Instant.parse("2030-01-02T12:00:00Z"));
+        request.setStatus(RoomStatus.ACTIVE);
         request.setAgeRating(18);
         return request;
     }
