@@ -15,6 +15,7 @@ import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
+import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
@@ -48,6 +49,7 @@ class NotificationIntegrationTest {
   private KafkaTemplate<String, String> kafkaTemplate;
   private NotificationService notificationService;
   private JoinRequestService joinRequestService;
+  private RoomMembershipService roomMembershipService;
 
   private User testUser;
   private User adminUser;
@@ -85,6 +87,14 @@ class NotificationIntegrationTest {
         roomRepository,
         roomsRequestRepository,
         userRepository,
+        applicationEventPublisher);
+    roomMembershipService = new RoomMembershipService(
+        userRepository,
+        roomRepository,
+        roomsRequestRepository,
+        Mockito.mock(RoomImageService.class),
+        Mockito.mock(BulletinBoardRepository.class),
+        notificationService,
         applicationEventPublisher);
 
     userId = 1;
@@ -244,6 +254,40 @@ class NotificationIntegrationTest {
 
     assertThrows(RuntimeException.class,
         () -> joinRequestService.processJoinRequest(adminId, requestId, RequestStatus.REFUSED_WITH_BAN));
+
+    verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Direct ban of pending requester publishes the same Kafka email command")
+  void directBanPendingRequesterPublishesKafka() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(testRoom);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
+    when(userRepository.getUserById(userId)).thenReturn(testUser);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
+    when(roomsRequestRepository.getRequestByUserAndRoom(userId, roomId)).thenReturn(testRequest);
+
+    roomMembershipService.banUser(adminId, roomId, userId);
+
+    verify(roomRepository).addUserBan(roomId, userId);
+    verify(roomsRequestRepository).updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
+    verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Direct ban does not publish notification when request status update fails")
+  void directBanWhenUpdateFailsSkipsKafka() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(testRoom);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.OWNER);
+    when(userRepository.getUserById(userId)).thenReturn(testUser);
+    when(roomRepository.isUserInMembers(roomId, userId)).thenReturn(false);
+    when(roomsRequestRepository.getRequestByUserAndRoom(userId, roomId)).thenReturn(testRequest);
+    doThrow(new RuntimeException("status update failed"))
+        .when(roomsRequestRepository)
+        .updateRequest(requestId, RequestStatus.REFUSED_WITH_BAN);
+
+    assertThrows(RuntimeException.class,
+        () -> roomMembershipService.banUser(adminId, roomId, userId));
 
     verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
   }

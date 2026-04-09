@@ -391,6 +391,264 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
   }
 
   @Test
+  void adminCanRemoveOrdinaryParticipantAndMembershipIsRevoked() throws Exception {
+    UserEntity owner = createActiveUser("remove-owner@example.com", "removeOwner", "Password123");
+    UserEntity admin = createActiveUser("remove-admin@example.com", "removeAdmin", "Password123");
+    UserEntity participant = createActiveUser("remove-member@example.com", "removeMember",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie adminSession = login(admin.getEmail(), "Password123", csrf, null);
+    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Moderated removal room",
+        "https://chat.example.com/moderated-removal");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/users/rooms/" + roomId + "/admins/" + admin.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isOk());
+
+    mockMvc.perform(delete("/api/rooms/" + roomId + "/participants/" + participant.getId())
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/membership").cookie(participantSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(false));
+
+    mockMvc.perform(get("/api/rooms/" + roomId + "/participants").cookie(adminSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2));
+  }
+
+  @Test
+  void adminCanBanListAndUnbanParticipantAndJoinAccessChangesAccordingly() throws Exception {
+    UserEntity owner = createActiveUser("govern-owner@example.com", "governOwner", "Password123");
+    UserEntity admin = createActiveUser("govern-admin@example.com", "governAdmin", "Password123");
+    UserEntity participant = createActiveUser("govern-member@example.com", "governMember",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie adminSession = login(admin.getEmail(), "Password123", csrf, null);
+    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Governance room",
+        "https://chat.example.com/governance");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/users/rooms/" + roomId + "/admins/" + admin.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isOk());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/bans/" + participant.getId())
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/membership").cookie(participantSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(false));
+
+    mockMvc.perform(get("/api/rooms/" + roomId + "/bans").cookie(adminSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(participant.getId()))
+        .andExpect(jsonPath("$[0].userName").value("governMember"));
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isForbidden());
+
+    mockMvc.perform(delete("/api/rooms/" + roomId + "/bans/" + participant.getId())
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), participantSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/membership").cookie(participantSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(true));
+  }
+
+  @Test
+  void adminCannotBanOwner() throws Exception {
+    UserEntity owner = createActiveUser("cannot-ban-owner@example.com", "cannotBanOwner",
+        "Password123");
+    UserEntity admin = createActiveUser("cannot-ban-admin@example.com", "cannotBanAdmin",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie adminSession = login(admin.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Owner protected room",
+        "https://chat.example.com/owner-protected");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/users/rooms/" + roomId + "/admins/" + admin.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isOk());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/bans/" + owner.getId())
+            .cookie(csrf.cookie(), adminSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Room owner cannot be banned"));
+  }
+
+  @Test
+  void ownerCanTransferOwnershipAndRemainsParticipant() throws Exception {
+    UserEntity owner = createActiveUser("transfer-owner@example.com", "transferOwner",
+        "Password123");
+    UserEntity successor = createActiveUser("transfer-successor@example.com",
+        "transferSuccessor", "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie successorSession = login(successor.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Transfer room",
+        "https://chat.example.com/transfer");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), successorSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/ownership/transfer")
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "targetUserId": %d
+                }
+                """.formatted(successor.getId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.roomId").value(roomId))
+        .andExpect(jsonPath("$.previousOwnerId").value(owner.getId()))
+        .andExpect(jsonPath("$.newOwnerId").value(successor.getId()))
+        .andExpect(jsonPath("$.previousOwnerNewRole").value("PARTICIPANT"))
+        .andExpect(jsonPath("$.newOwnerRole").value("OWNER"));
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/membership").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(true));
+
+    mockMvc.perform(get("/api/rooms/" + roomId + "/participants/" + owner.getId())
+            .cookie(successorSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.role").value("PARTICIPANT"));
+
+    mockMvc.perform(get("/api/rooms/" + roomId + "/participants").cookie(ownerSession))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void ownerCannotTransferOwnershipToOutsider() throws Exception {
+    UserEntity owner = createActiveUser("transfer-conflict-owner@example.com",
+        "transferConflict", "Password123");
+    UserEntity outsider = createActiveUser("transfer-outsider@example.com", "transferOutsider",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, true, "Transfer conflict room",
+        "https://chat.example.com/transfer-conflict");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/ownership/transfer")
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "targetUserId": %d
+                }
+                """.formatted(outsider.getId())))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("INVALID_OWNERSHIP_TRANSFER"))
+        .andExpect(jsonPath("$.message")
+            .value("Ownership can only be transferred to an existing room participant"));
+  }
+
+  @Test
+  void governanceEndpointsReturnNotFoundForMissingRoom() throws Exception {
+    UserEntity owner = createActiveUser("missing-room-owner@example.com", "missingRoomOwner",
+        "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+
+    mockMvc.perform(delete("/api/rooms/999999/participants/" + owner.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+
+    mockMvc.perform(post("/api/rooms/999999/bans/" + owner.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+
+    mockMvc.perform(get("/api/rooms/999999/bans").cookie(ownerSession))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+
+    mockMvc.perform(delete("/api/rooms/999999/bans/" + owner.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+
+    mockMvc.perform(post("/api/rooms/999999/ownership/transfer")
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "targetUserId": %d
+                }
+                """.formatted(owner.getId())))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+  }
+
+  @Test
   void participantCanLeaveRoomAndLosesProtectedAccess() throws Exception {
     UserEntity owner = createActiveUser("leave-owner@example.com", "leaveOwner", "Password123");
     UserEntity participant = createActiveUser("leave-member@example.com", "leaveMember",
@@ -557,6 +815,41 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), requesterSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void directBanOfPendingRequesterClosesRequestAndPublishesRejectedNotification() throws Exception {
+    UserEntity owner = createActiveUser("direct-ban-owner@example.com", "directBanOwner",
+        "Password123");
+    UserEntity requester = createActiveUser("direct-ban-requester@example.com",
+        "directBanReq", "Password123");
+
+    CsrfContext csrf = fetchCsrf();
+    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
+    Cookie requesterSession = login(requester.getEmail(), "Password123", csrf, null);
+
+    Integer roomId = createRoomThroughApi(ownerSession, csrf, false, "Direct ban room",
+        "https://chat.example.com/direct-ban");
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/join")
+            .cookie(csrf.cookie(), requesterSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rooms/" + roomId + "/bans/" + requester.getId())
+            .cookie(csrf.cookie(), ownerSession)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isNoContent());
+
+    verify(notificationService).sendMembershipRejected(eq(requester.getId()), eq("Direct ban room"));
+
+    mockMvc.perform(get("/api/users/rooms/" + roomId + "/requests/pending").cookie(ownerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+
+    mockMvc.perform(get("/api/users/requests/sent").cookie(requesterSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].status").value("REFUSED_WITH_BAN"));
   }
 
   @Test
