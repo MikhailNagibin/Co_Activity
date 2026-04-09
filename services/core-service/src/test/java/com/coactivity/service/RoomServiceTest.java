@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -20,9 +22,11 @@ import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.Category;
 import com.coactivity.domain.Notification;
+import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomStatus;
+import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
@@ -543,6 +547,189 @@ class RoomServiceTest {
         verify(roomsRequestRepository).deletePendingRequestsByRoom(roomId);
         verify(roomsRequestRepository, never())
                 .updatePendingRequestsByRoom(roomId, com.coactivity.domain.RequestStatus.REFUSED);
+    }
+
+    @Test
+    @DisplayName("updateRoom should send important room update email on status change to inactive")
+    void updateRoom_sendsImportantUpdateForInactiveStatus() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setStatus(RoomStatus.INACTIVE);
+
+        Room updatedRoom = createRoom(roomId, true, roomUsers);
+        updatedRoom.setStatus(RoomStatus.INACTIVE);
+        updatedRoom.setName(request.getName());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
+        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+    }
+
+    @Test
+    @DisplayName("updateRoom should send important room update email on status change to completed")
+    void updateRoom_sendsImportantUpdateForCompletedStatus() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setStatus(RoomStatus.COMPLETED);
+
+        Room updatedRoom = createRoom(roomId, true, roomUsers);
+        updatedRoom.setStatus(RoomStatus.COMPLETED);
+        updatedRoom.setName(request.getName());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
+        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+    }
+
+    @Test
+    @DisplayName("updateRoom should send important room update email on schedule change")
+    void updateRoom_sendsImportantUpdateForScheduleChange() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(room);
+        when(roomRepository.getRoomById(roomId)).thenReturn(room);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
+        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+    }
+
+    @Test
+    @DisplayName("updateRoom should send important room update email on chat link change")
+    void updateRoom_sendsImportantUpdateForChatLinkChange() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setDateOfStartEvent(room.getDateOfStartEvent());
+        request.setDateOfEndEvent(room.getDateOfEndEvent());
+        request.setFrequency(room.getFrequency());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(room);
+        when(roomRepository.getRoomById(roomId)).thenReturn(room);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
+        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+    }
+
+    @Test
+    @DisplayName("updateRoom should not send important room update email for description only change")
+    void updateRoom_doesNotSendImportantUpdateForDescriptionOnlyChange() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setDescription("Only description changed");
+        request.setChatLink(room.getChatLink());
+        request.setDateOfStartEvent(room.getDateOfStartEvent());
+        request.setDateOfEndEvent(room.getDateOfEndEvent());
+        request.setFrequency(room.getFrequency());
+        request.setStatus(room.getStatus());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(room);
+        when(roomRepository.getRoomById(roomId)).thenReturn(room);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService, never()).sendImportantRoomUpdate(eq(ownerId), any());
+        verify(notificationService, never()).sendImportantRoomUpdate(eq(20), any());
+    }
+
+    @Test
+    @DisplayName("updateRoom should notify pending requester when room becomes inactive")
+    void updateRoom_notifiesPendingRequesterWhenRoomBecomesInactive() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setStatus(RoomStatus.INACTIVE);
+        User requester = createUser(30, "requester@example.com", "requester");
+        RoomsRequest pendingRequest = new RoomsRequest(501, requester, room, Instant.now(),
+                RequestStatus.CONSIDERATION);
+
+        Room updatedRoom = createRoom(roomId, true, roomUsers);
+        updatedRoom.setStatus(RoomStatus.INACTIVE);
+        updatedRoom.setName(request.getName());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomsRequestRepository.getRoomRequests(roomId)).thenReturn(List.of(pendingRequest));
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendPendingRequestAutoDeclined(30, request.getName(),
+                "the room became inactive");
+    }
+
+    @Test
+    @DisplayName("updateRoom should notify pending requester when room becomes completed")
+    void updateRoom_notifiesPendingRequesterWhenRoomBecomesCompleted() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setStatus(RoomStatus.COMPLETED);
+        User requester = createUser(30, "requester@example.com", "requester");
+        RoomsRequest pendingRequest = new RoomsRequest(501, requester, room, Instant.now(),
+                RequestStatus.CONSIDERATION);
+
+        Room updatedRoom = createRoom(roomId, true, roomUsers);
+        updatedRoom.setStatus(RoomStatus.COMPLETED);
+        updatedRoom.setName(request.getName());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomsRequestRepository.getRoomRequests(roomId)).thenReturn(List.of(pendingRequest));
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendPendingRequestAutoDeclined(30, request.getName(),
+                "the room became completed");
+    }
+
+    @Test
+    @DisplayName("updateRoom should notify pending requester when room becomes public")
+    void updateRoom_notifiesPendingRequesterWhenRoomBecomesPublic() {
+        RoomUpdateRequest request = validRoomUpdateRequest();
+        request.setIsPublic(true);
+        request.setStatus(RoomStatus.ACTIVE);
+        request.setChatLink(room.getChatLink());
+        room.setPublic(false);
+        User requester = createUser(30, "requester@example.com", "requester");
+        RoomsRequest pendingRequest = new RoomsRequest(501, requester, room, Instant.now(),
+                RequestStatus.CONSIDERATION);
+
+        Room updatedRoom = createRoom(roomId, true, roomUsers);
+        updatedRoom.setName(request.getName());
+
+        when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(room);
+        when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+        when(roomRepository.getRoomParticipantCount(roomId)).thenReturn(2);
+        when(roomsRequestRepository.getRoomRequests(roomId)).thenReturn(List.of(pendingRequest));
+        when(roomRepository.updateRoom(roomId, request)).thenReturn(updatedRoom);
+        when(roomRepository.getRoomById(roomId)).thenReturn(updatedRoom);
+
+        roomService.updateRoom(ownerId, roomId, request);
+
+        verify(notificationService).sendPendingRequestApprovalNoLongerNeeded(30, request.getName());
     }
 
     private RoomCreationRequest validRoomCreationRequest() {

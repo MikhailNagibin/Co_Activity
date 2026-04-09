@@ -116,8 +116,10 @@ class UserProfileServiceTest {
         true,
         false,
         true,
-        null);
-    User updatedUser = user(7, List.of(Notification.MEMBERSHIP_ACCEPTED, Notification.ACTIVITY_CLOSED));
+        null,
+        true);
+    User updatedUser = user(7, List.of(Notification.MEMBERSHIP_ACCEPTED,
+        Notification.ACTIVITY_CLOSED, Notification.IMPORTANT_ROOM_UPDATES));
 
     when(userRepository.getUserById(7)).thenReturn(updatedUser);
 
@@ -131,6 +133,7 @@ class UserProfileServiceTest {
     assertEquals(false, response.getMembershipRejected());
     assertEquals(true, response.getActivityClosed());
     assertEquals(false, response.getNewJoinRequest());
+    assertEquals(true, response.getImportantRoomUpdates());
     assertNotNull(response.getUpdatedAt());
   }
 
@@ -144,7 +147,8 @@ class UserProfileServiceTest {
 
   @Test
   void configureNotificationSettings_rejectsUnknownUserEvenWhenRequestHasNoChanges() {
-    NotificationSettingsRequest request = new NotificationSettingsRequest(null, null, null, null);
+    NotificationSettingsRequest request =
+        new NotificationSettingsRequest(null, null, null, null, null);
     when(userRepository.getUserById(404)).thenReturn(null);
 
     ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
@@ -153,6 +157,21 @@ class UserProfileServiceTest {
     assertEquals("User not found", exception.getMessage());
     verify(userRepository, never()).setNotification(Mockito.anyInt(), Mockito.any());
     verify(userRepository, never()).removeNotification(Mockito.anyInt(), Mockito.any());
+  }
+
+  @Test
+  void getNotificationSettings_returnsEmailPreferences() {
+    User user = user(7, List.of(Notification.MEMBERSHIP_ACCEPTED,
+        Notification.IMPORTANT_ROOM_UPDATES));
+    when(userRepository.getUserById(7)).thenReturn(user);
+
+    NotificationSettingsResponse response = userProfileService.getNotificationSettings(7);
+
+    assertEquals(true, response.getMembershipAccepted());
+    assertEquals(false, response.getMembershipRejected());
+    assertEquals(false, response.getActivityClosed());
+    assertEquals(false, response.getNewJoinRequest());
+    assertEquals(true, response.getImportantRoomUpdates());
   }
 
   private User user(Integer id, List<Notification> notifications) {

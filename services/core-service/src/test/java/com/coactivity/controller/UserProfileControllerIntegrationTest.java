@@ -23,7 +23,6 @@ import com.coactivity.persistence.repository.UserAvatarJpaRepository;
 import com.coactivity.support.AbstractSessionWebIntegrationTest;
 import com.coactivity.support.TestImageFactory;
 import jakarta.servlet.http.Cookie;
-import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -387,21 +386,32 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
                   "membershipAccepted": true,
                   "membershipRejected": false,
                   "activityClosed": true,
-                  "newJoinRequest": true
+                  "newJoinRequest": true,
+                  "importantRoomUpdates": true
                 }
                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.membershipAccepted").value(true))
         .andExpect(jsonPath("$.membershipRejected").value(false))
         .andExpect(jsonPath("$.activityClosed").value(true))
-        .andExpect(jsonPath("$.newJoinRequest").value(true));
+        .andExpect(jsonPath("$.newJoinRequest").value(true))
+        .andExpect(jsonPath("$.importantRoomUpdates").value(true));
+
+    mockMvc.perform(get("/api/users/me/notifications").cookie(session))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.membershipAccepted").value(true))
+        .andExpect(jsonPath("$.membershipRejected").value(false))
+        .andExpect(jsonPath("$.activityClosed").value(true))
+        .andExpect(jsonPath("$.newJoinRequest").value(true))
+        .andExpect(jsonPath("$.importantRoomUpdates").value(true));
 
     mockMvc.perform(get("/api/users/me").cookie(session))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.notifications", hasItems(
             "MEMBERSHIP_ACCEPTED",
             "ACTIVITY_CLOSED",
-            "NEW_JOIN_REQUEST")));
+            "NEW_JOIN_REQUEST",
+            "IMPORTANT_ROOM_UPDATES")));
   }
 
   @Test

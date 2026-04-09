@@ -42,6 +42,8 @@ class AuthSessionIntegrationTest extends AbstractSessionWebIntegrationTest {
     resetState();
     when(notificationService.sendRegistrationVerificationCode(anyString(), anyString()))
         .thenReturn(true);
+    when(notificationService.sendPasswordResetCode(anyString(), anyString()))
+        .thenReturn(true);
   }
 
   @Test
@@ -287,5 +289,60 @@ class AuthSessionIntegrationTest extends AbstractSessionWebIntegrationTest {
     mockMvc.perform(get("/api/auth/me").cookie(newSession))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value("passwordChange"));
+  }
+
+  @Test
+  void passwordResetFlowInvalidatesExistingSessionsAndAllowsNewPassword() throws Exception {
+    createActiveUser("password-reset@example.com", "passwordReset", "Password123");
+    CsrfContext csrf = fetchCsrf();
+
+    Cookie firstSession = login("password-reset@example.com", "Password123", csrf, null);
+    Cookie secondSession = login("password-reset@example.com", "Password123", csrf, null);
+
+    mockMvc.perform(post("/api/auth/password/reset/request")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "password-reset@example.com"
+                }
+                """))
+        .andExpect(status().isNoContent());
+
+    ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendPasswordResetCode(anyString(), codeCaptor.capture());
+
+    mockMvc.perform(post("/api/auth/password/reset/verify")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content(objectMapper.writeValueAsString(
+                java.util.Map.of(
+                    "email", "password-reset@example.com",
+                    "code", codeCaptor.getValue()))))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/auth/password/reset/confirm")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content(objectMapper.writeValueAsString(
+                java.util.Map.of(
+                    "email", "password-reset@example.com",
+                    "code", codeCaptor.getValue(),
+                    "newPassword", "Password456"))))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/auth/me").cookie(firstSession))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc.perform(get("/api/auth/me").cookie(secondSession))
+        .andExpect(status().isUnauthorized());
+
+    Cookie newSession = login("password-reset@example.com", "Password456", csrf, null);
+    mockMvc.perform(get("/api/auth/me").cookie(newSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username").value("passwordReset"));
   }
 }

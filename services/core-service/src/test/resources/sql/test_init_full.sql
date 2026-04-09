@@ -182,5 +182,6 @@ INSERT INTO notifications (notification) VALUES
 ('MembershipAccepted'),
 ('MembershipRejected'),
 ('ActivityClosed'),
-('NewJoinRequest')
+('NewJoinRequest'),
+('ImportantRoomUpdates')
 ON CONFLICT DO NOTHING;

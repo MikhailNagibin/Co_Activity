@@ -16,6 +16,8 @@ class NotificationMappingTest {
     assertEquals(Notification.MEMBERSHIP_ACCEPTED, Notification.fromValue("membershipAccepted"));
     assertEquals(Notification.NEW_JOIN_REQUEST, Notification.fromValue("NewJoinRequest"));
     assertEquals(Notification.NEW_JOIN_REQUEST, Notification.fromValue("new_join_request"));
+    assertEquals(Notification.IMPORTANT_ROOM_UPDATES,
+        Notification.fromValue("importantRoomUpdates"));
   }
 
   @Test

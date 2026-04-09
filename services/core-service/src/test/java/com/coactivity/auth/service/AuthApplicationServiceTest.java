@@ -16,6 +16,9 @@ import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
 import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
+import com.coactivity.controller.dto.request.PasswordResetConfirmRequest;
+import com.coactivity.controller.dto.request.PasswordResetRequest;
+import com.coactivity.controller.dto.request.PasswordResetVerifyRequest;
 import com.coactivity.controller.dto.response.RegistrationResponse;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.persistence.entity.UserEntity;
@@ -55,6 +58,8 @@ class AuthApplicationServiceTest {
   private PasswordEncoder passwordEncoder;
   private NotificationService notificationService;
   private RedisChallengeStore challengeStore;
+  private RedisPasswordResetStore passwordResetStore;
+  private SessionInvalidationService sessionInvalidationService;
   private AuthApplicationService authApplicationService;
 
   @BeforeEach
@@ -66,16 +71,19 @@ class AuthApplicationServiceTest {
     passwordEncoder = Mockito.mock(PasswordEncoder.class);
     notificationService = Mockito.mock(NotificationService.class);
     challengeStore = Mockito.mock(RedisChallengeStore.class);
+    passwordResetStore = Mockito.mock(RedisPasswordResetStore.class);
+    sessionInvalidationService = Mockito.mock(SessionInvalidationService.class);
 
     authApplicationService = new AuthApplicationService(
         userJpaRepository,
         passwordEncoder,
         notificationService,
         challengeStore,
+        passwordResetStore,
         authenticationManager,
         securityContextRepository,
         userProfileService,
-        Mockito.mock(SessionInvalidationService.class),
+        sessionInvalidationService,
         Mockito.mock(CurrentUserDetailsService.class));
   }
 
@@ -355,6 +363,83 @@ class AuthApplicationServiceTest {
     assertEquals("EMAIL_ALREADY_VERIFIED", exception.getCode());
     verify(challengeStore, never()).create(anyString(), any(), anyString());
     verify(notificationService, never()).sendRegistrationVerificationCode(anyString(), anyString());
+  }
+
+  @Test
+  void requestPasswordResetCreatesChallengeForActiveUser() {
+    UserEntity activeUser = new UserEntity();
+    activeUser.setId(55);
+    activeUser.setEmail("reset@example.com");
+    activeUser.setEmailNormalized("reset@example.com");
+    activeUser.setStatus(UserStatus.ACTIVE);
+
+    when(passwordResetStore.tryActivateRequestCooldown("reset@example.com")).thenReturn(true);
+    when(userJpaRepository.findByEmailNormalized("reset@example.com"))
+        .thenReturn(Optional.of(activeUser));
+    when(notificationService.sendPasswordResetCode(eq("reset@example.com"), anyString()))
+        .thenReturn(true);
+
+    authApplicationService.requestPasswordReset(new PasswordResetRequest("reset@example.com"));
+
+    verify(passwordResetStore).create(eq("reset@example.com"), eq(55), anyString());
+    verify(notificationService).sendPasswordResetCode(eq("reset@example.com"), anyString());
+  }
+
+  @Test
+  void requestPasswordResetDoesNotRevealMissingAccount() {
+    when(passwordResetStore.tryActivateRequestCooldown("missing@example.com")).thenReturn(true);
+    when(userJpaRepository.findByEmailNormalized("missing@example.com")).thenReturn(Optional.empty());
+
+    authApplicationService.requestPasswordReset(new PasswordResetRequest("missing@example.com"));
+
+    verify(passwordResetStore, never()).create(anyString(), any(), anyString());
+    verify(notificationService, never()).sendPasswordResetCode(anyString(), anyString());
+  }
+
+  @Test
+  void verifyPasswordResetRejectsInvalidCode() {
+    when(passwordResetStore.inspect("reset@example.com", "000000"))
+        .thenReturn(RedisPasswordResetStore.VerificationResult.INVALID_CODE);
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> authApplicationService.verifyPasswordReset(
+            new PasswordResetVerifyRequest("reset@example.com", "000000")));
+
+    assertEquals("INVALID_PASSWORD_RESET_CODE", exception.getCode());
+  }
+
+  @Test
+  void verifyPasswordResetRejectsExpiredCode() {
+    when(passwordResetStore.inspect("reset@example.com", "111111"))
+        .thenReturn(RedisPasswordResetStore.VerificationResult.EXPIRED_OR_MISSING);
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> authApplicationService.verifyPasswordReset(
+            new PasswordResetVerifyRequest("reset@example.com", "111111")));
+
+    assertEquals("PASSWORD_RESET_CODE_EXPIRED", exception.getCode());
+  }
+
+  @Test
+  void confirmPasswordResetUpdatesPasswordAndInvalidatesSessions() {
+    UserEntity activeUser = new UserEntity();
+    activeUser.setId(55);
+    activeUser.setEmail("reset@example.com");
+    activeUser.setEmailNormalized("reset@example.com");
+    activeUser.setStatus(UserStatus.ACTIVE);
+
+    when(passwordResetStore.consume("reset@example.com", "123456"))
+        .thenReturn(RedisPasswordResetStore.VerificationResult.SUCCESS);
+    when(userJpaRepository.findByEmailNormalized("reset@example.com"))
+        .thenReturn(Optional.of(activeUser));
+    when(passwordEncoder.encode("NewPassword123")).thenReturn("encoded-new-password");
+
+    authApplicationService.confirmPasswordReset(
+        new PasswordResetConfirmRequest("reset@example.com", "123456", "NewPassword123"));
+
+    assertEquals("encoded-new-password", activeUser.getPasswordHash());
+    verify(passwordResetStore).clearRequestCooldown("reset@example.com");
+    verify(sessionInvalidationService).invalidateAllSessions("reset@example.com");
   }
 
   @Test
