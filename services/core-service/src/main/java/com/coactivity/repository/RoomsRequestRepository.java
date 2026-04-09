@@ -57,4 +57,8 @@ public interface RoomsRequestRepository {
   RoomsRequest getRequestById(int requestId);
 
   RoomsRequest getRequestByUserAndRoom(int userId, int roomId);
+
+  void deletePendingRequestsByRoom(int roomId);
+
+  int updatePendingRequestsByRoom(int roomId, RequestStatus status);
 }

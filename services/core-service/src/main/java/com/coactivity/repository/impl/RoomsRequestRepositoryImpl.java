@@ -101,6 +101,32 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
         .orElse(null);
   }
 
+  @Override
+  public void deletePendingRequestsByRoom(int roomId) {
+    RequestStatusEntity pendingStatus = findStatusEntity(RequestStatus.CONSIDERATION);
+    List<RoomsRequestEntity> pendingRequests =
+        roomsRequestJpaRepository.findAllByRoom_IdAndStatus_Id(roomId, pendingStatus.getId());
+    if (!pendingRequests.isEmpty()) {
+      roomsRequestJpaRepository.deleteAllInBatch(pendingRequests);
+    }
+  }
+
+  @Override
+  public int updatePendingRequestsByRoom(int roomId, RequestStatus status) {
+    RequestStatusEntity pendingStatus = findStatusEntity(RequestStatus.CONSIDERATION);
+    List<RoomsRequestEntity> pendingRequests =
+        roomsRequestJpaRepository.findAllByRoom_IdAndStatus_Id(roomId, pendingStatus.getId());
+    if (pendingRequests.isEmpty()) {
+      return 0;
+    }
+
+    RequestStatusEntity targetStatus = findStatusEntity(status);
+    for (RoomsRequestEntity entity : pendingRequests) {
+      entity.setStatus(targetStatus);
+    }
+    return pendingRequests.size();
+  }
+
   private RequestStatusEntity findStatusEntity(RequestStatus status) {
     return requestStatusLookupRepository.findByStatusInfoIgnoreCase(
             CoreLookupMapper.toDbRequestStatus(status))

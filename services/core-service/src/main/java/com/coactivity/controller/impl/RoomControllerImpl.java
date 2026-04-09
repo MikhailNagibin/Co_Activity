@@ -3,6 +3,7 @@ package com.coactivity.controller.impl;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
+import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
@@ -71,6 +72,16 @@ public class RoomControllerImpl {
         ? URI.create("/api/rooms/" + response.getRoomId())
         : URI.create("/api/rooms"));
     return ResponseEntity.created(location).body(response);
+  }
+
+  @PutMapping("/{roomId}")
+  public ResponseEntity<RoomDetailedResponse> updateRoom(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Valid @RequestBody RoomUpdateRequest request) {
+    RoomDetailedResponse response =
+        roomService.updateRoom(currentUser.getUserId(), roomId, request);
+    return ResponseEntity.ok(response);
   }
 
   @PutMapping("/{roomId}/bulletin")

@@ -54,7 +54,7 @@ public final class CoreDomainMapper {
     }
     return new Room(
         entity.getId(),
-        entity.isActive(),
+        entity.getStatus(),
         entity.isPublicRoom(),
         entity.getChatLink(),
         CoreLookupMapper.toCategory(entity.getCategory().getName()),

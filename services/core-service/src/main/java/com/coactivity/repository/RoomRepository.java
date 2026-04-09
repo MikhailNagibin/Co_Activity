@@ -1,6 +1,7 @@
 package com.coactivity.repository;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
 import com.coactivity.domain.User;
@@ -18,6 +19,8 @@ public interface RoomRepository {
    */
   Room createRoom(Integer ownerId, RoomCreationRequest request);
 
+  Room updateRoom(Integer roomId, RoomUpdateRequest request);
+
 
   /**
    *
@@ -25,6 +28,8 @@ public interface RoomRepository {
    * @return
    */
   Room getRoomById(Integer roomId);
+
+  Room getRoomByIdForUpdate(Integer roomId);
 
   /**
    *

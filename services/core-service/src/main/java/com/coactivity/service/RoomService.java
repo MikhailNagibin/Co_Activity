@@ -3,6 +3,7 @@ package com.coactivity.service;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.RoomSort;
+import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
@@ -10,11 +11,14 @@ import com.coactivity.controller.dto.response.RoomImageResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
+import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
+import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -26,20 +30,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RoomService {
 
   private final RoomRepository roomRepository;
+  private final RoomsRequestRepository roomsRequestRepository;
   private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
 
   public RoomService(RoomRepository roomRepository,
+      RoomsRequestRepository roomsRequestRepository,
       RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
       NotificationService notificationService) {
     this.roomRepository = roomRepository;
+    this.roomsRequestRepository = roomsRequestRepository;
     this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.notificationService = notificationService;
@@ -48,6 +56,7 @@ public class RoomService {
   /**
    * Creates a new room and assigns the provided user as the room OWNER.
    */
+  @Transactional
   public RoomCreationResponse createRoom(Integer ownerId, RoomCreationRequest request) {
     if (ownerId == null) {
       throw new ValidationException("Owner id is required");
@@ -61,6 +70,25 @@ public class RoomService {
 
     return new RoomCreationResponse(createdRoom.getId(), createdRoom.getName(),
         createdRoom.getCategory());
+  }
+
+  @Transactional
+  public RoomDetailedResponse updateRoom(Integer requesterId, Integer roomId,
+      RoomUpdateRequest request) {
+    if (requesterId == null || roomId == null) {
+      throw new ValidationException("Requester id and room id are required");
+    }
+    Room currentRoom = getExistingRoomForUpdate(roomId);
+    requireOwner(requesterId, roomId, "Only room owner can manage the room");
+    validateRoomUpdateRequest(roomId, request);
+    reconcilePendingJoinRequests(currentRoom, request);
+
+    Room updatedRoom = roomRepository.updateRoom(roomId, request);
+    if (updatedRoom == null) {
+      throw new ResourceNotFoundException("Room could not be updated");
+    }
+
+    return getRoomById(roomId, requesterId);
   }
 
   /**
@@ -79,6 +107,7 @@ public class RoomService {
 
     return rooms.stream()
         .filter(Room::isPublic)
+        .filter(Room::isActive)
         .filter(room -> filter == null || matchesFilter(room, filter))
         .map(room -> mapRoomToSummaryResponse(room,
             currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
@@ -112,7 +141,7 @@ public class RoomService {
 
     RoomDetailedResponse detailed = new RoomDetailedResponse();
     detailed.setId(summary.getId());
-    detailed.setActive(summary.isActive());
+    detailed.setStatus(summary.getStatus());
     detailed.setIsPublic(summary.getIsPublic());
     detailed.setCategory(summary.getCategory());
     detailed.setName(summary.getName());
@@ -133,19 +162,13 @@ public class RoomService {
     return detailed;
   }
 
+  @Transactional
   public void deleteRoom(Integer requesterId, Integer roomId) {
     if (requesterId == null || roomId == null) {
       throw new ValidationException("Requester id and room id are required");
     }
     Room room = getExistingRoom(roomId);
-    if (!roomRepository.isUserInMembers(roomId, requesterId)) {
-      throw new AuthorizationException("Only owners can delete rooms");
-    }
-
-    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
-    if (requesterRole != Role.OWNER) {
-      throw new AuthorizationException("Only owners can delete rooms");
-    }
+    requireOwner(requesterId, roomId, "Only owners can delete rooms");
 
     List<Integer> participantIds = collectParticipantIds(room);
 
@@ -164,38 +187,81 @@ public class RoomService {
     if (request.getIsPublic() == null) {
       throw new ValidationException("Public visibility flag is required");
     }
-    if (request.getName() == null || request.getName().trim().isEmpty()) {
+    validateCommonRoomFields(request.getCategory(), request.getName(), request.getDescription(),
+        request.getMaximumNumberOfPeople(), request.getAgeRating(), request.getDateOfStartEvent(),
+        request.getDateOfEndEvent());
+  }
+
+  private void validateRoomUpdateRequest(Integer roomId, RoomUpdateRequest request) {
+    if (request == null) {
+      throw new ValidationException("Room update request is required");
+    }
+    if (request.getIsPublic() == null) {
+      throw new ValidationException("Public visibility flag is required");
+    }
+    if (request.getStatus() == null) {
+      throw new ValidationException("Room status is required");
+    }
+    validateCommonRoomFields(request.getCategory(), request.getName(), request.getDescription(),
+        request.getMaximumNumberOfPeople(), request.getAgeRating(), request.getDateOfStartEvent(),
+        request.getDateOfEndEvent());
+
+    int participantCount = roomRepository.getRoomParticipantCount(roomId);
+    if (request.getMaximumNumberOfPeople() < participantCount) {
+      throw new ValidationException(
+          "Room capacity cannot be lower than current participant count");
+    }
+  }
+
+  private void validateCommonRoomFields(String category, String name, String description,
+      Integer maximumNumberOfPeople, Integer ageRating, java.time.Instant dateOfStartEvent,
+      java.time.Instant dateOfEndEvent) {
+    if (name == null || name.trim().isEmpty()) {
       throw new ValidationException("Room name cannot be empty");
     }
-    String trimmedName = request.getName().trim();
+    String trimmedName = name.trim();
     if (trimmedName.length() < 3 || trimmedName.length() > 100) {
       throw new ValidationException("Room name length must be between 3 and 100 characters");
     }
-    if (request.getCategory() == null) {
+    if (category == null) {
       throw new ValidationException("Category is required");
     }
-    if (request.getCategory().isBlank()) {
+    if (category.isBlank()) {
       throw new ValidationException("Category is required");
     }
-    if (request.getDescription() == null || request.getDescription().trim().isEmpty()) {
+    if (description == null || description.trim().isEmpty()) {
       throw new ValidationException("Room description cannot be empty");
     }
-    if (request.getDescription().length() > 2000) {
+    if (description.length() > 2000) {
       throw new ValidationException("Room description must be at most 2000 characters");
     }
-    if (request.getMaximumNumberOfPeople() == null) {
+    if (maximumNumberOfPeople == null) {
       throw new ValidationException("Maximum number of people is required");
     }
-    if (request.getMaximumNumberOfPeople() < 2 || request.getMaximumNumberOfPeople() > 100000) {
+    if (maximumNumberOfPeople < 2 || maximumNumberOfPeople > 100000) {
       throw new ValidationException("Maximum number of people must be between 2 and 100000");
     }
-    if (request.getAgeRating() < 0 || request.getAgeRating() > 21) {
+    if (ageRating == null) {
+      throw new ValidationException("Age rating is required");
+    }
+    if (ageRating < 0 || ageRating > 21) {
       throw new ValidationException("Age rating must be between 0 and 21");
     }
-    if (request.getDateOfStartEvent() != null
-        && request.getDateOfEndEvent() != null
-        && !request.getDateOfEndEvent().isAfter(request.getDateOfStartEvent())) {
+    if (dateOfStartEvent != null
+        && dateOfEndEvent != null
+        && !dateOfEndEvent.isAfter(dateOfStartEvent)) {
       throw new ValidationException("Room end date must be after start date");
+    }
+  }
+
+  private void requireOwner(Integer requesterId, Integer roomId, String message) {
+    getExistingRoom(roomId);
+    if (!roomRepository.isUserInMembers(roomId, requesterId)) {
+      throw new AuthorizationException(message);
+    }
+    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, requesterId);
+    if (requesterRole != Role.OWNER) {
+      throw new AuthorizationException(message);
     }
   }
 
@@ -211,6 +277,28 @@ public class RoomService {
       throw new ResourceNotFoundException("Room not found: " + roomId);
     }
     return room;
+  }
+
+  private Room getExistingRoomForUpdate(Integer roomId) {
+    Room room = roomRepository.getRoomByIdForUpdate(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found: " + roomId);
+    }
+    return room;
+  }
+
+  private void reconcilePendingJoinRequests(Room currentRoom, RoomUpdateRequest request) {
+    boolean movesToNonActive = request.getStatus() != RoomStatus.ACTIVE;
+    boolean becomesPublic = !currentRoom.isPublic() && Boolean.TRUE.equals(request.getIsPublic());
+
+    if (movesToNonActive) {
+      roomsRequestRepository.updatePendingRequestsByRoom(currentRoom.getId(), RequestStatus.REFUSED);
+      return;
+    }
+
+    if (becomesPublic) {
+      roomsRequestRepository.deletePendingRequestsByRoom(currentRoom.getId());
+    }
   }
 
   private boolean matchesFilter(Room room, RoomFilter filter) {
@@ -258,7 +346,8 @@ public class RoomService {
       Boolean isCurrentUserParticipant) {
     RoomSummaryResponse response = new RoomSummaryResponse();
     response.setId(room.getId());
-    response.setActive(room.isActive());
+    response.setStatus(room.getStatus() != null ? room.getStatus()
+        : (room.isActive() ? RoomStatus.ACTIVE : RoomStatus.INACTIVE));
     response.setIsPublic(room.isPublic());
     response.setCategory(room.getCategory());
     response.setName(room.getName());

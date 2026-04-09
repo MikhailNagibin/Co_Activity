@@ -4,6 +4,7 @@ import com.coactivity.controller.dto.response.JoinRequestResponse;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.RoomRepository;
@@ -142,7 +143,10 @@ public class JoinRequestService {
   }
 
   private void acceptRequest(Integer requestId, Integer roomId, Integer requesterId) {
-    Room room = getExistingRoom(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    if (room.getStatus() != RoomStatus.ACTIVE) {
+      throw new ValidationException("Only active rooms can accept new participants");
+    }
     int currentParticipants = roomRepository.getRoomParticipantCount(roomId);
     if (currentParticipants >= room.getMaximumNumberOfPeople()) {
       throw new ValidationException("Room capacity exceeded");
@@ -221,6 +225,17 @@ public class JoinRequestService {
       throw new ValidationException("Room ID is required");
     }
     Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found");
+    }
+    return room;
+  }
+
+  private Room getExistingRoomForUpdate(Integer roomId) {
+    if (roomId == null) {
+      throw new ValidationException("Room ID is required");
+    }
+    Room room = roomRepository.getRoomByIdForUpdate(roomId);
     if (room == null) {
       throw new ResourceNotFoundException("Room not found");
     }

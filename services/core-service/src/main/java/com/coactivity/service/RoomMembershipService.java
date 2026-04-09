@@ -12,6 +12,7 @@ import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RoomMembershipService {
@@ -111,21 +113,29 @@ public class RoomMembershipService {
         mapUserToSummaryResponse(targetUser), room.getName());
   }
 
+  @Transactional
   public void joinRoom(Integer userId, Integer roomId) {
     validateRoomId(roomId);
     User user = getExistingUser(userId);
-    Room room = getExistingRoom(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    RoomsRequest existingRequest = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
 
     enforceJoinEligibility(user, room);
 
     if (roomRepository.isUserInMembers(roomId, userId)) {
+      if (room.isPublic() && existingRequest != null
+          && existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
+        roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.ACCEPTED);
+      }
       return;
     }
 
     if (room.isPublic()) {
       roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
+      if (existingRequest != null && existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
+        roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.ACCEPTED);
+      }
     } else {
-      RoomsRequest existingRequest = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
       if (existingRequest != null) {
         if (existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
           return;
@@ -233,6 +243,9 @@ public class RoomMembershipService {
   }
 
   private void enforceJoinEligibility(User user, Room room) {
+    if (room.getStatus() != RoomStatus.ACTIVE) {
+      throw new ValidationException("Only active rooms can accept new participants");
+    }
     if (roomRepository.isUserBannedInRoom(room.getId(), user.getId())) {
       throw new AuthorizationException("User is banned from this room");
     }
@@ -264,6 +277,14 @@ public class RoomMembershipService {
 
   private Room getExistingRoom(Integer roomId) {
     Room room = roomRepository.getRoomById(roomId);
+    if (room == null) {
+      throw new ResourceNotFoundException("Room not found: " + roomId);
+    }
+    return room;
+  }
+
+  private Room getExistingRoomForUpdate(Integer roomId) {
+    Room room = roomRepository.getRoomByIdForUpdate(roomId);
     if (room == null) {
       throw new ResourceNotFoundException("Room not found: " + roomId);
     }
@@ -309,7 +330,7 @@ public class RoomMembershipService {
 
   private void copySummary(RoomSummaryResponse source, RoomDetailedResponse target) {
     target.setId(source.getId());
-    target.setActive(source.isActive());
+    target.setStatus(source.getStatus());
     target.setIsPublic(source.getIsPublic());
     target.setCategory(source.getCategory());
     target.setName(source.getName());
@@ -329,7 +350,7 @@ public class RoomMembershipService {
   private RoomSummaryResponse mapRoomToSummaryResponse(Room room, Integer currentUserId) {
     RoomSummaryResponse response = new RoomSummaryResponse();
     response.setId(room.getId());
-    response.setActive(room.isActive());
+    response.setStatus(room.getStatus());
     response.setIsPublic(room.isPublic());
     response.setCategory(room.getCategory());
     response.setName(room.getName());

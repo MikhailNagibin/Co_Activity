@@ -1,7 +1,10 @@
 package com.coactivity.persistence.entity;
 
+import com.coactivity.domain.RoomStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,8 +28,9 @@ public class RoomEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Integer id;
 
-  @Column(name = "is_active", nullable = false)
-  private boolean active;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false, length = 20)
+  private RoomStatus status;
 
   @Column(name = "is_public", nullable = false)
   private boolean publicRoom;
@@ -58,4 +62,8 @@ public class RoomEntity {
 
   @Column(name = "maximum_number_of_people", nullable = false)
   private int maximumNumberOfPeople;
+
+  public boolean isActive() {
+    return status == RoomStatus.ACTIVE;
+  }
 }

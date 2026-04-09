@@ -1,8 +1,10 @@
 package com.coactivity.repository.impl;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
+import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.User;
 import com.coactivity.persistence.CoreDomainMapper;
 import com.coactivity.persistence.CoreLookupMapper;
@@ -66,7 +68,7 @@ public class RoomRepositoryImpl implements RoomRepository {
     CategoryEntity categoryEntity = findCategoryEntity(request.getCategory());
 
     RoomEntity roomEntity = new RoomEntity();
-    roomEntity.setActive(true);
+    roomEntity.setStatus(RoomStatus.ACTIVE);
     roomEntity.setPublicRoom(Boolean.TRUE.equals(request.getIsPublic()));
     roomEntity.setChatLink(request.getChatLink());
     roomEntity.setCategory(categoryEntity);
@@ -85,9 +87,35 @@ public class RoomRepositoryImpl implements RoomRepository {
   }
 
   @Override
+  public Room updateRoom(Integer roomId, RoomUpdateRequest request) {
+    RoomEntity roomEntity = getExistingRoomEntity(roomId);
+    roomEntity.setStatus(request.getStatus());
+    roomEntity.setPublicRoom(Boolean.TRUE.equals(request.getIsPublic()));
+    roomEntity.setChatLink(request.getChatLink());
+    roomEntity.setCategory(findCategoryEntity(request.getCategory()));
+    roomEntity.setName(request.getName());
+    roomEntity.setDescription(request.getDescription());
+    roomEntity.setDateOfStartEvent(request.getDateOfStartEvent());
+    roomEntity.setDateOfEndEvent(request.getDateOfEndEvent());
+    roomEntity.setAgeRating(request.getAgeRating());
+    roomEntity.setFrequency(request.getFrequency());
+    roomEntity.setMaximumNumberOfPeople(request.getMaximumNumberOfPeople());
+
+    RoomEntity saved = roomJpaRepository.saveAndFlush(roomEntity);
+    return CoreDomainMapper.toRoom(saved);
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public Room getRoomById(Integer roomId) {
     return roomJpaRepository.findById(roomId)
+        .map(CoreDomainMapper::toRoom)
+        .orElse(null);
+  }
+
+  @Override
+  public Room getRoomByIdForUpdate(Integer roomId) {
+    return roomJpaRepository.findWithLockById(roomId)
         .map(CoreDomainMapper::toRoom)
         .orElse(null);
   }

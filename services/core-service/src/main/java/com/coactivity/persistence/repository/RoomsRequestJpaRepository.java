@@ -20,6 +20,9 @@ public interface RoomsRequestJpaRepository extends JpaRepository<RoomsRequestEnt
   @EntityGraph(attributePaths = {"user", "room", "room.category", "status"})
   Optional<RoomsRequestEntity> findByUser_IdAndRoom_Id(Integer userId, Integer roomId);
 
+  @EntityGraph(attributePaths = {"user", "room", "room.category", "status"})
+  List<RoomsRequestEntity> findAllByRoom_IdAndStatus_Id(Integer roomId, Integer statusId);
+
   void deleteAllByRoom_Id(Integer roomId);
 
   void deleteAllByUser_Id(Integer userId);
