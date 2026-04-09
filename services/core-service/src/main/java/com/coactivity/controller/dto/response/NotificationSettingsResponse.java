@@ -18,5 +18,7 @@ public class NotificationSettingsResponse {
 
   private Boolean newJoinRequest;
 
+  private Boolean importantRoomUpdates;
+
   private Instant updatedAt;
 }

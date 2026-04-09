@@ -125,6 +125,14 @@ public class UserControllerImpl {
     return ResponseEntity.noContent().build();
   }
 
+  @GetMapping("/me/notifications")
+  public ResponseEntity<NotificationSettingsResponse> getNotificationSettings(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    NotificationSettingsResponse response = userProfileService.getNotificationSettings(
+        currentUser.getUserId());
+    return ResponseEntity.ok(response);
+  }
+
   @PutMapping("/me/notifications")
   public ResponseEntity<NotificationSettingsResponse> configureNotificationSettings(
       @AuthenticationPrincipal CurrentUserPrincipal currentUser,

@@ -3,6 +3,9 @@ package com.coactivity.auth.controller;
 import com.coactivity.auth.service.AuthApplicationService;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
+import com.coactivity.controller.dto.request.PasswordResetConfirmRequest;
+import com.coactivity.controller.dto.request.PasswordResetRequest;
+import com.coactivity.controller.dto.request.PasswordResetVerifyRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
 import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
@@ -92,6 +95,27 @@ public class AuthController {
       @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Valid @RequestBody PasswordChangeRequest request) {
     authApplicationService.changePassword(currentUser, request);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/password/reset/request")
+  public ResponseEntity<Void> requestPasswordReset(
+      @Valid @RequestBody PasswordResetRequest request) {
+    authApplicationService.requestPasswordReset(request);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/password/reset/verify")
+  public ResponseEntity<Void> verifyPasswordResetCode(
+      @Valid @RequestBody PasswordResetVerifyRequest request) {
+    authApplicationService.verifyPasswordReset(request);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/password/reset/confirm")
+  public ResponseEntity<Void> confirmPasswordReset(
+      @Valid @RequestBody PasswordResetConfirmRequest request) {
+    authApplicationService.confirmPasswordReset(request);
     return ResponseEntity.noContent().build();
   }
 }

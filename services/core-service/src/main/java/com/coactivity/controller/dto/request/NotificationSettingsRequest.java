@@ -16,4 +16,6 @@ public class NotificationSettingsRequest {
   private Boolean activityClosed;
 
   private Boolean newJoinRequest;
+
+  private Boolean importantRoomUpdates;
 }

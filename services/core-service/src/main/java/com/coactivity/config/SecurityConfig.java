@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer.SessionFixationConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,7 +51,7 @@ public class SecurityConfig {
             .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-            .sessionFixation(sessionFixation -> sessionFixation.migrateSession()))
+            .sessionFixation(SessionFixationConfigurer::migrateSession))
         .securityContext(securityContext -> securityContext
             .requireExplicitSave(true)
             .securityContextRepository(securityContextRepository()))
@@ -65,6 +66,9 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/register",
                 "/api/auth/register/verify",
                 "/api/auth/register/resend",
+                "/api/auth/password/reset/request",
+                "/api/auth/password/reset/verify",
+                "/api/auth/password/reset/confirm",
                 "/api/auth/login",
                 "/api/auth/csrf")
             .permitAll()

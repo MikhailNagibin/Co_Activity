@@ -3,6 +3,9 @@ package com.coactivity.auth.service;
 import com.coactivity.auth.model.UserStatus;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
+import com.coactivity.controller.dto.request.PasswordResetConfirmRequest;
+import com.coactivity.controller.dto.request.PasswordResetRequest;
+import com.coactivity.controller.dto.request.PasswordResetVerifyRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
 import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
@@ -49,6 +52,7 @@ public class AuthApplicationService {
   private final PasswordEncoder passwordEncoder;
   private final NotificationService notificationService;
   private final RedisChallengeStore challengeStore;
+  private final RedisPasswordResetStore passwordResetStore;
   private final AuthenticationManager authenticationManager;
   private final SecurityContextRepository securityContextRepository;
   private final UserProfileService userProfileService;
@@ -57,6 +61,7 @@ public class AuthApplicationService {
 
   public AuthApplicationService(UserJpaRepository userJpaRepository, PasswordEncoder passwordEncoder,
       NotificationService notificationService, RedisChallengeStore challengeStore,
+      RedisPasswordResetStore passwordResetStore,
       AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository,
       UserProfileService userProfileService, SessionInvalidationService sessionInvalidationService,
       CurrentUserDetailsService currentUserDetailsService) {
@@ -64,6 +69,7 @@ public class AuthApplicationService {
     this.passwordEncoder = passwordEncoder;
     this.notificationService = notificationService;
     this.challengeStore = challengeStore;
+    this.passwordResetStore = passwordResetStore;
     this.authenticationManager = authenticationManager;
     this.securityContextRepository = securityContextRepository;
     this.userProfileService = userProfileService;
@@ -221,9 +227,7 @@ public class AuthApplicationService {
     if (request == null) {
       throw new ValidationException("Password change request is required");
     }
-    if (request.getCurrentPassword().equals(request.getNewPassword())) {
-      throw new ValidationException("New password must be different from current password");
-    }
+    validateNewPassword(request.getCurrentPassword(), request.getNewPassword());
 
     UserEntity user = userJpaRepository.findById(currentUser.getUserId())
         .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -234,6 +238,69 @@ public class AuthApplicationService {
 
     user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
     sessionInvalidationService.invalidateAllSessions(currentUser.getUsername());
+  }
+
+  @Transactional
+  public void requestPasswordReset(PasswordResetRequest request) {
+    if (request == null) {
+      throw new ValidationException("Password reset request is required");
+    }
+
+    String normalizedEmail = normalizeEmail(request.getEmail());
+    if (!passwordResetStore.tryActivateRequestCooldown(normalizedEmail)) {
+      return;
+    }
+
+    UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail).orElse(null);
+    if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+      return;
+    }
+
+    String code = generateCode();
+    boolean challengeCreated = false;
+    try {
+      passwordResetStore.create(normalizedEmail, user.getId(), code);
+      challengeCreated = true;
+      if (!notificationService.sendPasswordResetCode(user.getEmail(), code)) {
+        throw new NotificationDeliveryException("Unable to deliver password reset code");
+      }
+    } catch (RuntimeException ex) {
+      if (challengeCreated) {
+        passwordResetStore.delete(normalizedEmail);
+      }
+      passwordResetStore.clearRequestCooldown(normalizedEmail);
+    }
+  }
+
+  public void verifyPasswordReset(PasswordResetVerifyRequest request) {
+    if (request == null) {
+      throw new ValidationException("Password reset verification request is required");
+    }
+
+    RedisPasswordResetStore.VerificationResult result = passwordResetStore.inspect(
+        normalizeEmail(request.getEmail()), request.getCode().trim());
+    handlePasswordResetVerificationResult(result);
+  }
+
+  @Transactional
+  public void confirmPasswordReset(PasswordResetConfirmRequest request) {
+    if (request == null) {
+      throw new ValidationException("Password reset confirmation request is required");
+    }
+
+    String normalizedEmail = normalizeEmail(request.getEmail());
+    validateNewPassword(null, request.getNewPassword());
+
+    RedisPasswordResetStore.VerificationResult result = passwordResetStore.consume(normalizedEmail,
+        request.getCode().trim());
+    handlePasswordResetVerificationResult(result);
+
+    UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail)
+        .orElseThrow(() -> new AuthorizationException("INVALID_PASSWORD_RESET_CODE",
+            "Invalid password reset code"));
+    user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+    passwordResetStore.clearRequestCooldown(normalizedEmail);
+    sessionInvalidationService.invalidateAllSessions(user.getEmailNormalized());
   }
 
   public UserProfileResponse me(CurrentUserPrincipal currentUser) {
@@ -292,6 +359,33 @@ public class AuthApplicationService {
     }
     if (request.getDescription() != null && request.getDescription().length() > 500) {
       throw new ValidationException("Description must be at most 500 characters");
+    }
+  }
+
+  private void validateNewPassword(String currentSecret, String newPassword) {
+    if (newPassword == null || newPassword.isBlank()) {
+      throw new ValidationException("Password is required");
+    }
+    if (newPassword.length() < 8 || newPassword.length() > 128) {
+      throw new ValidationException("Password length must be between 8 and 128 characters");
+    }
+    if (currentSecret != null && currentSecret.equals(newPassword)) {
+      throw new ValidationException("New password must be different from current password");
+    }
+  }
+
+  private void handlePasswordResetVerificationResult(
+      RedisPasswordResetStore.VerificationResult result) {
+    switch (result) {
+      case SUCCESS -> {
+      }
+      case INVALID_CODE -> throw new AuthorizationException("INVALID_PASSWORD_RESET_CODE",
+          "Invalid password reset code");
+      case TOO_MANY_ATTEMPTS -> throw new AuthorizationException(
+          "TOO_MANY_PASSWORD_RESET_ATTEMPTS", "Too many password reset attempts");
+      case EXPIRED_OR_MISSING -> throw new AuthorizationException("PASSWORD_RESET_CODE_EXPIRED",
+          "Password reset code is expired or missing");
+      default -> throw new AuthorizationException("Unable to verify password reset code");
     }
   }
 

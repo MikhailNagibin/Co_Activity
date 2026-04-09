@@ -5,6 +5,7 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -245,6 +246,82 @@ public class NotificationService {
     }
   }
 
+  @Async("taskExecutor")
+  public void sendImportantRoomUpdate(Integer userId, ImportantRoomUpdateEmail update) {
+    sendImportantRoomUpdateSync(userId, update);
+  }
+
+  public boolean sendImportantRoomUpdateSync(Integer userId, ImportantRoomUpdateEmail update) {
+    if (update == null || !update.hasAnyChange()) {
+      return true;
+    }
+
+    User user = getNotifiableUser(userId, Notification.IMPORTANT_ROOM_UPDATES,
+        "important room update");
+    if (user == null) {
+      return true;
+    }
+
+    String subject = "Important room update: " + update.roomName();
+    String message = buildImportantRoomUpdateMessage(update);
+    return publishWithLogging(user.getEmail(), subject, message,
+        "important room update notification", userId);
+  }
+
+  @Async("taskExecutor")
+  public void sendPendingRequestAutoDeclined(Integer userId, String roomName, String reason) {
+    sendPendingRequestAutoDeclinedSync(userId, roomName, reason);
+  }
+
+  public boolean sendPendingRequestAutoDeclinedSync(Integer userId, String roomName, String reason) {
+    User user = getNotifiableUser(userId, Notification.IMPORTANT_ROOM_UPDATES,
+        "auto-declined pending request");
+    if (user == null) {
+      return true;
+    }
+
+    String subject = "Join request update for " + roomName;
+    String message = String.format("""
+        Hello!
+
+        Room: %s
+        Event type: Important room update
+        What changed: The room update automatically affected your pending join request.
+        What it means for you: Your request was declined because %s.
+
+        The CoActivity Team
+        """, roomName, reason);
+    return publishWithLogging(user.getEmail(), subject, message,
+        "auto-declined pending request notification", userId);
+  }
+
+  @Async("taskExecutor")
+  public void sendPendingRequestApprovalNoLongerNeeded(Integer userId, String roomName) {
+    sendPendingRequestApprovalNoLongerNeededSync(userId, roomName);
+  }
+
+  public boolean sendPendingRequestApprovalNoLongerNeededSync(Integer userId, String roomName) {
+    User user = getNotifiableUser(userId, Notification.IMPORTANT_ROOM_UPDATES,
+        "pending request removed notification");
+    if (user == null) {
+      return true;
+    }
+
+    String subject = "Room access update for " + roomName;
+    String message = String.format("""
+        Hello!
+
+        Room: %s
+        Event type: Important room update
+        What changed: The room became public, so manual approval is no longer required.
+        What it means for you: Your pending request was removed because you can now join directly.
+
+        The CoActivity Team
+        """, roomName);
+    return publishWithLogging(user.getEmail(), subject, message,
+        "pending request removed notification", userId);
+  }
+
   public boolean sendRegistrationVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send registration verification code to email={}", userEmail);
     if (!hasUsableEmail(userEmail)) {
@@ -280,6 +357,30 @@ public class NotificationService {
     }
   }
 
+  public boolean sendPasswordResetCode(String userEmail, String resetCode) {
+    log.debug("Attempting to send password reset code to email={}", userEmail);
+    if (!hasUsableEmail(userEmail)) {
+      log.warn("Cannot send password reset code: email is blank");
+      return false;
+    }
+
+    String subject = "Password reset for CoActivity";
+    String message = String.format("""
+        Hello!
+
+        Use the code below to reset your password:
+
+        %s
+
+        The code expires in 10 minutes. If you did not request a password reset, you can ignore this email.
+
+        Stay secure,
+        The CoActivity Team
+        """, resetCode);
+
+    return publishWithLogging(userEmail, subject, message, "password reset code", null);
+  }
+
   private boolean shouldNotifyUser(User user, Notification notificationType) {
     try {
       List<Notification> enabledNotifications = user.getNotifications();
@@ -294,6 +395,129 @@ public class NotificationService {
           notificationType, e);
       return false;
     }
+  }
+
+  private User getNotifiableUser(Integer userId, Notification notificationType, String logContext) {
+    log.debug("Attempting to send {} to userId={}", logContext, userId);
+
+    User user = userRepository.getUserById(userId);
+    if (user == null || !hasUsableEmail(user.getEmail())) {
+      log.warn("Cannot send {}: user {} not found or has no email", logContext, userId);
+      return null;
+    }
+
+    if (!shouldNotifyUser(user, notificationType)) {
+      log.debug("User {} has disabled {} notifications", userId, notificationType.name());
+      return null;
+    }
+    return user;
+  }
+
+  private boolean publishWithLogging(String email, String subject, String body, String logContext,
+      Integer userId) {
+    try {
+      boolean delivered = publishEmailCommand(email, subject, body);
+      if (!delivered) {
+        if (userId != null) {
+          log.warn("Failed to publish {} for userId={}", logContext, userId);
+        } else {
+          log.warn("Failed to publish {} for email={}", logContext, email);
+        }
+        return false;
+      }
+      if (userId != null) {
+        log.info("{} email command published to Kafka for userId={}, email={}", logContext, userId,
+            email);
+      } else {
+        log.info("{} email command published to Kafka for email={}", logContext, email);
+      }
+      return true;
+    } catch (Exception e) {
+      if (userId != null) {
+        log.error("Failed to send {} to userId={}, email={}", logContext, userId, email, e);
+      } else {
+        log.error("Failed to send {} to email={}", logContext, email, e);
+      }
+      return false;
+    }
+  }
+
+  private String buildImportantRoomUpdateMessage(ImportantRoomUpdateEmail update) {
+    StringBuilder message = new StringBuilder("""
+        Hello!
+
+        Room: %s
+        Event type: Important room update
+        """.formatted(update.roomName()));
+
+    if (update.statusChanged()) {
+      message.append(System.lineSeparator())
+          .append("What changed: Room status changed.")
+          .append(System.lineSeparator())
+          .append("Old status: ").append(formatStatus(update.oldStatus())).append(System.lineSeparator())
+          .append("New status: ").append(formatStatus(update.newStatus())).append(System.lineSeparator())
+          .append("What it means for you: ").append(statusConsequence(update.newStatus()))
+          .append(System.lineSeparator());
+    }
+
+    if (update.scheduleChanged()) {
+      message.append(System.lineSeparator())
+          .append("What changed: Room schedule changed.")
+          .append(System.lineSeparator())
+          .append("Old start: ").append(formatInstant(update.oldStart())).append(System.lineSeparator())
+          .append("New start: ").append(formatInstant(update.newStart())).append(System.lineSeparator())
+          .append("Old end: ").append(formatInstant(update.oldEnd())).append(System.lineSeparator())
+          .append("New end: ").append(formatInstant(update.newEnd())).append(System.lineSeparator());
+      if (!sameInstant(update.oldFrequency(), update.newFrequency())) {
+        message.append("Old frequency: ").append(formatInstant(update.oldFrequency()))
+            .append(System.lineSeparator())
+            .append("New frequency: ").append(formatInstant(update.newFrequency()))
+            .append(System.lineSeparator());
+      }
+      message.append("What it means for you: Please check the updated schedule before participating.")
+          .append(System.lineSeparator());
+    }
+
+    if (update.chatLinkChanged()) {
+      message.append(System.lineSeparator())
+          .append("What changed: The room chat link was updated.")
+          .append(System.lineSeparator())
+          .append("New chat link: ").append(formatChatLink(update.newChatLink()))
+          .append(System.lineSeparator())
+          .append("What it means for you: Use this link for future room communication.")
+          .append(System.lineSeparator());
+    }
+
+    message.append(System.lineSeparator())
+        .append("The CoActivity Team").append(System.lineSeparator());
+    return message.toString();
+  }
+
+  private String statusConsequence(com.coactivity.domain.RoomStatus status) {
+    if (status == null) {
+      return "Check the room for the latest state.";
+    }
+    return switch (status) {
+      case INACTIVE -> "The room is no longer active, so new participation is paused.";
+      case COMPLETED -> "The activity is finished, so treat this room as completed.";
+      case ACTIVE -> "The room is active.";
+    };
+  }
+
+  private String formatStatus(com.coactivity.domain.RoomStatus status) {
+    return status != null ? status.name() : "not set";
+  }
+
+  private String formatInstant(Instant instant) {
+    return instant != null ? instant.toString() : "not set";
+  }
+
+  private String formatChatLink(String chatLink) {
+    return hasText(chatLink) ? chatLink : "removed";
+  }
+
+  private boolean sameInstant(Instant left, Instant right) {
+    return left == null ? right == null : left.equals(right);
   }
 
   private boolean publishEmailCommand(String to, String subject, String body) {
@@ -334,7 +558,11 @@ public class NotificationService {
       String body) {
   }
 
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
   private boolean hasUsableEmail(String email) {
-    return email != null && !email.isBlank();
+    return hasText(email);
   }
 }

@@ -4,7 +4,8 @@ public enum Notification {
   MEMBERSHIP_ACCEPTED("membershipAccepted"),
   MEMBERSHIP_REJECTED("membershipRejected"),
   ACTIVITY_CLOSED("activityClosed"),
-  NEW_JOIN_REQUEST("newJoinRequest");
+  NEW_JOIN_REQUEST("newJoinRequest"),
+  IMPORTANT_ROOM_UPDATES("importantRoomUpdates");
 
   private final String notificationName;
 
@@ -30,6 +31,7 @@ public enum Notification {
       case "membershiprejected" -> MEMBERSHIP_REJECTED;
       case "activityclosed" -> ACTIVITY_CLOSED;
       case "newjoinrequest" -> NEW_JOIN_REQUEST;
+      case "importantroomupdates" -> IMPORTANT_ROOM_UPDATES;
       default -> throw new IllegalArgumentException("Unknown notification value: " + value);
     };
   }

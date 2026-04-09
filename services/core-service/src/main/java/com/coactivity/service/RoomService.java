@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,12 +82,17 @@ public class RoomService {
     Room currentRoom = getExistingRoomForUpdate(roomId);
     requireOwner(requesterId, roomId, "Only room owner can manage the room");
     validateRoomUpdateRequest(roomId, request);
+    ImportantRoomUpdateEmail importantUpdate = detectImportantRoomUpdate(currentRoom, request);
+    List<RoomsRequestAutoUpdate> autoUpdatedPendingRequests =
+        collectAutoUpdatedPendingRequests(currentRoom, request);
     reconcilePendingJoinRequests(currentRoom, request);
 
     Room updatedRoom = roomRepository.updateRoom(roomId, request);
     if (updatedRoom == null) {
       throw new ResourceNotFoundException("Room could not be updated");
     }
+    notifyAboutImportantRoomUpdate(updatedRoom, importantUpdate);
+    notifyAutoUpdatedPendingRequests(updatedRoom, request, autoUpdatedPendingRequests);
 
     return getRoomById(roomId, requesterId);
   }
@@ -288,7 +294,8 @@ public class RoomService {
   }
 
   private void reconcilePendingJoinRequests(Room currentRoom, RoomUpdateRequest request) {
-    boolean movesToNonActive = request.getStatus() != RoomStatus.ACTIVE;
+    boolean movesToNonActive = currentRoom.getStatus() == RoomStatus.ACTIVE
+        && request.getStatus() != RoomStatus.ACTIVE;
     boolean becomesPublic = !currentRoom.isPublic() && Boolean.TRUE.equals(request.getIsPublic());
 
     if (movesToNonActive) {
@@ -298,6 +305,81 @@ public class RoomService {
 
     if (becomesPublic) {
       roomsRequestRepository.deletePendingRequestsByRoom(currentRoom.getId());
+    }
+  }
+
+  private ImportantRoomUpdateEmail detectImportantRoomUpdate(Room currentRoom,
+      RoomUpdateRequest request) {
+    boolean statusChanged = currentRoom.getStatus() != request.getStatus()
+        && (request.getStatus() == RoomStatus.INACTIVE || request.getStatus() == RoomStatus.COMPLETED);
+    boolean scheduleChanged = !Objects.equals(currentRoom.getDateOfStartEvent(),
+        request.getDateOfStartEvent())
+        || !Objects.equals(currentRoom.getDateOfEndEvent(), request.getDateOfEndEvent())
+        || !Objects.equals(currentRoom.getFrequency(), request.getFrequency());
+    boolean chatLinkChanged = !Objects.equals(currentRoom.getChatLink(), request.getChatLink());
+
+    return new ImportantRoomUpdateEmail(
+        request.getName(),
+        currentRoom.getStatus(),
+        request.getStatus(),
+        statusChanged,
+        currentRoom.getDateOfStartEvent(),
+        request.getDateOfStartEvent(),
+        currentRoom.getDateOfEndEvent(),
+        request.getDateOfEndEvent(),
+        currentRoom.getFrequency(),
+        request.getFrequency(),
+        scheduleChanged,
+        currentRoom.getChatLink(),
+        request.getChatLink(),
+        chatLinkChanged);
+  }
+
+  private List<RoomsRequestAutoUpdate> collectAutoUpdatedPendingRequests(Room currentRoom,
+      RoomUpdateRequest request) {
+    boolean movesToNonActive = currentRoom.getStatus() == RoomStatus.ACTIVE
+        && request.getStatus() != RoomStatus.ACTIVE;
+    boolean becomesPublic = !currentRoom.isPublic() && Boolean.TRUE.equals(request.getIsPublic());
+
+    if (!movesToNonActive && !becomesPublic) {
+      return List.of();
+    }
+
+    return roomsRequestRepository.getRoomRequests(currentRoom.getId()).stream()
+        .filter(roomRequest -> roomRequest.getStatus() == RequestStatus.CONSIDERATION)
+        .map(roomRequest -> new RoomsRequestAutoUpdate(
+            roomRequest.getUser() != null ? roomRequest.getUser().getId() : null,
+            movesToNonActive
+                ? AutoRequestUpdateReason.DECLINED_BECAUSE_ROOM_BECAME_NON_ACTIVE
+                : AutoRequestUpdateReason.REMOVED_BECAUSE_ROOM_BECAME_PUBLIC))
+        .filter(update -> update.userId() != null)
+        .toList();
+  }
+
+  private void notifyAboutImportantRoomUpdate(Room updatedRoom, ImportantRoomUpdateEmail update) {
+    if (!update.hasAnyChange()) {
+      return;
+    }
+
+    for (Integer participantId : collectParticipantIds(updatedRoom)) {
+      notificationService.sendImportantRoomUpdate(participantId, update);
+    }
+  }
+
+  private void notifyAutoUpdatedPendingRequests(Room updatedRoom, RoomUpdateRequest request,
+      List<RoomsRequestAutoUpdate> autoUpdatedPendingRequests) {
+    for (RoomsRequestAutoUpdate update : autoUpdatedPendingRequests) {
+      if (update.reason() == AutoRequestUpdateReason.REMOVED_BECAUSE_ROOM_BECAME_PUBLIC) {
+        notificationService.sendPendingRequestApprovalNoLongerNeeded(update.userId(),
+            updatedRoom.getName());
+        continue;
+      }
+
+      String reason = request.getStatus() == RoomStatus.COMPLETED
+          ? "the room became completed"
+          : "the room became inactive";
+      notificationService.sendPendingRequestAutoDeclined(update.userId(), updatedRoom.getName(),
+          reason);
     }
   }
 
@@ -430,5 +512,13 @@ public class RoomService {
 
     Map<User, Role> users = roomRepository.getUsersInRoom(room.getId());
     return users != null ? users : Collections.emptyMap();
+  }
+
+  private record RoomsRequestAutoUpdate(Integer userId, AutoRequestUpdateReason reason) {
+  }
+
+  private enum AutoRequestUpdateReason {
+    DECLINED_BECAUSE_ROOM_BECAME_NON_ACTIVE,
+    REMOVED_BECAUSE_ROOM_BECAME_PUBLIC
   }
 }

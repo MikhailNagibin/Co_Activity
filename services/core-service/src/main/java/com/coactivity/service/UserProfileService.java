@@ -56,57 +56,55 @@ public class UserProfileService {
     userRepository.updateUser(user.getId(), request);
   }
 
+  public NotificationSettingsResponse getNotificationSettings(Integer userId) {
+    User user = getExistingUser(userId);
+    return toNotificationSettingsResponse(user);
+  }
+
   public NotificationSettingsResponse configureNotificationSettings(Integer userId,
       NotificationSettingsRequest request) {
     if (request == null) {
       throw new ValidationException("Notification settings are required");
     }
     getExistingUser(userId);
-    if (request.getMembershipAccepted() != null) {
-      if (request.getMembershipAccepted()) {
-        userRepository.setNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
-      } else {
-        userRepository.removeNotification(userId, Notification.MEMBERSHIP_ACCEPTED);
-      }
+    applyNotificationPreference(userId, request.getMembershipAccepted(),
+        Notification.MEMBERSHIP_ACCEPTED);
+    applyNotificationPreference(userId, request.getMembershipRejected(),
+        Notification.MEMBERSHIP_REJECTED);
+    applyNotificationPreference(userId, request.getActivityClosed(),
+        Notification.ACTIVITY_CLOSED);
+    applyNotificationPreference(userId, request.getNewJoinRequest(),
+        Notification.NEW_JOIN_REQUEST);
+    applyNotificationPreference(userId, request.getImportantRoomUpdates(),
+        Notification.IMPORTANT_ROOM_UPDATES);
+
+    User updatedUser = getExistingUser(userId);
+    return toNotificationSettingsResponse(updatedUser);
+  }
+
+  private void applyNotificationPreference(Integer userId, Boolean enabled,
+      Notification notification) {
+    if (enabled == null) {
+      return;
     }
-
-    if (request.getMembershipRejected() != null) {
-      if (request.getMembershipRejected()) {
-        userRepository.setNotification(userId, Notification.MEMBERSHIP_REJECTED);
-      } else {
-        userRepository.removeNotification(userId, Notification.MEMBERSHIP_REJECTED);
-      }
+    if (enabled) {
+      userRepository.setNotification(userId, notification);
+      return;
     }
+    userRepository.removeNotification(userId, notification);
+  }
 
-    if (request.getActivityClosed() != null) {
-      if (request.getActivityClosed()) {
-        userRepository.setNotification(userId, Notification.ACTIVITY_CLOSED);
-      } else {
-        userRepository.removeNotification(userId, Notification.ACTIVITY_CLOSED);
-      }
-    }
-
-    if (request.getNewJoinRequest() != null) {
-      if (request.getNewJoinRequest()) {
-        userRepository.setNotification(userId, Notification.NEW_JOIN_REQUEST);
-      } else {
-        userRepository.removeNotification(userId, Notification.NEW_JOIN_REQUEST);
-      }
-    }
-
-    User user = userRepository.getUserById(userId);
-    List<Notification> enabledNotifications = user != null ? user.getNotifications() : List.of();
-
-    boolean membershipAccepted = enabledNotifications.contains(Notification.MEMBERSHIP_ACCEPTED);
-    boolean membershipRejected = enabledNotifications.contains(Notification.MEMBERSHIP_REJECTED);
-    boolean activityClosed = enabledNotifications.contains(Notification.ACTIVITY_CLOSED);
-    boolean newJoinRequest = enabledNotifications.contains(Notification.NEW_JOIN_REQUEST);
+  private NotificationSettingsResponse toNotificationSettingsResponse(User user) {
+    List<Notification> enabledNotifications = user.getNotifications() != null
+        ? user.getNotifications()
+        : List.of();
 
     return new NotificationSettingsResponse(
-        membershipAccepted,
-        membershipRejected,
-        activityClosed,
-        newJoinRequest,
+        enabledNotifications.contains(Notification.MEMBERSHIP_ACCEPTED),
+        enabledNotifications.contains(Notification.MEMBERSHIP_REJECTED),
+        enabledNotifications.contains(Notification.ACTIVITY_CLOSED),
+        enabledNotifications.contains(Notification.NEW_JOIN_REQUEST),
+        enabledNotifications.contains(Notification.IMPORTANT_ROOM_UPDATES),
         Instant.now());
   }
 
