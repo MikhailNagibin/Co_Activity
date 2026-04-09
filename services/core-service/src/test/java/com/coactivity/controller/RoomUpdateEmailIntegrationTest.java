@@ -10,12 +10,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.coactivity.TestcontainersConfiguration;
 import com.coactivity.support.AbstractSessionWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.Cookie;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +30,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Import(TestcontainersConfiguration.class)
@@ -36,6 +39,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Tag("docker")
 @DisplayName("Room update email integration tests")
 class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
+
+  private record SessionContext(Cookie session, CsrfContext csrf) {
+  }
 
   @MockitoBean
   private KafkaTemplate<String, String> kafkaTemplate;
@@ -50,23 +56,22 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
 
   @Test
   void statusChangeToInactivePublishesImportantRoomUpdateEmail() throws Exception {
-    var owner = createActiveUser("room-email-owner@example.com", "roomEmailOwner", "Password123");
-    var participant = createActiveUser("room-email-participant@example.com", "roomEmailParticipant",
+    var ownerEntity = createActiveUser("room-email-owner@example.com", "roomEmailOwner", "Password123");
+    var participantEntity = createActiveUser("room-email-participant@example.com", "roomEmailParticipant",
         "Password123");
 
-    CsrfContext csrf = fetchCsrf();
-    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
-    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+    SessionContext owner = loginWithSessionCsrf(ownerEntity.getEmail(), "Password123");
+    SessionContext participant = loginWithSessionCsrf(participantEntity.getEmail(), "Password123");
 
-    enableImportantRoomUpdates(ownerSession, csrf);
-    enableImportantRoomUpdates(participantSession, csrf);
+    enableImportantRoomUpdates(owner.session(), owner.csrf());
+    enableImportantRoomUpdates(participant.session(), participant.csrf());
 
-    Integer roomId = createRoom(ownerSession, csrf, true, "Important Status Room",
+    Integer roomId = createRoom(owner.session(), owner.csrf(), true, "Important Status Room",
         "https://chat.example.com/status-old");
 
     mockMvc.perform(post("/api/rooms/" + roomId + "/join")
-            .cookie(csrf.cookie(), participantSession)
-            .header("X-XSRF-TOKEN", csrf.token()))
+            .cookie(participant.csrf().cookie(), participant.session())
+            .header("X-XSRF-TOKEN", participant.csrf().token()))
         .andExpect(status().isNoContent());
 
     reset(kafkaTemplate);
@@ -74,8 +79,8 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
         .thenReturn(CompletableFuture.<SendResult<String, String>>completedFuture(null));
 
     mockMvc.perform(put("/api/rooms/" + roomId)
-            .cookie(csrf.cookie(), ownerSession)
-            .header("X-XSRF-TOKEN", csrf.token())
+            .cookie(owner.csrf().cookie(), owner.session())
+            .header("X-XSRF-TOKEN", owner.csrf().token())
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
@@ -106,25 +111,24 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
 
   @Test
   void disabledImportantRoomUpdatesSuppressesEmailPublish() throws Exception {
-    var owner = createActiveUser("suppressed-owner@example.com", "suppOwner", "Password123");
-    var participant = createActiveUser("suppressed-participant@example.com", "suppParticipant",
+    var ownerEntity = createActiveUser("suppressed-owner@example.com", "suppOwner", "Password123");
+    var participantEntity = createActiveUser("suppressed-participant@example.com", "suppParticipant",
         "Password123");
 
-    CsrfContext csrf = fetchCsrf();
-    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
-    Cookie participantSession = login(participant.getEmail(), "Password123", csrf, null);
+    SessionContext owner = loginWithSessionCsrf(ownerEntity.getEmail(), "Password123");
+    SessionContext participant = loginWithSessionCsrf(participantEntity.getEmail(), "Password123");
 
-    Integer roomId = createRoom(ownerSession, csrf, true, "Suppressed Room",
+    Integer roomId = createRoom(owner.session(), owner.csrf(), true, "Suppressed Room",
         "https://chat.example.com/suppressed");
 
     mockMvc.perform(post("/api/rooms/" + roomId + "/join")
-            .cookie(csrf.cookie(), participantSession)
-            .header("X-XSRF-TOKEN", csrf.token()))
+            .cookie(participant.csrf().cookie(), participant.session())
+            .header("X-XSRF-TOKEN", participant.csrf().token()))
         .andExpect(status().isNoContent());
 
     mockMvc.perform(put("/api/rooms/" + roomId)
-            .cookie(csrf.cookie(), ownerSession)
-            .header("X-XSRF-TOKEN", csrf.token())
+            .cookie(owner.csrf().cookie(), owner.session())
+            .header("X-XSRF-TOKEN", owner.csrf().token())
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
@@ -147,21 +151,20 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
 
   @Test
   void becomingPublicPublishesPendingRequesterEmailWhenApprovalNoLongerNeeded() throws Exception {
-    var owner = createActiveUser("request-owner@example.com", "requestOwner", "Password123");
-    var requester = createActiveUser("requester@example.com", "requester", "Password123");
+    var ownerEntity = createActiveUser("request-owner@example.com", "requestOwner", "Password123");
+    var requesterEntity = createActiveUser("requester@example.com", "requester", "Password123");
 
-    CsrfContext csrf = fetchCsrf();
-    Cookie ownerSession = login(owner.getEmail(), "Password123", csrf, null);
-    Cookie requesterSession = login(requester.getEmail(), "Password123", csrf, null);
+    SessionContext owner = loginWithSessionCsrf(ownerEntity.getEmail(), "Password123");
+    SessionContext requester = loginWithSessionCsrf(requesterEntity.getEmail(), "Password123");
 
-    enableImportantRoomUpdates(requesterSession, csrf);
+    enableImportantRoomUpdates(requester.session(), requester.csrf());
 
-    Integer roomId = createRoom(ownerSession, csrf, false, "Pending Approval Room",
+    Integer roomId = createRoom(owner.session(), owner.csrf(), false, "Pending Approval Room",
         "https://chat.example.com/private");
 
     mockMvc.perform(post("/api/rooms/" + roomId + "/join")
-            .cookie(csrf.cookie(), requesterSession)
-            .header("X-XSRF-TOKEN", csrf.token()))
+            .cookie(requester.csrf().cookie(), requester.session())
+            .header("X-XSRF-TOKEN", requester.csrf().token()))
         .andExpect(status().isNoContent());
 
     reset(kafkaTemplate);
@@ -169,8 +172,8 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
         .thenReturn(CompletableFuture.<SendResult<String, String>>completedFuture(null));
 
     mockMvc.perform(put("/api/rooms/" + roomId)
-            .cookie(csrf.cookie(), ownerSession)
-            .header("X-XSRF-TOKEN", csrf.token())
+            .cookie(owner.csrf().cookie(), owner.session())
+            .header("X-XSRF-TOKEN", owner.csrf().token())
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
@@ -199,6 +202,7 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
   }
 
   private void enableImportantRoomUpdates(Cookie session, CsrfContext csrf) throws Exception {
+    SecurityContextHolder.clearContext();
     mockMvc.perform(put("/api/users/me/notifications")
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token())
@@ -244,5 +248,22 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
       }
     }
     return true;
+  }
+
+  private SessionContext loginWithSessionCsrf(String email, String password) throws Exception {
+    CsrfContext initialCsrf = fetchCsrf();
+    Cookie session = login(email, password, initialCsrf, null);
+    CsrfContext sessionCsrf = fetchCsrfForSession(session);
+    return new SessionContext(session, sessionCsrf);
+  }
+
+  private CsrfContext fetchCsrfForSession(Cookie session) throws Exception {
+    var result = mockMvc.perform(get("/api/auth/csrf")
+            .cookie(session))
+        .andExpect(status().isOk())
+        .andReturn();
+
+    Cookie csrfCookie = Objects.requireNonNull(result.getResponse().getCookie("XSRF-TOKEN"));
+    return csrfContextFromCookie(csrfCookie);
   }
 }

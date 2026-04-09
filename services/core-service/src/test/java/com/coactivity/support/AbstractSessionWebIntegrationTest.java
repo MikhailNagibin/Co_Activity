@@ -25,7 +25,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.TestSecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -57,6 +59,8 @@ public abstract class AbstractSessionWebIntegrationTest {
   }
 
   protected void resetState() throws SQLException {
+    SecurityContextHolder.clearContext();
+    TestSecurityContextHolder.clearContext();
     cleanupTables();
     flushRedis();
     cleanupStorage();
@@ -81,6 +85,10 @@ public abstract class AbstractSessionWebIntegrationTest {
     Cookie csrfCookie = Objects.requireNonNull(result.getResponse().getCookie("XSRF-TOKEN"));
     JsonNode payload = objectMapper.readTree(result.getResponse().getContentAsString());
     Objects.requireNonNull(payload.get("token"));
+    return new CsrfContext(csrfCookie.getValue(), csrfCookie);
+  }
+
+  protected CsrfContext csrfContextFromCookie(Cookie csrfCookie) {
     return new CsrfContext(csrfCookie.getValue(), csrfCookie);
   }
 
