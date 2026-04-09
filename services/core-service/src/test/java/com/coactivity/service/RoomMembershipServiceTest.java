@@ -21,7 +21,9 @@ import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
+import com.coactivity.service.event.JoinRequestDecisionEvent;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -31,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("RoomMembershipService Tests")
 class RoomMembershipServiceTest {
@@ -41,6 +44,7 @@ class RoomMembershipServiceTest {
   private RoomImageService roomImageService;
   private BulletinBoardRepository bulletinBoardRepository;
   private NotificationService notificationService;
+  private ApplicationEventPublisher applicationEventPublisher;
   private RoomMembershipService roomMembershipService;
 
   private Integer userId;
@@ -56,6 +60,7 @@ class RoomMembershipServiceTest {
     roomImageService = Mockito.mock(RoomImageService.class);
     bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
     notificationService = Mockito.mock(NotificationService.class);
+    applicationEventPublisher = Mockito.mock(ApplicationEventPublisher.class);
 
     roomMembershipService = new RoomMembershipService(
         userRepository,
@@ -63,7 +68,8 @@ class RoomMembershipServiceTest {
         roomsRequestRepository,
         roomImageService,
         bulletinBoardRepository,
-        notificationService);
+        notificationService,
+        applicationEventPublisher);
     when(roomImageService.listRoomImages(Mockito.anyInt())).thenReturn(List.of());
 
     userId = 7;
@@ -311,6 +317,230 @@ class RoomMembershipServiceTest {
   }
 
   @Test
+  @DisplayName("removeParticipant should allow admin to remove ordinary participant")
+  void removeParticipant_adminRemovesOrdinaryParticipant() {
+    Integer adminId = 10;
+    Integer targetUserId = 12;
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, adminId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.ADMIN);
+    when(roomRepository.isUserInMembers(roomId, targetUserId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, targetUserId)).thenReturn(Role.PARTICIPANT);
+
+    roomMembershipService.removeParticipant(adminId, roomId, targetUserId);
+
+    verify(roomRepository).removeUserFromRoom(roomId, targetUserId);
+  }
+
+  @Test
+  @DisplayName("removeParticipant should reject admin removing another admin")
+  void removeParticipant_adminCannotRemoveAdmin() {
+    Integer adminId = 10;
+    Integer targetUserId = 12;
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, adminId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.ADMIN);
+    when(roomRepository.isUserInMembers(roomId, targetUserId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, targetUserId)).thenReturn(Role.ADMIN);
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> roomMembershipService.removeParticipant(adminId, roomId, targetUserId));
+
+    assertEquals("Admins can remove only ordinary participants", exception.getMessage());
+    verify(roomRepository, never()).removeUserFromRoom(roomId, targetUserId);
+  }
+
+  @Test
+  @DisplayName("banUser should reject banning room owner")
+  void banUser_rejectsOwnerTarget() {
+    Integer adminId = 10;
+    Integer ownerId = 11;
+    User owner = createUser(ownerId, "owner@example.com", "owner");
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, adminId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.ADMIN);
+    when(userRepository.getUserById(ownerId)).thenReturn(owner);
+    when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
+
+    ValidationException exception = assertThrows(ValidationException.class,
+        () -> roomMembershipService.banUser(adminId, roomId, ownerId));
+
+    assertEquals("Room owner cannot be banned", exception.getMessage());
+    verify(roomRepository, never()).addUserBan(roomId, ownerId);
+  }
+
+  @Test
+  @DisplayName("banUser should remove participant, create ban and close pending request")
+  void banUser_removesParticipantAndClosesPendingRequest() {
+    Integer ownerId = 10;
+    Integer targetUserId = 12;
+    User target = createUser(targetUserId, "target@example.com", "target");
+    Room managedRoom = createRoom(roomId, null);
+    RoomsRequest request = new RoomsRequest(55, target, managedRoom, Instant.now(),
+        RequestStatus.CONSIDERATION);
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(managedRoom);
+    when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
+    when(userRepository.getUserById(targetUserId)).thenReturn(target);
+    when(roomRepository.isUserInMembers(roomId, targetUserId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, targetUserId)).thenReturn(Role.PARTICIPANT);
+    when(roomsRequestRepository.getRequestByUserAndRoom(targetUserId, roomId)).thenReturn(request);
+
+    roomMembershipService.banUser(ownerId, roomId, targetUserId);
+
+    verify(roomRepository).removeUserFromRoom(roomId, targetUserId);
+    verify(roomRepository).addUserBan(roomId, targetUserId);
+    verify(roomsRequestRepository).updateRequest(55, RequestStatus.REFUSED_WITH_BAN);
+    verify(applicationEventPublisher).publishEvent(
+        new JoinRequestDecisionEvent(targetUserId, managedRoom.getName(), RequestStatus.REFUSED_WITH_BAN));
+  }
+
+  @Test
+  @DisplayName("banUser should not publish rejection event when no pending request exists")
+  void banUser_withoutPendingRequestSkipsEventPublication() {
+    Integer ownerId = 10;
+    Integer targetUserId = 12;
+    User target = createUser(targetUserId, "target@example.com", "target");
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
+    when(userRepository.getUserById(targetUserId)).thenReturn(target);
+    when(roomRepository.isUserInMembers(roomId, targetUserId)).thenReturn(false);
+    when(roomsRequestRepository.getRequestByUserAndRoom(targetUserId, roomId)).thenReturn(null);
+
+    roomMembershipService.banUser(ownerId, roomId, targetUserId);
+
+    verify(roomRepository).addUserBan(roomId, targetUserId);
+    verify(roomsRequestRepository, never()).updateRequest(Mockito.anyInt(), Mockito.any());
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  @DisplayName("unbanUser should remove existing ban")
+  void unbanUser_removesExistingBan() {
+    Integer adminId = 10;
+    Integer targetUserId = 12;
+    User target = createUser(targetUserId, "target@example.com", "target");
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, adminId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, adminId)).thenReturn(Role.ADMIN);
+    when(userRepository.getUserById(targetUserId)).thenReturn(target);
+    when(roomRepository.isUserBannedInRoom(roomId, targetUserId)).thenReturn(true);
+
+    roomMembershipService.unbanUser(adminId, roomId, targetUserId);
+
+    verify(roomRepository).removeUserBan(roomId, targetUserId);
+  }
+
+  @Test
+  @DisplayName("transferOwnership should reject outsider target")
+  void transferOwnership_rejectsOutsider() {
+    Integer ownerId = 10;
+    Integer outsiderId = 12;
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
+    when(roomRepository.isUserInMembers(roomId, outsiderId)).thenReturn(false);
+
+    var exception = assertThrows(com.coactivity.service.exception.ConflictException.class,
+        () -> roomMembershipService.transferOwnership(ownerId, roomId, outsiderId));
+
+    assertEquals("INVALID_OWNERSHIP_TRANSFER", exception.getCode());
+    verify(roomRepository, never()).setRoleByUserIdAndRoomId(outsiderId, roomId, Role.OWNER);
+  }
+
+  @Test
+  @DisplayName("transferOwnership should keep former owner as participant")
+  void transferOwnership_keepsFormerOwnerAsParticipant() {
+    Integer ownerId = 10;
+    Integer newOwnerId = 12;
+
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(roomWithoutUsers);
+    when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
+    when(roomRepository.isUserInMembers(roomId, newOwnerId)).thenReturn(true);
+    when(roomRepository.getUserRoleByRoomId(roomId, newOwnerId)).thenReturn(Role.ADMIN);
+
+    var response = roomMembershipService.transferOwnership(ownerId, roomId, newOwnerId);
+
+    assertEquals(roomId, response.getRoomId());
+    assertEquals(ownerId, response.getPreviousOwnerId());
+    assertEquals(newOwnerId, response.getNewOwnerId());
+    assertEquals(Role.PARTICIPANT, response.getPreviousOwnerNewRole());
+    assertEquals(Role.OWNER, response.getNewOwnerRole());
+    verify(roomRepository).setRoleByUserIdAndRoomId(newOwnerId, roomId, Role.OWNER);
+    verify(roomRepository).setRoleByUserIdAndRoomId(ownerId, roomId, Role.PARTICIPANT);
+  }
+
+  @Test
+  @DisplayName("removeParticipant should return room not found before authorization checks")
+  void removeParticipant_returnsRoomNotFoundBeforeAuthorization() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(null);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> roomMembershipService.removeParticipant(userId, roomId, 12));
+
+    assertEquals("Room not found: 100", exception.getMessage());
+    verify(roomRepository, never()).isUserInMembers(roomId, userId);
+  }
+
+  @Test
+  @DisplayName("banUser should return room not found before authorization checks")
+  void banUser_returnsRoomNotFoundBeforeAuthorization() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(null);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> roomMembershipService.banUser(userId, roomId, 12));
+
+    assertEquals("Room not found: 100", exception.getMessage());
+    verify(roomRepository, never()).isUserInMembers(roomId, userId);
+  }
+
+  @Test
+  @DisplayName("getBannedUsers should return room not found before authorization checks")
+  void getBannedUsers_returnsRoomNotFoundBeforeAuthorization() {
+    when(roomRepository.getRoomById(roomId)).thenReturn(null);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> roomMembershipService.getBannedUsers(userId, roomId));
+
+    assertEquals("Room not found: 100", exception.getMessage());
+    verify(roomRepository, never()).isUserInMembers(roomId, userId);
+  }
+
+  @Test
+  @DisplayName("unbanUser should return room not found before authorization checks")
+  void unbanUser_returnsRoomNotFoundBeforeAuthorization() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(null);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> roomMembershipService.unbanUser(userId, roomId, 12));
+
+    assertEquals("Room not found: 100", exception.getMessage());
+    verify(roomRepository, never()).isUserInMembers(roomId, userId);
+  }
+
+  @Test
+  @DisplayName("transferOwnership should return room not found before authorization checks")
+  void transferOwnership_returnsRoomNotFoundBeforeAuthorization() {
+    when(roomRepository.getRoomByIdForUpdate(roomId)).thenReturn(null);
+
+    ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+        () -> roomMembershipService.transferOwnership(userId, roomId, 12));
+
+    assertEquals("Room not found: 100", exception.getMessage());
+    verify(roomRepository, never()).isUserInMembers(roomId, userId);
+  }
+
+  @Test
   @DisplayName("isUserInRoom should reject null user id")
   void isUserInRoom_rejectsNullUserId() {
     ValidationException exception = assertThrows(ValidationException.class,
@@ -329,6 +559,7 @@ class RoomMembershipServiceTest {
     User owner = createUser(ownerId, "owner@example.com", "owner");
     User targetUser = createUser(targetUserId, "target@example.com", "target");
 
+    when(roomRepository.getRoomById(roomId)).thenReturn(roomWithoutUsers);
     when(userRepository.getUserById(ownerId)).thenReturn(owner);
     when(userRepository.getUserById(targetUserId)).thenReturn(targetUser);
     when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
@@ -349,6 +580,7 @@ class RoomMembershipServiceTest {
     Integer ownerId = 10;
     User owner = createUser(ownerId, "owner@example.com", "owner");
 
+    when(roomRepository.getRoomById(roomId)).thenReturn(roomWithoutUsers);
     when(userRepository.getUserById(ownerId)).thenReturn(owner);
     when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
     when(roomRepository.getUserRoleByRoomId(roomId, ownerId)).thenReturn(Role.OWNER);
@@ -368,6 +600,7 @@ class RoomMembershipServiceTest {
     User owner = createUser(ownerId, "owner@example.com", "owner");
     User targetUser = createUser(targetUserId, "target@example.com", "target");
 
+    when(roomRepository.getRoomById(roomId)).thenReturn(roomWithoutUsers);
     when(userRepository.getUserById(ownerId)).thenReturn(owner);
     when(userRepository.getUserById(targetUserId)).thenReturn(targetUser);
     when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
@@ -390,6 +623,7 @@ class RoomMembershipServiceTest {
     User owner = createUser(ownerId, "owner@example.com", "owner");
     User targetUser = createUser(targetUserId, "target@example.com", "target");
 
+    when(roomRepository.getRoomById(roomId)).thenReturn(roomWithoutUsers);
     when(userRepository.getUserById(ownerId)).thenReturn(owner);
     when(userRepository.getUserById(targetUserId)).thenReturn(targetUser);
     when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);
@@ -412,6 +646,7 @@ class RoomMembershipServiceTest {
     User owner = createUser(ownerId, "owner@example.com", "owner");
     User targetUser = createUser(targetUserId, "target@example.com", "target");
 
+    when(roomRepository.getRoomById(roomId)).thenReturn(roomWithoutUsers);
     when(userRepository.getUserById(ownerId)).thenReturn(owner);
     when(userRepository.getUserById(targetUserId)).thenReturn(targetUser);
     when(roomRepository.isUserInMembers(roomId, ownerId)).thenReturn(true);

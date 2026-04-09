@@ -2,6 +2,7 @@ package com.coactivity.service;
 
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
+import com.coactivity.controller.dto.response.OwnershipTransferResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomImageResponse;
@@ -19,15 +20,19 @@ import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
+import com.coactivity.service.event.JoinRequestDecisionEvent;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import com.coactivity.util.AvatarUrlResolver;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,24 +45,28 @@ public class RoomMembershipService {
   private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   public RoomMembershipService(UserRepository userRepository,
       RoomRepository roomRepository,
       RoomsRequestRepository roomsRequestRepository,
       RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
-      NotificationService notificationService) {
+      NotificationService notificationService,
+      ApplicationEventPublisher applicationEventPublisher) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.notificationService = notificationService;
+    this.applicationEventPublisher = applicationEventPublisher;
   }
 
   public RoleAssignmentResponse assignAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
-    Integer ownerId = requireOwner(requesterId, roomId);
+    Room room = getExistingRoom(roomId);
+    Integer ownerId = requireOwner(requesterId, room);
     getExistingUser(targetUserId);
 
     // Validate that the target user is a member of the room before assigning admin role
@@ -77,7 +86,8 @@ public class RoomMembershipService {
 
   public RoleAssignmentResponse demoteAdminRole(Integer requesterId, Integer roomId,
       Integer targetUserId) {
-    Integer ownerId = requireOwner(requesterId, roomId);
+    Room room = getExistingRoom(roomId);
+    Integer ownerId = requireOwner(requesterId, room);
     getExistingUser(targetUserId);
     if (!roomRepository.isUserInMembers(roomId, targetUserId)) {
       throw new ValidationException("Target user is not a member of the room and cannot be demoted.");
@@ -101,14 +111,14 @@ public class RoomMembershipService {
   public MembershipVerificationResponse verifyUserMembership(Integer requesterId,
       Integer roomId, Integer targetUserId) {
     validateRoomId(roomId);
-    Integer adminId = requireRoomParticipant(requesterId, roomId);
-    enforceAdminPrivileges(roomId, adminId);
+    Room room = getExistingRoom(roomId);
+    Integer adminId = requireRoomParticipant(requesterId, room);
+    enforceAdminPrivileges(room, adminId);
 
     User targetUser = getExistingUser(targetUserId);
     boolean isMember = roomRepository.isUserInMembers(roomId, targetUserId);
     Role memberRole = isMember ? roomRepository.getUserRoleByRoomId(roomId, targetUserId) : null;
 
-    Room room = getExistingRoom(roomId);
     return new MembershipVerificationResponse(isMember, memberRole,
         mapUserToSummaryResponse(targetUser), room.getName());
   }
@@ -189,7 +199,7 @@ public class RoomMembershipService {
   public void leaveRoom(Integer userId, Integer roomId) {
     validateRoomId(roomId);
     Room room = getExistingRoom(roomId);
-    ensureParticipant(roomId, userId);
+    ensureParticipant(room, userId);
 
     Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
     if (role == Role.OWNER) {
@@ -199,13 +209,108 @@ public class RoomMembershipService {
     roomRepository.removeUserFromRoom(roomId, userId);
   }
 
+  @Transactional
+  public void removeParticipant(Integer requesterId, Integer roomId, Integer targetUserId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    requireUserId(targetUserId);
+    Role requesterRole = requireGovernanceRole(requesterId, room);
+
+    ensureParticipant(room, targetUserId);
+    Role targetRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+    enforceRemovalAccess(requesterRole, targetRole);
+
+    roomRepository.removeUserFromRoom(roomId, targetUserId);
+  }
+
+  @Transactional
+  public void banUser(Integer requesterId, Integer roomId, Integer targetUserId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    requireUserId(targetUserId);
+    getExistingUser(targetUserId);
+    Role requesterRole = requireGovernanceRole(requesterId, room);
+
+    boolean targetIsMember = roomRepository.isUserInMembers(roomId, targetUserId);
+    if (targetIsMember) {
+      Role targetRole = roomRepository.getUserRoleByRoomId(roomId, targetUserId);
+      enforceBanAccess(requesterRole, targetRole);
+      roomRepository.removeUserFromRoom(roomId, targetUserId);
+    }
+
+    roomRepository.addUserBan(roomId, targetUserId);
+    publishBanDecisionIfPendingRequestClosed(room, targetUserId);
+  }
+
+  public List<UserSummaryResponse> getBannedUsers(Integer requesterId, Integer roomId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoom(roomId);
+    requireGovernanceRole(requesterId, room);
+
+    List<User> bannedUsers = roomRepository.getBannedUsers(room.getId());
+    if (bannedUsers == null || bannedUsers.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    return bannedUsers.stream()
+        .map(this::mapUserToSummaryResponse)
+        .sorted(Comparator
+            .comparing((UserSummaryResponse user) ->
+                user.getUserName() != null ? user.getUserName().toLowerCase() : "")
+            .thenComparing(UserSummaryResponse::getId, Comparator.nullsLast(Integer::compareTo)))
+        .toList();
+  }
+
+  @Transactional
+  public void unbanUser(Integer requesterId, Integer roomId, Integer targetUserId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    requireUserId(targetUserId);
+    requireGovernanceRole(requesterId, room);
+    getExistingUser(targetUserId);
+
+    if (!roomRepository.isUserBannedInRoom(roomId, targetUserId)) {
+      throw new ResourceNotFoundException(
+          "User " + targetUserId + " is not banned in room " + roomId);
+    }
+
+    roomRepository.removeUserBan(roomId, targetUserId);
+  }
+
+  @Transactional
+  public OwnershipTransferResponse transferOwnership(Integer requesterId, Integer roomId,
+      Integer targetUserId) {
+    validateRoomId(roomId);
+    Room room = getExistingRoomForUpdate(roomId);
+    Integer ownerId = requireOwner(requesterId, room);
+    Integer effectiveTargetUserId = requireUserId(targetUserId);
+
+    if (effectiveTargetUserId.equals(ownerId)) {
+      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+          "Ownership cannot be transferred to the current owner");
+    }
+    if (!roomRepository.isUserInMembers(roomId, effectiveTargetUserId)) {
+      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+          "Ownership can only be transferred to an existing room participant");
+    }
+
+    Role targetRole = roomRepository.getUserRoleByRoomId(roomId, effectiveTargetUserId);
+    if (targetRole != Role.ADMIN && targetRole != Role.PARTICIPANT) {
+      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+          "Ownership can only be transferred to a room admin or participant");
+    }
+
+    roomRepository.setRoleByUserIdAndRoomId(effectiveTargetUserId, roomId, Role.OWNER);
+    roomRepository.setRoleByUserIdAndRoomId(ownerId, roomId, Role.PARTICIPANT);
+    return new OwnershipTransferResponse(roomId, ownerId, effectiveTargetUserId,
+        Role.PARTICIPANT, Role.OWNER);
+  }
+
   public List<RoomParticipantResponse> getRoomParticipants(Integer requesterId, Integer roomId,
       Role roleFilter) {
     validateRoomId(roomId);
-    Integer adminId = requireRoomParticipant(requesterId, roomId);
-    enforceAdminPrivileges(roomId, adminId);
-
     Room room = getExistingRoom(roomId);
+    requireGovernanceRole(requesterId, room);
     Map<User, Role> users = roomRepository.getUsersInRoom(roomId);
     if (users == null || users.isEmpty()) {
       return Collections.emptyList();
@@ -217,28 +322,51 @@ public class RoomMembershipService {
         .collect(Collectors.toList());
   }
 
-  private Integer requireOwner(Integer requesterId, Integer roomId) {
-    Integer ownerId = requireRoomParticipant(requesterId, roomId);
-    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, ownerId);
+  private Integer requireOwner(Integer requesterId, Room room) {
+    Integer ownerId = requireRoomParticipant(requesterId, room);
+    Role requesterRole = roomRepository.getUserRoleByRoomId(room.getId(), ownerId);
     if (requesterRole != Role.OWNER) {
       throw new AuthorizationException("Only room owner can perform this action");
     }
     return ownerId;
   }
 
-  private Integer requireRoomParticipant(Integer requesterId, Integer roomId) {
-    validateRoomId(roomId);
+  private Integer requireRoomParticipant(Integer requesterId, Room room) {
     Integer userId = requireUserId(requesterId);
-    if (!roomRepository.isUserInMembers(roomId, userId)) {
-      throw new AuthorizationException("User is not a participant of room " + roomId);
+    if (!roomRepository.isUserInMembers(room.getId(), userId)) {
+      throw new AuthorizationException("User is not a participant of room " + room.getId());
     }
     return userId;
   }
 
-  private void enforceAdminPrivileges(Integer roomId, Integer participantId) {
-    Role requesterRole = roomRepository.getUserRoleByRoomId(roomId, participantId);
+  private void enforceAdminPrivileges(Room room, Integer participantId) {
+    Role requesterRole = roomRepository.getUserRoleByRoomId(room.getId(), participantId);
     if (requesterRole != Role.OWNER && requesterRole != Role.ADMIN) {
-      throw new AuthorizationException("Insufficient privileges for room " + roomId);
+      throw new AuthorizationException("Insufficient privileges for room " + room.getId());
+    }
+  }
+
+  private Role requireGovernanceRole(Integer requesterId, Room room) {
+    Integer participantId = requireRoomParticipant(requesterId, room);
+    enforceAdminPrivileges(room, participantId);
+    return roomRepository.getUserRoleByRoomId(room.getId(), participantId);
+  }
+
+  private void enforceRemovalAccess(Role requesterRole, Role targetRole) {
+    if (targetRole == Role.OWNER) {
+      throw new ValidationException("Room owner cannot be removed");
+    }
+    if (requesterRole == Role.ADMIN && targetRole != Role.PARTICIPANT) {
+      throw new AuthorizationException("Admins can remove only ordinary participants");
+    }
+  }
+
+  private void enforceBanAccess(Role requesterRole, Role targetRole) {
+    if (targetRole == Role.OWNER) {
+      throw new ValidationException("Room owner cannot be banned");
+    }
+    if (requesterRole == Role.ADMIN && targetRole != Role.PARTICIPANT) {
+      throw new AuthorizationException("Admins can ban only ordinary participants");
     }
   }
 
@@ -256,9 +384,9 @@ public class RoomMembershipService {
     }
   }
 
-  private void ensureParticipant(Integer roomId, Integer userId) {
-    if (!roomRepository.isUserInMembers(roomId, userId)) {
-      throw new ResourceNotFoundException("User " + userId + " is not in room " + roomId);
+  private void ensureParticipant(Room room, Integer userId) {
+    if (!roomRepository.isUserInMembers(room.getId(), userId)) {
+      throw new ResourceNotFoundException("User " + userId + " is not in room " + room.getId());
     }
   }
 
@@ -425,5 +553,15 @@ public class RoomMembershipService {
 
     Map<User, Role> users = roomRepository.getUsersInRoom(room.getId());
     return users != null ? users : Collections.emptyMap();
+  }
+
+  private void publishBanDecisionIfPendingRequestClosed(Room room, Integer targetUserId) {
+    RoomsRequest existingRequest = roomsRequestRepository.getRequestByUserAndRoom(targetUserId,
+        room.getId());
+    if (existingRequest != null && existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
+      roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.REFUSED_WITH_BAN);
+      applicationEventPublisher.publishEvent(
+          new JoinRequestDecisionEvent(targetUserId, room.getName(), RequestStatus.REFUSED_WITH_BAN));
+    }
   }
 }

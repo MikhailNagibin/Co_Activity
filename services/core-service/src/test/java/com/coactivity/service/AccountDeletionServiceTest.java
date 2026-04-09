@@ -36,6 +36,7 @@ class AccountDeletionServiceTest {
   private NotificationService notificationService;
   private UserAvatarService userAvatarService;
   private RoomImageService roomImageService;
+  private RoomMembershipService roomMembershipService;
   private AccountDeletionService accountDeletionService;
 
   @BeforeEach
@@ -45,8 +46,9 @@ class AccountDeletionServiceTest {
     notificationService = Mockito.mock(NotificationService.class);
     userAvatarService = Mockito.mock(UserAvatarService.class);
     roomImageService = Mockito.mock(RoomImageService.class);
+    roomMembershipService = Mockito.mock(RoomMembershipService.class);
     accountDeletionService = new AccountDeletionService(userRepository, roomRepository,
-        notificationService, userAvatarService, roomImageService);
+        notificationService, userAvatarService, roomImageService, roomMembershipService);
   }
 
   @Test
@@ -207,6 +209,9 @@ class AccountDeletionServiceTest {
   void deleteAccountRejectsTransferToDeletingUser() {
     when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
     when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
+    when(roomMembershipService.transferOwnership(1, 10, 1)).thenThrow(
+        new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+            "Ownership cannot be transferred to the current owner"));
 
     AccountDeletionRequest request = new AccountDeletionRequest(List.of(
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 1)));
@@ -251,7 +256,6 @@ class AccountDeletionServiceTest {
   @Test
   void deleteAccountTransfersOwnershipDeletesRoomsAndDeletesUser() {
     User owner = user(1, "owner");
-    User newOwner = user(2, "newOwner");
     User participant = user(3, "participant");
     Room deletedRoom = room(10, "Deleted room");
     Room transferredRoom = room(11, "Transferred room");
@@ -261,8 +265,6 @@ class AccountDeletionServiceTest {
     when(roomRepository.getUsersInRoom(10)).thenReturn(Map.of(
         owner, Role.OWNER,
         participant, Role.PARTICIPANT));
-    when(roomRepository.isUserInMembers(11, 2)).thenReturn(true);
-    when(roomRepository.getUserRoleByRoomId(11, 2)).thenReturn(Role.ADMIN);
 
     AccountDeletionRequest request = new AccountDeletionRequest(List.of(
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.DELETE_ROOM, null),
@@ -273,8 +275,7 @@ class AccountDeletionServiceTest {
     verify(roomImageService).deleteAllImagesForRoom(10);
     verify(roomRepository).deleteRoom(10);
     verify(notificationService).sendActivityClosed(3, "Deleted room");
-    verify(roomRepository).setRoleByUserIdAndRoomId(2, 11, Role.OWNER);
-    verify(roomRepository).setRoleByUserIdAndRoomId(1, 11, Role.PARTICIPANT);
+    verify(roomMembershipService).transferOwnership(1, 11, 2);
     verify(userAvatarService).deleteAvatar(1);
     verify(userRepository).deleteUser(1);
   }
@@ -304,7 +305,9 @@ class AccountDeletionServiceTest {
   void deleteAccountRejectsTransferToNonParticipant() {
     when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
     when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
-    when(roomRepository.isUserInMembers(10, 2)).thenReturn(false);
+    when(roomMembershipService.transferOwnership(1, 10, 2)).thenThrow(
+        new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+            "Ownership can only be transferred to an existing room participant"));
 
     AccountDeletionRequest request = new AccountDeletionRequest(List.of(
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 2)));
@@ -320,8 +323,9 @@ class AccountDeletionServiceTest {
   void deleteAccountRejectsTransferToUnsupportedRole() {
     when(userRepository.getUserById(1)).thenReturn(user(1, "owner"));
     when(roomRepository.getRoomsOwnedByUser(1)).thenReturn(List.of(room(10, "Owned room")));
-    when(roomRepository.isUserInMembers(10, 2)).thenReturn(true);
-    when(roomRepository.getUserRoleByRoomId(10, 2)).thenReturn(Role.OWNER);
+    when(roomMembershipService.transferOwnership(1, 10, 2)).thenThrow(
+        new ConflictException("INVALID_OWNERSHIP_TRANSFER",
+            "Ownership can only be transferred to a room admin or participant"));
 
     AccountDeletionRequest request = new AccountDeletionRequest(List.of(
         new AccountDeletionRoomActionRequest(10, AccountDeletionMode.TRANSFER_OWNERSHIP, 2)));

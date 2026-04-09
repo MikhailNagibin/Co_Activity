@@ -80,4 +80,8 @@ public interface RoomRepository {
   Role getUserRoleByRoomId(Integer roomId, Integer userId);
 
   void addUserBan(Integer roomId, Integer userId);
+
+  void removeUserBan(Integer roomId, Integer userId);
+
+  List<User> getBannedUsers(Integer roomId);
 }

@@ -2,15 +2,18 @@ package com.coactivity.controller.impl;
 
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
+import com.coactivity.controller.dto.request.OwnershipTransferRequest;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.MembershipVerificationResponse;
+import com.coactivity.controller.dto.response.OwnershipTransferResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomImageResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
+import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.Role;
 import com.coactivity.security.CurrentUserPrincipal;
 import com.coactivity.service.BulletinBoardService;
@@ -203,6 +206,53 @@ public class RoomControllerImpl {
       @Positive @PathVariable Integer userId) {
     MembershipVerificationResponse response =
         roomMembershipService.verifyUserMembership(currentUser.getUserId(), roomId, userId);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/{roomId}/participants/{userId}")
+  public ResponseEntity<Void> removeParticipant(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
+    roomMembershipService.removeParticipant(currentUser.getUserId(), roomId, userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/{roomId}/bans/{userId}")
+  public ResponseEntity<Void> banUser(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
+    roomMembershipService.banUser(currentUser.getUserId(), roomId, userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/{roomId}/bans")
+  public ResponseEntity<List<UserSummaryResponse>> getBannedUsers(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId) {
+    List<UserSummaryResponse> response =
+        roomMembershipService.getBannedUsers(currentUser.getUserId(), roomId);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/{roomId}/bans/{userId}")
+  public ResponseEntity<Void> unbanUser(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Positive @PathVariable Integer userId) {
+    roomMembershipService.unbanUser(currentUser.getUserId(), roomId, userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/{roomId}/ownership/transfer")
+  public ResponseEntity<OwnershipTransferResponse> transferOwnership(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Valid @RequestBody OwnershipTransferRequest request) {
+    OwnershipTransferResponse response =
+        roomMembershipService.transferOwnership(currentUser.getUserId(), roomId,
+            request.getTargetUserId());
     return ResponseEntity.ok(response);
   }
 }

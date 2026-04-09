@@ -32,16 +32,19 @@ public class AccountDeletionService {
   private final NotificationService notificationService;
   private final UserAvatarService userAvatarService;
   private final RoomImageService roomImageService;
+  private final RoomMembershipService roomMembershipService;
 
   public AccountDeletionService(UserRepository userRepository, RoomRepository roomRepository,
       NotificationService notificationService,
       UserAvatarService userAvatarService,
-      RoomImageService roomImageService) {
+      RoomImageService roomImageService,
+      RoomMembershipService roomMembershipService) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
     this.notificationService = notificationService;
     this.userAvatarService = userAvatarService;
     this.roomImageService = roomImageService;
+    this.roomMembershipService = roomMembershipService;
   }
 
   @Transactional(readOnly = true)
@@ -96,7 +99,10 @@ public class AccountDeletionService {
         continue;
       }
       if (action.getMode() == AccountDeletionMode.TRANSFER_OWNERSHIP) {
-        transferOwnership(userId, roomId, action.getTransferToUserId());
+        if (action.getTransferToUserId() == null) {
+          throw new ValidationException("Transfer ownership action requires transferToUserId");
+        }
+        roomMembershipService.transferOwnership(userId, roomId, action.getTransferToUserId());
         continue;
       }
       throw new ValidationException("Unsupported account deletion mode");
@@ -177,29 +183,6 @@ public class AccountDeletionService {
     if (action.getTransferToUserId() != null) {
       throw new ValidationException("Delete room action must not include transfer target");
     }
-  }
-
-  private void transferOwnership(Integer currentUserId, Integer roomId, Integer transferToUserId) {
-    if (transferToUserId == null) {
-      throw new ValidationException("Transfer ownership action requires transferToUserId");
-    }
-    if (transferToUserId.equals(currentUserId)) {
-      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
-          "Ownership cannot be transferred to the deleting user");
-    }
-    if (!roomRepository.isUserInMembers(roomId, transferToUserId)) {
-      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
-          "Ownership can only be transferred to an existing room participant");
-    }
-
-    Role targetRole = roomRepository.getUserRoleByRoomId(roomId, transferToUserId);
-    if (targetRole != Role.ADMIN && targetRole != Role.PARTICIPANT) {
-      throw new ConflictException("INVALID_OWNERSHIP_TRANSFER",
-          "Ownership can only be transferred to a room admin or participant");
-    }
-
-    roomRepository.setRoleByUserIdAndRoomId(transferToUserId, roomId, Role.OWNER);
-    roomRepository.setRoleByUserIdAndRoomId(currentUserId, roomId, Role.PARTICIPANT);
   }
 
   private void deleteOwnedRoom(Integer currentUserId, Room room) {

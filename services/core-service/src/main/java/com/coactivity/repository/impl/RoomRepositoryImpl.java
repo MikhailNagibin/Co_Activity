@@ -241,6 +241,20 @@ public class RoomRepositoryImpl implements RoomRepository {
     banJpaRepository.save(banEntity);
   }
 
+  @Override
+  public void removeUserBan(Integer roomId, Integer userId) {
+    banJpaRepository.deleteByRoom_IdAndUser_Id(roomId, userId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<User> getBannedUsers(Integer roomId) {
+    return banJpaRepository.findAllByRoom_Id(roomId).stream()
+        .map(BanEntity::getUser)
+        .map(CoreDomainMapper::toUserSummary)
+        .toList();
+  }
+
   @Transactional(readOnly = true)
   public int getCategoryIdByName(String categoryName) {
     return findCategoryEntity(categoryName).getId();
