@@ -28,7 +28,8 @@ US-108: As a user, I want to reset my password if I lose access
 US-109: As a user, I want to preview the consequences of account deletion  
 *So that I understand what data and responsibilities will be removed*
 
-US-110: As a user who owns rooms, I want to choose whether to delete my rooms or transfer ownership before deleting my account  
+US-110: As a user who owns rooms, I want to choose whether to delete my rooms or transfer ownership
+before deleting my account  
 *So that room communities are handled properly*
 
 ---
@@ -72,7 +73,8 @@ US-304: As a user, I want to see rooms where I'm banned
 US-305: As a visitor, I want to search rooms by keywords  
 *So that I can quickly find relevant activities*
 
-US-306: As a visitor, I want to filter and sort rooms by category, schedule, capacity, and popularity  
+US-306: As a visitor, I want to filter and sort rooms by category, schedule, capacity, and
+popularity  
 *So that I can discover the most suitable activities faster*
 
 US-307: As a visitor, I want to view room images  
@@ -212,20 +214,22 @@ US-709: As a community member, I want to delete my answers
 
 ## **🔔 8\. NOTIFICATIONS & ACTIVITY UPDATES**
 
-US-801: As a user, I want to receive notifications about join request decisions  
+US-801: As a user, I want to receive email notifications about join request decisions  
 *So that I always know whether I was accepted or rejected*
 
-US-802: As a room administrator, I want to receive notifications about new join requests  
+US-802: As a room administrator, I want to receive email notifications about new join requests  
 *So that I can react quickly to membership changes*
 
-US-803: As a room participant, I want to receive notifications about important room updates and closures  
+US-803: As a room participant, I want to receive email notifications about important room updates
+and closures  
 *So that I do not miss critical information about my activities*
 
-US-804: As a user, I want to view my notification history  
-*So that I can review past events and updates in one place*
+US-804: As a user, I want to see and manage which email notification categories are enabled in my
+profile settings  
+*So that I control what reaches my inbox*
 
-US-805: As a user, I want to mark notifications as read  
-*So that I can manage my attention and distinguish new events from old ones*
+US-805: As a user, I want email notifications to include enough room and action context  
+*So that I can understand what happened and decide what to do next without confusion*
 
 ---
 
