@@ -109,9 +109,11 @@ public class RoomService {
   }
 
   /**
-   * Authenticated room listing with basic filtering and sorting.
+   * Room listing with basic filtering and sorting.
    * <p>
-   * The response annotates whether the current user participates in each room.
+   * The response annotates whether the current user participates in each room when a user is
+   * authenticated. Room visibility and lifecycle status are exposed as data, not used to hide
+   * rooms from browsing.
    * </p>
    */
   public List<RoomSummaryResponse> getRooms(Integer currentUserId, RoomFilter filter,
@@ -122,12 +124,10 @@ public class RoomService {
     }
 
     return rooms.stream()
-        .filter(Room::isPublic)
-        .filter(Room::isActive)
         .filter(room -> filter == null || matchesFilter(room, filter))
         .map(room -> mapRoomToSummaryResponse(room, currentUserId))
         .sorted(buildSummaryComparator(sortBy))
-        .collect(Collectors.toList());
+        .toList();
   }
 
   /**

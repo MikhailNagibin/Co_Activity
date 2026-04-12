@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -118,20 +117,30 @@ class RoomServiceTest {
     }
 
     @Test
-    @DisplayName("getRooms should expose only public rooms in the public catalog")
-    void getRooms_returnsOnlyPublicRooms() {
+    @DisplayName("getRooms should expose rooms regardless of visibility and lifecycle status")
+    void getRooms_returnsAllRoomsRegardlessOfVisibilityAndStatus() {
         Room publicRoom = createRoom(101, true, null);
         Room privateRoom = createRoom(102, false, null);
         Room completedRoom = createRoom(103, true, null);
         completedRoom.setStatus(RoomStatus.COMPLETED);
+        Room inactiveRoom = createRoom(104, false, null);
+        inactiveRoom.setStatus(RoomStatus.INACTIVE);
 
-        when(roomRepository.getAllRooms()).thenReturn(List.of(privateRoom, completedRoom, publicRoom));
+        when(roomRepository.getAllRooms())
+                .thenReturn(List.of(privateRoom, completedRoom, inactiveRoom, publicRoom));
         when(roomRepository.getUsersInRoom(101)).thenReturn(Map.of());
+        when(roomRepository.getUsersInRoom(102)).thenReturn(Map.of());
+        when(roomRepository.getUsersInRoom(103)).thenReturn(Map.of());
+        when(roomRepository.getUsersInRoom(104)).thenReturn(Map.of());
 
         List<RoomSummaryResponse> responses = roomService.getRooms(null, null, RoomSort.NEWEST);
 
-        assertEquals(1, responses.size());
-        assertEquals(101, responses.getFirst().getId());
+        assertEquals(4, responses.size());
+        assertEquals(List.of(104, 103, 102, 101),
+                responses.stream().map(RoomSummaryResponse::getId).toList());
+        assertEquals(false, responses.getFirst().getIsPublic());
+        assertEquals(RoomStatus.INACTIVE, responses.getFirst().getStatus());
+        assertEquals(RoomStatus.COMPLETED, responses.get(1).getStatus());
     }
 
     @Test

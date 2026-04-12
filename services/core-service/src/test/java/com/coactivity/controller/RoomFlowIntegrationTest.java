@@ -141,7 +141,10 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
 
     mockMvc.perform(get("/api/rooms").cookie(ownerSession))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isEmpty());
+        .andExpect(jsonPath("$[0].id").value(roomId))
+        .andExpect(jsonPath("$[0].status").value("INACTIVE"))
+        .andExpect(jsonPath("$[0].active").value(false))
+        .andExpect(jsonPath("$[0].isPublic").value(false));
 
     mockMvc.perform(post("/api/rooms/" + roomId + "/join")
             .cookie(csrf.cookie(), requesterSession)

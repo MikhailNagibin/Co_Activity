@@ -49,16 +49,21 @@ class RoomDiscoveryStatusIntegrationTest extends AbstractSessionWebIntegrationTe
 
     Integer moscowRoomId = createRoom(ownerSession, csrf, true, "Moscow running club",
         "Moscow", "Russia");
+    Integer privateMoscowRoomId = createRoom(ownerSession, csrf, false, "Private Moscow club",
+        "Moscow", "Russia");
     createRoom(ownerSession, csrf, true, "Berlin running club", "Berlin", "Germany");
 
     mockMvc.perform(get("/api/rooms")
             .param("city", "Moscow")
             .param("country", "Russia"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(1))
-        .andExpect(jsonPath("$[0].id").value(moscowRoomId))
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].id").value(privateMoscowRoomId))
+        .andExpect(jsonPath("$[0].isPublic").value(false))
         .andExpect(jsonPath("$[0].city").value("Moscow"))
-        .andExpect(jsonPath("$[0].country").value("Russia"));
+        .andExpect(jsonPath("$[0].country").value("Russia"))
+        .andExpect(jsonPath("$[1].id").value(moscowRoomId))
+        .andExpect(jsonPath("$[1].isPublic").value(true));
   }
 
   @Test

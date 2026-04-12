@@ -8,8 +8,6 @@ US-101: As a new user, I want to create an account
 US-102: As a user, I want to initiate login with credentials  
 *So that I can receive a verification code for secure access*
 
-US-103: As a user, I want to complete login with verification code
-
 US-104: As a user, I want to securely log out  
 *So that my session is properly terminated*
 
