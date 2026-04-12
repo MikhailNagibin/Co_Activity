@@ -230,18 +230,3 @@ profile settings
 
 US-805: As a user, I want email notifications to include enough room and action context  
 *So that I can understand what happened and decide what to do next without confusion*
-
----
-
-## **🛡️ 9\. SAFETY, TRUST & MODERATION**
-
-US-901: As a user, I want to report abusive users, rooms, questions, or answers  
-*So that the platform remains safe and respectful*
-
-US-902: As a platform moderator, I want to review reports and take moderation actions  
-*So that harmful content or behavior is handled consistently*
-
-US-903: As a user, I want to understand when access is restricted because of moderation or bans  
-*So that platform decisions are not confusing and participation rules stay transparent*
-
----
