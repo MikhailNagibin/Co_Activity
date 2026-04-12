@@ -18,6 +18,8 @@ public class Room {
   private Category category;
   private String name;
   private String description;
+  private String city;
+  private String country;
   private Instant dateOfStartEvent;
   private Instant dateOfEndEvent;
   private int ageRating;
@@ -27,18 +29,26 @@ public class Room {
   private List<User> bans;
 
   public Room(Integer id, boolean isActive, boolean isPublic, String chatLink, Category category,
-      String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
-      int ageRating, Instant frequency, int maximumNumberOfPeople, Map<User, Role> users,
-      List<User> bans) {
+      String name, String description, String city, String country, Instant dateOfStartEvent,
+      Instant dateOfEndEvent, int ageRating, Instant frequency, int maximumNumberOfPeople,
+      Map<User, Role> users, List<User> bans) {
     this(id, isActive ? RoomStatus.ACTIVE : RoomStatus.INACTIVE, isPublic, chatLink, category,
-        name, description, dateOfStartEvent, dateOfEndEvent, ageRating, frequency,
+        name, description, city, country, dateOfStartEvent, dateOfEndEvent, ageRating, frequency,
         maximumNumberOfPeople, users, bans);
   }
 
-  public Room(Integer id, RoomStatus status, boolean isPublic, String chatLink, Category category,
+  public Room(Integer id, boolean isActive, boolean isPublic, String chatLink, Category category,
       String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
       int ageRating, Instant frequency, int maximumNumberOfPeople, Map<User, Role> users,
       List<User> bans) {
+    this(id, isActive, isPublic, chatLink, category, name, description, null, null,
+        dateOfStartEvent, dateOfEndEvent, ageRating, frequency, maximumNumberOfPeople, users, bans);
+  }
+
+  public Room(Integer id, RoomStatus status, boolean isPublic, String chatLink, Category category,
+      String name, String description, String city, String country, Instant dateOfStartEvent,
+      Instant dateOfEndEvent, int ageRating, Instant frequency, int maximumNumberOfPeople,
+      Map<User, Role> users, List<User> bans) {
     this.id = id;
     this.status = status;
     this.isPublic = isPublic;
@@ -46,6 +56,8 @@ public class Room {
     this.category = category;
     this.name = name;
     this.description = description;
+    this.city = city;
+    this.country = country;
     this.dateOfStartEvent = dateOfStartEvent;
     this.dateOfEndEvent = dateOfEndEvent;
     this.ageRating = ageRating;
@@ -53,6 +65,14 @@ public class Room {
     this.maximumNumberOfPeople = maximumNumberOfPeople;
     this.users = users;
     this.bans = bans;
+  }
+
+  public Room(Integer id, RoomStatus status, boolean isPublic, String chatLink, Category category,
+      String name, String description, Instant dateOfStartEvent, Instant dateOfEndEvent,
+      int ageRating, Instant frequency, int maximumNumberOfPeople, Map<User, Role> users,
+      List<User> bans) {
+    this(id, status, isPublic, chatLink, category, name, description, null, null,
+        dateOfStartEvent, dateOfEndEvent, ageRating, frequency, maximumNumberOfPeople, users, bans);
   }
 
   public boolean isActive() {

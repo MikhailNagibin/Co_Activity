@@ -60,6 +60,8 @@ public final class CoreDomainMapper {
         CoreLookupMapper.toCategory(entity.getCategory().getName()),
         entity.getName(),
         entity.getDescription(),
+        entity.getCity(),
+        entity.getCountry(),
         entity.getDateOfStartEvent(),
         entity.getDateOfEndEvent(),
         entity.getAgeRating(),

@@ -25,6 +25,10 @@ public class RoomSummaryResponse {
 
   private String description;
 
+  private String city;
+
+  private String country;
+
   private Instant dateOfStartEvent;
 
   private Instant dateOfEndEvent;
@@ -40,6 +44,8 @@ public class RoomSummaryResponse {
   private UserSummaryResponse creator;
 
   private Boolean isCurrentUserParticipant;
+
+  private RoomMembershipStatusResponse membershipStatus;
 
   private List<Integer> imageIds;
 

@@ -8,17 +8,23 @@ import com.coactivity.controller.dto.response.BulletinBoardResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomImageResponse;
+import com.coactivity.controller.dto.response.RoomMembershipStatusResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomMembershipStatus;
 import com.coactivity.domain.RoomStatus;
+import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.service.event.RoomUpdateNotificationEvent;
+import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotification;
+import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotificationType;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -30,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,17 +48,20 @@ public class RoomService {
   private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
   private final NotificationService notificationService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   public RoomService(RoomRepository roomRepository,
       RoomsRequestRepository roomsRequestRepository,
       RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
-      NotificationService notificationService) {
+      NotificationService notificationService,
+      ApplicationEventPublisher applicationEventPublisher) {
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
     this.notificationService = notificationService;
+    this.applicationEventPublisher = applicationEventPublisher;
   }
 
   /**
@@ -91,10 +101,11 @@ public class RoomService {
     if (updatedRoom == null) {
       throw new ResourceNotFoundException("Room could not be updated");
     }
-    notifyAboutImportantRoomUpdate(updatedRoom, importantUpdate);
-    notifyAutoUpdatedPendingRequests(updatedRoom, request, autoUpdatedPendingRequests);
+    RoomDetailedResponse response = getRoomById(roomId, requesterId);
+    publishRoomUpdateNotificationEvent(updatedRoom, importantUpdate, request,
+        autoUpdatedPendingRequests);
 
-    return getRoomById(roomId, requesterId);
+    return response;
   }
 
   /**
@@ -105,7 +116,6 @@ public class RoomService {
    */
   public List<RoomSummaryResponse> getRooms(Integer currentUserId, RoomFilter filter,
       RoomSort sortBy) {
-    validateCatalogFilter(filter);
     List<Room> rooms = roomRepository.getAllRooms();
     if (rooms == null || rooms.isEmpty()) {
       return Collections.emptyList();
@@ -115,8 +125,7 @@ public class RoomService {
         .filter(Room::isPublic)
         .filter(Room::isActive)
         .filter(room -> filter == null || matchesFilter(room, filter))
-        .map(room -> mapRoomToSummaryResponse(room,
-            currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId)))
+        .map(room -> mapRoomToSummaryResponse(room, currentUserId))
         .sorted(buildSummaryComparator(sortBy))
         .collect(Collectors.toList());
   }
@@ -134,8 +143,7 @@ public class RoomService {
     boolean hasProtectedAccess = currentUserId != null &&
         roomRepository.isUserInMembers(roomId, currentUserId);
 
-    RoomSummaryResponse summary =
-        mapRoomToSummaryResponse(room, hasProtectedAccess ? Boolean.TRUE : null);
+    RoomSummaryResponse summary = mapRoomToSummaryResponse(room, currentUserId);
 
     BulletinBoardResponse bulletinDto = null;
     if (hasProtectedAccess) {
@@ -152,6 +160,8 @@ public class RoomService {
     detailed.setCategory(summary.getCategory());
     detailed.setName(summary.getName());
     detailed.setDescription(summary.getDescription());
+    detailed.setCity(summary.getCity());
+    detailed.setCountry(summary.getCountry());
     detailed.setDateOfStartEvent(summary.getDateOfStartEvent());
     detailed.setDateOfEndEvent(summary.getDateOfEndEvent());
     detailed.setAgeRating(summary.getAgeRating());
@@ -160,6 +170,7 @@ public class RoomService {
     detailed.setMaximumParticipants(summary.getMaximumParticipants());
     detailed.setCreator(summary.getCreator());
     detailed.setIsCurrentUserParticipant(summary.getIsCurrentUserParticipant());
+    detailed.setMembershipStatus(summary.getMembershipStatus());
     detailed.setImageIds(summary.getImageIds());
     detailed.setImages(summary.getImages());
     detailed.setHasProtectedAccess(hasProtectedAccess);
@@ -271,12 +282,6 @@ public class RoomService {
     }
   }
 
-  private void validateCatalogFilter(RoomFilter filter) {
-    if (filter != null && filter.hasLocationFilter()) {
-      throw new ValidationException("Filtering rooms by city or country is not supported");
-    }
-  }
-
   private Room getExistingRoom(Integer roomId) {
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
@@ -356,31 +361,43 @@ public class RoomService {
         .toList();
   }
 
-  private void notifyAboutImportantRoomUpdate(Room updatedRoom, ImportantRoomUpdateEmail update) {
-    if (!update.hasAnyChange()) {
-      return;
-    }
-
-    for (Integer participantId : collectParticipantIds(updatedRoom)) {
-      notificationService.sendImportantRoomUpdate(participantId, update);
+  private void publishRoomUpdateNotificationEvent(Room updatedRoom, ImportantRoomUpdateEmail update,
+      RoomUpdateRequest request, List<RoomsRequestAutoUpdate> autoUpdatedPendingRequests) {
+    List<PendingRequestNotification> pendingNotifications =
+        buildPendingRequestNotifications(updatedRoom, request, autoUpdatedPendingRequests);
+    RoomUpdateNotificationEvent event = new RoomUpdateNotificationEvent(
+        collectParticipantIds(updatedRoom),
+        update,
+        pendingNotifications);
+    if (event.hasNotifications()) {
+      applicationEventPublisher.publishEvent(event);
     }
   }
 
-  private void notifyAutoUpdatedPendingRequests(Room updatedRoom, RoomUpdateRequest request,
+  private List<PendingRequestNotification> buildPendingRequestNotifications(Room updatedRoom,
+      RoomUpdateRequest request,
       List<RoomsRequestAutoUpdate> autoUpdatedPendingRequests) {
+    List<PendingRequestNotification> notifications = new ArrayList<>();
     for (RoomsRequestAutoUpdate update : autoUpdatedPendingRequests) {
       if (update.reason() == AutoRequestUpdateReason.REMOVED_BECAUSE_ROOM_BECAME_PUBLIC) {
-        notificationService.sendPendingRequestApprovalNoLongerNeeded(update.userId(),
-            updatedRoom.getName());
+        notifications.add(new PendingRequestNotification(
+            update.userId(),
+            updatedRoom.getName(),
+            PendingRequestNotificationType.APPROVAL_NO_LONGER_NEEDED,
+            null));
         continue;
       }
 
       String reason = request.getStatus() == RoomStatus.COMPLETED
           ? "the room became completed"
           : "the room became inactive";
-      notificationService.sendPendingRequestAutoDeclined(update.userId(), updatedRoom.getName(),
-          reason);
+      notifications.add(new PendingRequestNotification(
+          update.userId(),
+          updatedRoom.getName(),
+          PendingRequestNotificationType.AUTO_DECLINED,
+          reason));
     }
+    return notifications;
   }
 
   private boolean matchesFilter(Room room, RoomFilter filter) {
@@ -397,6 +414,14 @@ public class RoomService {
         && room.getMaximumNumberOfPeople() > filter.getMaxParticipants()) {
       return false;
     }
+    if (filter.getCity() != null && !filter.getCity().trim().isEmpty()
+        && !matchesLocation(room.getCity(), filter.getCity())) {
+      return false;
+    }
+    if (filter.getCountry() != null && !filter.getCountry().trim().isEmpty()
+        && !matchesLocation(room.getCountry(), filter.getCountry())) {
+      return false;
+    }
     if (filter.getQuery() != null && !filter.getQuery().trim().isEmpty()) {
       String query = filter.getQuery().trim().toLowerCase();
       String name = room.getName() != null ? room.getName().toLowerCase() : "";
@@ -404,6 +429,10 @@ public class RoomService {
       return name.contains(query) || description.contains(query);
     }
     return true;
+  }
+
+  private boolean matchesLocation(String actual, String expected) {
+    return actual != null && actual.trim().equalsIgnoreCase(expected.trim());
   }
 
   private Comparator<RoomSummaryResponse> buildSummaryComparator(RoomSort sortBy) {
@@ -424,8 +453,7 @@ public class RoomService {
     };
   }
 
-  private RoomSummaryResponse mapRoomToSummaryResponse(Room room,
-      Boolean isCurrentUserParticipant) {
+  private RoomSummaryResponse mapRoomToSummaryResponse(Room room, Integer currentUserId) {
     RoomSummaryResponse response = new RoomSummaryResponse();
     response.setId(room.getId());
     response.setStatus(room.getStatus() != null ? room.getStatus()
@@ -434,6 +462,8 @@ public class RoomService {
     response.setCategory(room.getCategory());
     response.setName(room.getName());
     response.setDescription(room.getDescription());
+    response.setCity(room.getCity());
+    response.setCountry(room.getCountry());
     response.setDateOfStartEvent(room.getDateOfStartEvent());
     response.setDateOfEndEvent(room.getDateOfEndEvent());
     response.setAgeRating(room.getAgeRating());
@@ -449,10 +479,36 @@ public class RoomService {
       response.setCreator(mapUserToSummaryResponse(creator));
     }
 
-    response.setIsCurrentUserParticipant(isCurrentUserParticipant);
+    if (currentUserId != null) {
+      RoomMembershipStatusResponse membershipStatus = buildMembershipStatus(currentUserId, room);
+      response.setMembershipStatus(membershipStatus);
+      response.setIsCurrentUserParticipant(
+          membershipStatus.getStatus() == RoomMembershipStatus.PARTICIPANT);
+    }
     populateRoomImages(response, room.getId());
 
     return response;
+  }
+
+  private RoomMembershipStatusResponse buildMembershipStatus(Integer userId, Room room) {
+    Integer roomId = room.getId();
+    if (roomRepository.isUserInMembers(roomId, userId)) {
+      Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.PARTICIPANT,
+          role, null, false);
+    }
+    if (roomRepository.isUserBannedInRoom(roomId, userId)) {
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.BANNED,
+          null, null, false);
+    }
+    RoomsRequest request = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
+    if (request != null && request.getStatus() == RequestStatus.CONSIDERATION) {
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.PENDING,
+          null, request.getId(), false);
+    }
+    boolean canJoin = room.getStatus() == RoomStatus.ACTIVE;
+    return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.NOT_JOINED,
+        null, null, canJoin);
   }
 
   private void populateRoomImages(RoomSummaryResponse response, Integer roomId) {

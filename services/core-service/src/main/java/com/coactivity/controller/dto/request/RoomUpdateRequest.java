@@ -30,6 +30,12 @@ public class RoomUpdateRequest {
   @Size(max = 2000)
   private String description;
 
+  @Size(max = 100)
+  private String city;
+
+  @Size(max = 100)
+  private String country;
+
   @NotNull
   @Min(2)
   @Max(100000)

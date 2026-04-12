@@ -31,6 +31,7 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.service.event.RoomUpdateNotificationEvent;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -41,8 +42,10 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("RoomService Tests")
 class RoomServiceTest {
@@ -52,6 +55,7 @@ class RoomServiceTest {
     private BulletinBoardRepository bulletinBoardRepository;
     private RoomsRequestRepository roomsRequestRepository;
     private NotificationService notificationService;
+    private ApplicationEventPublisher applicationEventPublisher;
     private RoomService roomService;
 
     private Integer ownerId;
@@ -66,8 +70,9 @@ class RoomServiceTest {
         bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
         roomsRequestRepository = Mockito.mock(RoomsRequestRepository.class);
         notificationService = Mockito.mock(NotificationService.class);
+        applicationEventPublisher = Mockito.mock(ApplicationEventPublisher.class);
         roomService = new RoomService(roomRepository, roomsRequestRepository, roomImageService, bulletinBoardRepository,
-                notificationService);
+                notificationService, applicationEventPublisher);
 
         ownerId = 10;
         roomId = 100;
@@ -245,12 +250,28 @@ class RoomServiceTest {
     }
 
     @Test
-    @DisplayName("getRooms should reject unsupported location filters instead of silently ignoring them")
-    void getRooms_rejectsUnsupportedLocationFilters() {
-        RoomFilter filter = new RoomFilter();
-        filter.setCity("Moscow");
+    @DisplayName("getRooms should filter by city and country")
+    void getRooms_filtersByLocation() {
+        Room matchingRoom = createRoom(601, true, null);
+        matchingRoom.setCity("Moscow");
+        matchingRoom.setCountry("Russia");
+        Room otherRoom = createRoom(602, true, null);
+        otherRoom.setCity("Berlin");
+        otherRoom.setCountry("Germany");
 
-        assertThrows(ValidationException.class, () -> roomService.getRooms(null, filter, null));
+        RoomFilter filter = new RoomFilter();
+        filter.setCity("moscow");
+        filter.setCountry("RUSSIA");
+
+        when(roomRepository.getAllRooms()).thenReturn(List.of(matchingRoom, otherRoom));
+        when(roomRepository.getUsersInRoom(601)).thenReturn(Map.of());
+
+        List<RoomSummaryResponse> responses = roomService.getRooms(null, filter, null);
+
+        assertEquals(1, responses.size());
+        assertEquals(601, responses.getFirst().getId());
+        assertEquals("Moscow", responses.getFirst().getCity());
+        assertEquals("Russia", responses.getFirst().getCountry());
     }
 
     @Test
@@ -567,8 +588,10 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
-        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(List.of(ownerId, 20), event.participantIds());
+        assertEquals(RoomStatus.INACTIVE, event.importantUpdate().newStatus());
+        verify(notificationService, never()).sendImportantRoomUpdate(any(), any());
     }
 
     @Test
@@ -589,8 +612,10 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
-        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(List.of(ownerId, 20), event.participantIds());
+        assertEquals(RoomStatus.COMPLETED, event.importantUpdate().newStatus());
+        verify(notificationService, never()).sendImportantRoomUpdate(any(), any());
     }
 
     @Test
@@ -606,8 +631,10 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
-        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(List.of(ownerId, 20), event.participantIds());
+        assertEquals(true, event.importantUpdate().scheduleChanged());
+        verify(notificationService, never()).sendImportantRoomUpdate(any(), any());
     }
 
     @Test
@@ -626,8 +653,10 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendImportantRoomUpdate(eq(ownerId), any(ImportantRoomUpdateEmail.class));
-        verify(notificationService).sendImportantRoomUpdate(eq(20), any(ImportantRoomUpdateEmail.class));
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(List.of(ownerId, 20), event.participantIds());
+        assertEquals(true, event.importantUpdate().chatLinkChanged());
+        verify(notificationService, never()).sendImportantRoomUpdate(any(), any());
     }
 
     @Test
@@ -649,8 +678,8 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService, never()).sendImportantRoomUpdate(eq(ownerId), any());
-        verify(notificationService, never()).sendImportantRoomUpdate(eq(20), any());
+        verify(applicationEventPublisher, never()).publishEvent(any());
+        verify(notificationService, never()).sendImportantRoomUpdate(any(), any());
     }
 
     @Test
@@ -675,8 +704,11 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendPendingRequestAutoDeclined(30, request.getName(),
-                "the room became inactive");
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(1, event.pendingRequestNotifications().size());
+        assertEquals(30, event.pendingRequestNotifications().getFirst().userId());
+        assertEquals("the room became inactive", event.pendingRequestNotifications().getFirst().declineReason());
+        verify(notificationService, never()).sendPendingRequestAutoDeclined(any(), any(), any());
     }
 
     @Test
@@ -701,8 +733,11 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendPendingRequestAutoDeclined(30, request.getName(),
-                "the room became completed");
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(1, event.pendingRequestNotifications().size());
+        assertEquals(30, event.pendingRequestNotifications().getFirst().userId());
+        assertEquals("the room became completed", event.pendingRequestNotifications().getFirst().declineReason());
+        verify(notificationService, never()).sendPendingRequestAutoDeclined(any(), any(), any());
     }
 
     @Test
@@ -729,7 +764,19 @@ class RoomServiceTest {
 
         roomService.updateRoom(ownerId, roomId, request);
 
-        verify(notificationService).sendPendingRequestApprovalNoLongerNeeded(30, request.getName());
+        RoomUpdateNotificationEvent event = captureRoomUpdateNotificationEvent();
+        assertEquals(1, event.pendingRequestNotifications().size());
+        assertEquals(30, event.pendingRequestNotifications().getFirst().userId());
+        assertEquals(RoomUpdateNotificationEvent.PendingRequestNotificationType.APPROVAL_NO_LONGER_NEEDED,
+                event.pendingRequestNotifications().getFirst().type());
+        verify(notificationService, never()).sendPendingRequestApprovalNoLongerNeeded(any(), any());
+    }
+
+    private RoomUpdateNotificationEvent captureRoomUpdateNotificationEvent() {
+        ArgumentCaptor<RoomUpdateNotificationEvent> captor =
+                ArgumentCaptor.forClass(RoomUpdateNotificationEvent.class);
+        verify(applicationEventPublisher).publishEvent(captor.capture());
+        return captor.getValue();
     }
 
     private RoomCreationRequest validRoomCreationRequest() {

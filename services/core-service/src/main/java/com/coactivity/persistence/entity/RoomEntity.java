@@ -48,6 +48,12 @@ public class RoomEntity {
   @Column(name = "description")
   private String description;
 
+  @Column(name = "city")
+  private String city;
+
+  @Column(name = "country")
+  private String country;
+
   @Column(name = "start_date")
   private Instant dateOfStartEvent;
 

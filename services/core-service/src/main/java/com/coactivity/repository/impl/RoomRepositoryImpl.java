@@ -74,6 +74,8 @@ public class RoomRepositoryImpl implements RoomRepository {
     roomEntity.setCategory(categoryEntity);
     roomEntity.setName(request.getName());
     roomEntity.setDescription(request.getDescription());
+    roomEntity.setCity(request.getCity());
+    roomEntity.setCountry(request.getCountry());
     roomEntity.setDateOfStartEvent(request.getDateOfStartEvent());
     roomEntity.setDateOfEndEvent(request.getDateOfEndEvent());
     roomEntity.setAgeRating(request.getAgeRating());
@@ -95,6 +97,8 @@ public class RoomRepositoryImpl implements RoomRepository {
     roomEntity.setCategory(findCategoryEntity(request.getCategory()));
     roomEntity.setName(request.getName());
     roomEntity.setDescription(request.getDescription());
+    roomEntity.setCity(request.getCity());
+    roomEntity.setCountry(request.getCountry());
     roomEntity.setDateOfStartEvent(request.getDateOfStartEvent());
     roomEntity.setDateOfEndEvent(request.getDateOfEndEvent());
     roomEntity.setAgeRating(request.getAgeRating());

@@ -6,6 +6,7 @@ import com.coactivity.controller.dto.response.OwnershipTransferResponse;
 import com.coactivity.controller.dto.response.RoleAssignmentResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomImageResponse;
+import com.coactivity.controller.dto.response.RoomMembershipStatusResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
@@ -13,6 +14,7 @@ import com.coactivity.domain.BulletinBoard;
 import com.coactivity.domain.RequestStatus;
 import com.coactivity.domain.Role;
 import com.coactivity.domain.Room;
+import com.coactivity.domain.RoomMembershipStatus;
 import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
@@ -106,6 +108,15 @@ public class RoomMembershipService {
     validateRoomId(roomId);
     getExistingRoom(roomId);
     return roomRepository.isUserInMembers(roomId, effectiveRequesterId);
+  }
+
+  public RoomMembershipStatusResponse getCurrentUserMembershipStatus(Integer requesterId,
+      Integer roomId) {
+    Integer userId = requireUserId(requesterId);
+    validateRoomId(roomId);
+    Room room = getExistingRoom(roomId);
+    getExistingUser(userId);
+    return buildMembershipStatus(userId, room);
   }
 
   public MembershipVerificationResponse verifyUserMembership(Integer requesterId,
@@ -463,6 +474,8 @@ public class RoomMembershipService {
     target.setCategory(source.getCategory());
     target.setName(source.getName());
     target.setDescription(source.getDescription());
+    target.setCity(source.getCity());
+    target.setCountry(source.getCountry());
     target.setDateOfStartEvent(source.getDateOfStartEvent());
     target.setDateOfEndEvent(source.getDateOfEndEvent());
     target.setAgeRating(source.getAgeRating());
@@ -471,6 +484,7 @@ public class RoomMembershipService {
     target.setMaximumParticipants(source.getMaximumParticipants());
     target.setCreator(source.getCreator());
     target.setIsCurrentUserParticipant(source.getIsCurrentUserParticipant());
+    target.setMembershipStatus(source.getMembershipStatus());
     target.setImageIds(source.getImageIds());
     target.setImages(source.getImages());
   }
@@ -483,6 +497,8 @@ public class RoomMembershipService {
     response.setCategory(room.getCategory());
     response.setName(room.getName());
     response.setDescription(room.getDescription());
+    response.setCity(room.getCity());
+    response.setCountry(room.getCountry());
     response.setDateOfStartEvent(room.getDateOfStartEvent());
     response.setDateOfEndEvent(room.getDateOfEndEvent());
     response.setAgeRating(room.getAgeRating());
@@ -498,10 +514,36 @@ public class RoomMembershipService {
       response.setCreator(mapUserToSummaryResponse(owner));
     }
 
-    response.setIsCurrentUserParticipant(
-        currentUserId != null && roomRepository.isUserInMembers(room.getId(), currentUserId));
+    if (currentUserId != null) {
+      RoomMembershipStatusResponse status = buildMembershipStatus(currentUserId, room);
+      response.setMembershipStatus(status);
+      response.setIsCurrentUserParticipant(status.getStatus() == RoomMembershipStatus.PARTICIPANT);
+    }
     populateRoomImages(response, room.getId());
     return response;
+  }
+
+  private RoomMembershipStatusResponse buildMembershipStatus(Integer userId, Room room) {
+    Integer roomId = room.getId();
+    if (roomRepository.isUserInMembers(roomId, userId)) {
+      Role role = roomRepository.getUserRoleByRoomId(roomId, userId);
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.PARTICIPANT,
+          role, null, false);
+    }
+    if (roomRepository.isUserBannedInRoom(roomId, userId)) {
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.BANNED,
+          null, null, false);
+    }
+
+    RoomsRequest request = roomsRequestRepository.getRequestByUserAndRoom(userId, roomId);
+    if (request != null && request.getStatus() == RequestStatus.CONSIDERATION) {
+      return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.PENDING,
+          null, request.getId(), false);
+    }
+
+    boolean canJoin = room.getStatus() == RoomStatus.ACTIVE;
+    return new RoomMembershipStatusResponse(roomId, userId, RoomMembershipStatus.NOT_JOINED,
+        null, null, canJoin);
   }
 
   private User findOwner(Map<User, Role> users) {

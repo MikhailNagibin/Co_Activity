@@ -11,6 +11,7 @@ import com.coactivity.controller.dto.response.OwnershipTransferResponse;
 import com.coactivity.controller.dto.response.RoomCreationResponse;
 import com.coactivity.controller.dto.response.RoomDetailedResponse;
 import com.coactivity.controller.dto.response.RoomImageResponse;
+import com.coactivity.controller.dto.response.RoomMembershipStatusResponse;
 import com.coactivity.controller.dto.response.RoomParticipantResponse;
 import com.coactivity.controller.dto.response.RoomSummaryResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
@@ -206,6 +207,15 @@ public class RoomControllerImpl {
       @Positive @PathVariable Integer userId) {
     MembershipVerificationResponse response =
         roomMembershipService.verifyUserMembership(currentUser.getUserId(), roomId, userId);
+    return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/{roomId}/membership/status")
+  public ResponseEntity<RoomMembershipStatusResponse> getCurrentUserMembershipStatus(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId) {
+    RoomMembershipStatusResponse response =
+        roomMembershipService.getCurrentUserMembershipStatus(currentUser.getUserId(), roomId);
     return ResponseEntity.ok(response);
   }
 
