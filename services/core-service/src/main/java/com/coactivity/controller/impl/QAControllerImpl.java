@@ -1,6 +1,7 @@
 package com.coactivity.controller.impl;
 
 import com.coactivity.controller.dto.request.AnswerRequest;
+import com.coactivity.controller.dto.request.AnswerUpdateRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
@@ -14,9 +15,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -69,8 +72,48 @@ public class QAControllerImpl {
    * @return список всех вопросов в системе
    */
   @GetMapping("/questions")
-  public ResponseEntity<List<QuestionResponse>> getAllQuestions() {
-    List<QuestionResponse> responses = qaService.getQuestions(null);
+  public ResponseEntity<List<QuestionResponse>> getAllQuestions(
+      @RequestParam(name = "categoryId", required = false) Integer categoryId,
+      @RequestParam(name = "query", required = false) String query) {
+    List<QuestionResponse> responses =
+        query == null || query.trim().isEmpty()
+            ? qaService.getQuestions(categoryId)
+            : qaService.getQuestions(categoryId, query);
     return ResponseEntity.ok(responses);
+  }
+
+  @PutMapping("/questions/{questionId}")
+  public ResponseEntity<QuestionResponse> updateQuestion(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer questionId,
+      @Valid @RequestBody QuestionRequest request) {
+    QuestionResponse response = qaService.updateQuestion(currentUser.getUserId(), questionId,
+        request);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/questions/{questionId}")
+  public ResponseEntity<Void> deleteQuestion(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer questionId) {
+    qaService.deleteQuestion(currentUser.getUserId(), questionId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PutMapping("/answers/{answerId}")
+  public ResponseEntity<AnswerResponse> updateAnswer(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer answerId,
+      @Valid @RequestBody AnswerUpdateRequest request) {
+    AnswerResponse response = qaService.updateAnswer(currentUser.getUserId(), answerId, request);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/answers/{answerId}")
+  public ResponseEntity<Void> deleteAnswer(
+      @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer answerId) {
+    qaService.deleteAnswer(currentUser.getUserId(), answerId);
+    return ResponseEntity.noContent().build();
   }
 }

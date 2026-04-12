@@ -47,6 +47,27 @@ public class QaRepository {
   }
 
   public List<QuestionEntity> findQuestions(Integer categoryId) {
+    return findQuestions(categoryId, null);
+  }
+
+  public List<QuestionEntity> findQuestions(Integer categoryId, String query) {
+    String normalizedQuery = query != null ? query.trim() : null;
+    boolean hasQuery = normalizedQuery != null && !normalizedQuery.isEmpty();
+
+    if (categoryId != null && hasQuery) {
+      return questionJpaRepository
+          .findAllByCategory_IdAndQuestionContainingIgnoreCaseOrderById(categoryId,
+              normalizedQuery)
+          .stream()
+          .map(this::mapQuestion)
+          .toList();
+    }
+    if (hasQuery) {
+      return questionJpaRepository.findAllByQuestionContainingIgnoreCaseOrderById(normalizedQuery)
+          .stream()
+          .map(this::mapQuestion)
+          .toList();
+    }
     if (categoryId != null) {
       return questionJpaRepository.findAllByCategory_IdOrderById(categoryId).stream()
           .map(this::mapQuestion)
@@ -57,6 +78,23 @@ public class QaRepository {
         .sorted(java.util.Comparator.comparing(QaQuestionEntity::getId))
         .map(this::mapQuestion)
         .toList();
+  }
+
+  @Transactional
+  public QuestionEntity updateQuestion(Integer questionId, String question, Integer categoryId) {
+    QaQuestionEntity entity = questionJpaRepository.findById(questionId)
+        .orElseThrow(() -> new IllegalStateException("Question not found: " + questionId));
+    CategoryEntity category = categoryLookupRepository.findById(categoryId)
+        .orElseThrow(() -> new IllegalStateException("Category not found: " + categoryId));
+    entity.setQuestion(question);
+    entity.setCategory(category);
+    return mapQuestion(questionJpaRepository.saveAndFlush(entity));
+  }
+
+  @Transactional
+  public void deleteQuestion(Integer questionId) {
+    answerJpaRepository.deleteAllByQuestionId(questionId);
+    questionJpaRepository.deleteById(questionId);
   }
 
   @Transactional
@@ -107,6 +145,27 @@ public class QaRepository {
     return answerJpaRepository.findAllByQuestion_IdOrderById(questionId).stream()
         .map(this::mapAnswer)
         .toList();
+  }
+
+  public Optional<AnswerEntity> findAnswerById(Integer answerId) {
+    return answerJpaRepository.findById(answerId).map(this::mapAnswer);
+  }
+
+  @Transactional
+  public AnswerEntity updateAnswer(Integer answerId, String answer) {
+    QaAnswerEntity entity = answerJpaRepository.findById(answerId)
+        .orElseThrow(() -> new IllegalStateException("Answer not found: " + answerId));
+    entity.setAnswer(answer);
+    return mapAnswer(answerJpaRepository.saveAndFlush(entity));
+  }
+
+  @Transactional
+  public void deleteAnswer(Integer answerId) {
+    for (QaAnswerEntity child : answerJpaRepository.findAllByPreviousAnswer_Id(answerId)) {
+      child.setPreviousAnswer(null);
+    }
+    answerJpaRepository.flush();
+    answerJpaRepository.deleteById(answerId);
   }
 
   private QuestionEntity mapQuestion(QaQuestionEntity entity) {

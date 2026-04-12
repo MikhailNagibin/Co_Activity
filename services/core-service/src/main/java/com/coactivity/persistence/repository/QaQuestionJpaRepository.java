@@ -18,4 +18,11 @@ public interface QaQuestionJpaRepository extends JpaRepository<QaQuestionEntity,
 
   @EntityGraph(attributePaths = {"category", "owner"})
   List<QaQuestionEntity> findAllByCategory_IdOrderById(Integer categoryId);
+
+  @EntityGraph(attributePaths = {"category", "owner"})
+  List<QaQuestionEntity> findAllByQuestionContainingIgnoreCaseOrderById(String query);
+
+  @EntityGraph(attributePaths = {"category", "owner"})
+  List<QaQuestionEntity> findAllByCategory_IdAndQuestionContainingIgnoreCaseOrderById(
+      Integer categoryId, String query);
 }

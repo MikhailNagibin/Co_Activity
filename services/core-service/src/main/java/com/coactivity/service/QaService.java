@@ -1,6 +1,7 @@
 package com.coactivity.service;
 
 import com.coactivity.controller.dto.request.AnswerRequest;
+import com.coactivity.controller.dto.request.AnswerUpdateRequest;
 import com.coactivity.controller.dto.request.QuestionRequest;
 import com.coactivity.controller.dto.response.AnswerResponse;
 import com.coactivity.controller.dto.response.QuestionResponse;
@@ -8,6 +9,7 @@ import com.coactivity.controller.dto.response.QuestionWithAnswersResponse;
 import com.coactivity.repository.QaRepository;
 import com.coactivity.repository.QaRepository.AnswerEntity;
 import com.coactivity.repository.QaRepository.QuestionEntity;
+import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.util.ArrayList;
@@ -68,6 +70,59 @@ public class QaService {
     return responses;
   }
 
+  public List<QuestionResponse> getQuestions(Integer categoryId, String query) {
+    if (query == null || query.trim().isEmpty()) {
+      return getQuestions(categoryId);
+    }
+    List<QuestionEntity> questions = qaRepository.findQuestions(categoryId, query);
+    List<QuestionResponse> responses = new ArrayList<>(questions.size());
+
+    for (QuestionEntity question : questions) {
+      responses.add(
+          new QuestionResponse(question.id(), question.category(), question.question(),
+              question.author()));
+    }
+
+    return responses;
+  }
+
+  public QuestionResponse updateQuestion(Integer userId, Integer questionId,
+      QuestionRequest request) {
+    Integer authorId = requireUserId(userId);
+    if (questionId == null) {
+      throw new ValidationException("Question ID is required");
+    }
+    validateQuestionRequest(request);
+
+    QuestionEntity existing = qaRepository.findQuestionById(questionId)
+        .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+    if (!authorId.equals(existing.ownerId())) {
+      throw new AuthorizationException("Cannot update question created by another user");
+    }
+
+    Integer categoryId = qaRepository.findCategoryIdByName(request.getCategory())
+        .orElseThrow(() -> new ValidationException("Category not found: " + request.getCategory()));
+    QuestionEntity updated = qaRepository.updateQuestion(questionId, request.getQuestion(),
+        categoryId);
+    return new QuestionResponse(updated.id(), updated.category(), updated.question(),
+        updated.author());
+  }
+
+  public void deleteQuestion(Integer userId, Integer questionId) {
+    Integer authorId = requireUserId(userId);
+    if (questionId == null) {
+      throw new ValidationException("Question ID is required");
+    }
+
+    QuestionEntity existing = qaRepository.findQuestionById(questionId)
+        .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+    if (!authorId.equals(existing.ownerId())) {
+      throw new AuthorizationException("Cannot delete question created by another user");
+    }
+
+    qaRepository.deleteQuestion(questionId);
+  }
+
   public QuestionWithAnswersResponse getQuestionWithAnswers(Integer questionId) {
     if (questionId == null) {
       throw new ValidationException("Question ID is required");
@@ -86,6 +141,37 @@ public class QaService {
         question.question(), question.author());
 
     return new QuestionWithAnswersResponse(questionResponse, answerResponses);
+  }
+
+  public AnswerResponse updateAnswer(Integer userId, Integer answerId, AnswerUpdateRequest request) {
+    Integer authorId = requireUserId(userId);
+    if (answerId == null) {
+      throw new ValidationException("Answer ID is required");
+    }
+    validateAnswerUpdateRequest(request);
+
+    AnswerEntity existing = qaRepository.findAnswerById(answerId)
+        .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + answerId));
+    if (!authorId.equals(existing.ownerId())) {
+      throw new AuthorizationException("Cannot update answer created by another user");
+    }
+
+    return mapAnswer(qaRepository.updateAnswer(answerId, request.getAnswer()));
+  }
+
+  public void deleteAnswer(Integer userId, Integer answerId) {
+    Integer authorId = requireUserId(userId);
+    if (answerId == null) {
+      throw new ValidationException("Answer ID is required");
+    }
+
+    AnswerEntity existing = qaRepository.findAnswerById(answerId)
+        .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + answerId));
+    if (!authorId.equals(existing.ownerId())) {
+      throw new AuthorizationException("Cannot delete answer created by another user");
+    }
+
+    qaRepository.deleteAnswer(answerId);
   }
 
   private AnswerResponse mapAnswer(AnswerEntity answer) {
@@ -117,6 +203,15 @@ public class QaService {
     }
     if (request.getQuestionId() == null || request.getQuestionId() <= 0) {
       throw new ValidationException("Question ID is required");
+    }
+    if (request.getAnswer() == null || request.getAnswer().isBlank()) {
+      throw new ValidationException("Answer text cannot be empty");
+    }
+  }
+
+  private void validateAnswerUpdateRequest(AnswerUpdateRequest request) {
+    if (request == null) {
+      throw new ValidationException("Answer request is required");
     }
     if (request.getAnswer() == null || request.getAnswer().isBlank()) {
       throw new ValidationException("Answer text cannot be empty");
