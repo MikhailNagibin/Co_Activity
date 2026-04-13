@@ -38,6 +38,35 @@ export function browseFilterToApiCategory(filterValue) {
   return BROWSE_FILTER_TO_API_CATEGORY[filterValue] ?? null
 }
 
+/**
+ * ID категории в БД (порядок INSERT в V1__baseline_schema.sql: Sport…NotSpecified).
+ * Для `GET /api/qa/questions?categoryId=`.
+ */
+const BROWSE_FILTER_TO_QA_CATEGORY_ID = {
+  sport: 1,
+  music: 2,
+  art: 3,
+  entertainment: 4,
+  business: 5,
+  education: 6,
+  'active-recreation': 7,
+  'passive-recreation': 8,
+  'mass-event': 9,
+  others: 10,
+}
+
+/**
+ * @param {string} filterValue — value из BROWSE_CATEGORY_OPTIONS
+ * @returns {number | undefined}
+ */
+export function browseFilterToQaCategoryId(filterValue) {
+  if (filterValue == null || filterValue === '' || filterValue === 'all-categories') {
+    return undefined
+  }
+  const id = BROWSE_FILTER_TO_QA_CATEGORY_ID[filterValue]
+  return Number.isFinite(id) ? id : undefined
+}
+
 /** Подписи для значений enum Category в ответах API (как в JSON). */
 export const ROOM_CATEGORY_LABELS = {
   SPORT: 'Спорт',
