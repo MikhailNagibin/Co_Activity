@@ -102,7 +102,28 @@ function normalizeDetails(details) {
     return null
   }
   if (Array.isArray(details)) {
-    return details.filter(Boolean).join('; ')
+    return details
+      .map((item) => {
+        if (!item) {
+          return null
+        }
+        if (typeof item === 'string') {
+          return item
+        }
+        if (typeof item === 'object') {
+          const field = typeof item.field === 'string' ? item.field : ''
+          const message = typeof item.message === 'string' ? item.message : ''
+          if (field && message) {
+            return `${field}: ${message}`
+          }
+          if (message) {
+            return message
+          }
+        }
+        return String(item)
+      })
+      .filter(Boolean)
+      .join('; ')
   }
   if (typeof details === 'string') {
     return details
@@ -119,7 +140,7 @@ function parseApiErrorPayload(payload) {
     return { message: null, details: null, code: null }
   }
 
-  const rawDetails = payload.details ?? null
+  const rawDetails = payload.details ?? payload.errors ?? null
   const details = normalizeDetails(rawDetails)
   const code =
     typeof payload.code === 'string' && payload.code.trim()
@@ -130,6 +151,10 @@ function parseApiErrorPayload(payload) {
       ? payload.message
       : typeof payload.error === 'string' && payload.error.trim()
         ? payload.error
+        : typeof payload.detail === 'string' && payload.detail.trim()
+          ? payload.detail
+          : typeof payload.title === 'string' && payload.title.trim()
+            ? payload.title
         : null
 
   return { message, details, code }
@@ -146,7 +171,8 @@ async function parseResponse(response) {
   }
 
   const contentType = response.headers.get('content-type') || ''
-  const isJson = contentType.includes('application/json')
+  const isJson =
+    contentType.includes('application/json') || contentType.includes('application/problem+json')
 
   if (isJson) {
     try {

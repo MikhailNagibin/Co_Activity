@@ -27,3 +27,19 @@ export function me() {
 export function getCsrf() {
   return get('/auth/csrf')
 }
+
+export function changePassword({ currentPassword, newPassword }) {
+  return post('/auth/password/change', { currentPassword, newPassword })
+}
+
+export function requestPasswordReset({ email }) {
+  return post('/auth/password/reset/request', { email })
+}
+
+export function verifyPasswordReset({ email, code }) {
+  return post('/auth/password/reset/verify', { email, code })
+}
+
+export function confirmPasswordReset({ email, code, newPassword }) {
+  return post('/auth/password/reset/confirm', { email, code, newPassword })
+}
