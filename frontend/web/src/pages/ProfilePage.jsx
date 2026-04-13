@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
 import { useAuthSession } from '../auth/authSessionContext.js'
@@ -11,13 +11,16 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import {
+  deleteMyAvatar,
   deleteMyAccount,
   deleteMyAccountWithActions,
   getMyDeletionPreview,
   getMyProfile,
   logout,
+  uploadMyAvatar,
   updateMyProfile,
 } from '../services/profileService.js'
+import { resolveUserAvatarUrl, resolveUserName, withCacheBust } from '../utils/userProfile.js'
 
 function instantToInputDate(value) {
   if (!value) {
@@ -62,10 +65,21 @@ function getRoleLabel(role) {
   }
 }
 
+function buildProfileForm(payload) {
+  return {
+    username: payload?.username ?? payload?.userName ?? '',
+    dateOfBirth: instantToInputDate(payload?.dateOfBirth),
+    country: payload?.country ?? '',
+    city: payload?.city ?? '',
+    description: payload?.description ?? '',
+  }
+}
+
 function ProfilePage() {
   const navigate = useNavigate()
   const { isAuthenticated, clearSession } = useAuthSession()
   const passwordErrorRef = useRef(null)
+  const avatarInputRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -77,6 +91,11 @@ function ProfilePage() {
   const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('')
   const [passwordInvalidFields, setPasswordInvalidFields] = useState({})
   const [profile, setProfile] = useState(null)
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState(false)
+  const [avatarVersion, setAvatarVersion] = useState(0)
   const [deletionPreview, setDeletionPreview] = useState(null)
   const [deletionModes, setDeletionModes] = useState({})
   const [deletionTransfers, setDeletionTransfers] = useState({})
@@ -91,8 +110,12 @@ function ProfilePage() {
     country: '',
     city: '',
     description: '',
-    avatarId: '',
   })
+
+  const applyProfilePayload = useCallback((payload) => {
+    setProfile(payload)
+    setProfileForm(buildProfileForm(payload))
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -105,15 +128,7 @@ function ProfilePage() {
         if (!isMounted) {
           return
         }
-        setProfile(payload)
-        setProfileForm({
-          username: payload?.username ?? '',
-          dateOfBirth: instantToInputDate(payload?.dateOfBirth),
-          country: payload?.country ?? '',
-          city: payload?.city ?? '',
-          description: payload?.description ?? '',
-          avatarId: payload?.avatarId == null ? '' : String(payload.avatarId),
-        })
+        applyProfilePayload(payload)
       } catch (error) {
         if (!isMounted) {
           return
@@ -143,7 +158,7 @@ function ProfilePage() {
     return () => {
       isMounted = false
     }
-  }, [isAuthenticated, navigate])
+  }, [applyProfilePayload, isAuthenticated, navigate])
 
   useEffect(() => {
     if (!passwordErrorMessage) {
@@ -151,6 +166,14 @@ function ProfilePage() {
     }
     passwordErrorRef.current?.focus()
   }, [passwordErrorMessage])
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreviewUrl)
+      }
+    }
+  }, [avatarPreviewUrl])
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target
@@ -174,6 +197,98 @@ function ProfilePage() {
     setPasswordErrorMessage(message)
   }
 
+  const resetSelectedAvatar = () => {
+    setSelectedAvatarFile(null)
+    setAvatarPreviewUrl('')
+    if (avatarInputRef.current) {
+      avatarInputRef.current.value = ''
+    }
+  }
+
+  const handleAvatarSelection = (event) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) {
+      resetSelectedAvatar()
+      return
+    }
+
+    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
+    if (file.type && !allowedMimeTypes.has(file.type)) {
+      resetSelectedAvatar()
+      setSuccessMessage('')
+      setErrorMessage('Аватар должен быть в формате PNG, JPEG или WEBP')
+      return
+    }
+
+    setSuccessMessage('')
+    setErrorMessage('')
+    setSelectedAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
+  }
+
+  const handleUploadAvatar = async () => {
+    if (!selectedAvatarFile) {
+      setErrorMessage('Сначала выберите файл аватара')
+      return
+    }
+
+    setErrorMessage('')
+    setSuccessMessage('')
+    setIsUploadingAvatar(true)
+    try {
+      const updated = await uploadMyAvatar(selectedAvatarFile)
+      applyProfilePayload(updated)
+      resetSelectedAvatar()
+      setAvatarVersion((prev) => prev + 1)
+      setSuccessMessage('Аватар обновлён')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить аватар'))
+      } else {
+        setErrorMessage('Не удалось загрузить аватар')
+      }
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
+  const handleDeleteAvatar = async () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+    setIsDeletingAvatar(true)
+    try {
+      await deleteMyAvatar()
+      resetSelectedAvatar()
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              avatarId: null,
+              avatarUrl: null,
+            }
+          : prev,
+      )
+      setAvatarVersion((prev) => prev + 1)
+      setSuccessMessage('Аватар удалён')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось удалить аватар'))
+      } else {
+        setErrorMessage('Не удалось удалить аватар')
+      }
+    } finally {
+      setIsDeletingAvatar(false)
+    }
+  }
+
   const handleSaveProfile = async (event) => {
     event.preventDefault()
     setErrorMessage('')
@@ -193,26 +308,18 @@ function ProfilePage() {
       return
     }
 
-    const avatarId = profileForm.avatarId.trim()
-    const parsedAvatarId = avatarId ? Number.parseInt(avatarId, 10) : null
-    if (avatarId && (!Number.isFinite(parsedAvatarId) || parsedAvatarId <= 0)) {
-      setErrorMessage('ID аватара должен быть положительным числом')
-      return
-    }
-
     const payload = {
       username,
       dateOfBirth: dateInputToInstant(profileForm.dateOfBirth),
       country: profileForm.country.trim() || null,
       city: profileForm.city.trim() || null,
       description: profileForm.description.trim() || null,
-      avatarId: parsedAvatarId,
     }
 
     setIsSavingProfile(true)
     try {
       const updated = await updateMyProfile(payload)
-      setProfile(updated)
+      applyProfilePayload(updated)
       setSuccessMessage('Профиль сохранён')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -405,6 +512,11 @@ function ProfilePage() {
   }
 
   const sessionEnded = Boolean(isAuthenticated && !isLoading && !profile)
+  const savedAvatarUrl = resolveUserAvatarUrl(profile)
+  const displayedAvatarUrl =
+    avatarPreviewUrl || (savedAvatarUrl ? withCacheBust(savedAvatarUrl, avatarVersion) : '')
+  const hasSavedAvatar = Boolean(savedAvatarUrl)
+  const profileDisplayName = resolveUserName(profile, 'Пользователь')
 
   return (
     <>
@@ -438,13 +550,30 @@ function ProfilePage() {
               <div className="profile-grid">
                 <section className="profile-panel profile-panel--overview">
                   <div className="profile-overview">
-                    <div className="profile-overview__avatar" aria-hidden="true">
-                      <i className="fa-regular fa-circle-user"></i>
+                    <div className="profile-overview__avatar">
+                      {displayedAvatarUrl ? (
+                        <img
+                          className="profile-overview__avatar-image"
+                          src={displayedAvatarUrl}
+                          alt={`Аватар пользователя ${profileDisplayName}`}
+                        />
+                      ) : (
+                        <i className="fa-regular fa-circle-user"></i>
+                      )}
                     </div>
                     <div className="profile-overview__body">
                       <p className="profile-kicker">Профиль</p>
-                      <h3>{profile.username}</h3>
+                      <h3>{profileDisplayName}</h3>
                       <p className="gray-elem">{profile.email}</p>
+                      <div className="profile-avatar-meta">
+                        {selectedAvatarFile ? (
+                          <span>Выбран файл: {selectedAvatarFile.name}</span>
+                        ) : hasSavedAvatar ? (
+                          <span>Текущий аватар активен</span>
+                        ) : (
+                          <span>Аватар не загружен</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="profile-summary-grid">
@@ -460,6 +589,47 @@ function ProfilePage() {
                         {profile.country || 'Не указана'}
                       </strong>
                     </article>
+                  </div>
+                  <div className="profile-avatar-actions">
+                    <label className="profile-avatar-upload" htmlFor="avatarFile">
+                      <span>Выбрать аватар</span>
+                      <input
+                        ref={avatarInputRef}
+                        id="avatarFile"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleAvatarSelection}
+                        disabled={isUploadingAvatar || isDeletingAvatar}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="create-room-submit profile-avatar-submit"
+                      onClick={handleUploadAvatar}
+                      disabled={!selectedAvatarFile || isUploadingAvatar || isDeletingAvatar}
+                    >
+                      {isUploadingAvatar ? 'Загрузка...' : 'Загрузить аватар'}
+                    </button>
+                    {selectedAvatarFile ? (
+                      <button
+                        type="button"
+                        className="profile-delete-account-link"
+                        onClick={resetSelectedAvatar}
+                        disabled={isUploadingAvatar || isDeletingAvatar}
+                      >
+                        Сбросить выбор
+                      </button>
+                    ) : null}
+                    {hasSavedAvatar ? (
+                      <button
+                        type="button"
+                        className="profile-delete-account-link"
+                        onClick={handleDeleteAvatar}
+                        disabled={isUploadingAvatar || isDeletingAvatar}
+                      >
+                        {isDeletingAvatar ? 'Удаление...' : 'Удалить аватар'}
+                      </button>
+                    ) : null}
                   </div>
                 </section>
 
@@ -545,20 +715,6 @@ function ProfilePage() {
                         disabled={isSavingProfile}
                       />
                     </div>
-
-                    <div className="profile-form-row">
-                      <label htmlFor="avatarId">ID аватара (опционально)</label>
-                      <input
-                        id="avatarId"
-                        name="avatarId"
-                        type="number"
-                        min={1}
-                        value={profileForm.avatarId}
-                        onChange={handleProfileChange}
-                        disabled={isSavingProfile}
-                      />
-                    </div>
-
                     <button type="submit" className="create-room-submit" disabled={isSavingProfile}>
                       {isSavingProfile ? 'Сохранение...' : 'Сохранить профиль'}
                     </button>
