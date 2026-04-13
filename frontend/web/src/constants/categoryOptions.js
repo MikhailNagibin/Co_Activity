@@ -61,17 +61,50 @@ export function getRoomCategoryLabel(category) {
   return ROOM_CATEGORY_LABELS[key] ?? key
 }
 
+const ROOM_CATEGORY_NORMALIZATION_MAP = {
+  SPORT: 'SPORT',
+  SPORTS: 'SPORT',
+  Sport: 'SPORT',
+  MUSIC: 'MUSIC',
+  Music: 'MUSIC',
+  ART: 'ART',
+  Art: 'ART',
+  ENTERTAINMENTS: 'ENTERTAINMENTS',
+  Entertainments: 'ENTERTAINMENTS',
+  BUSINESS: 'BUSINESS',
+  Business: 'BUSINESS',
+  EDUCATION: 'EDUCATION',
+  Education: 'EDUCATION',
+  ACTIVE_RECREATION: 'ACTIVE_RECREATION',
+  ActiveRecreation: 'ACTIVE_RECREATION',
+  PASSIVE_RECREATION: 'PASSIVE_RECREATION',
+  PassiveRecreation: 'PASSIVE_RECREATION',
+  IS_A_MASS_EVENT: 'IS_A_MASS_EVENT',
+  MassEvent: 'IS_A_MASS_EVENT',
+  OTHER: 'OTHER',
+  Other: 'OTHER',
+  NOT_SPECIFIED: 'NOT_SPECIFIED',
+  NotSpecified: 'NOT_SPECIFIED',
+}
+
+export function normalizeRoomCategory(category) {
+  if (category == null || String(category).trim() === '') {
+    return 'NOT_SPECIFIED'
+  }
+  return ROOM_CATEGORY_NORMALIZATION_MAP[String(category).trim()] ?? String(category).trim()
+}
+
 /** Имена категорий в API core-service (enum Category). */
 export const ROOM_CATEGORY_OPTIONS = [
-  { value: 'Sport', label: 'Спорт' },
-  { value: 'Music', label: 'Музыка' },
-  { value: 'Art', label: 'Искусство' },
-  { value: 'Entertainments', label: 'Развлечения' },
-  { value: 'Business', label: 'Бизнес' },
-  { value: 'Education', label: 'Образование' },
-  { value: 'ActiveRecreation', label: 'Активный отдых' },
-  { value: 'PassiveRecreation', label: 'Пассивный отдых' },
-  { value: 'MassEvent', label: 'Массовое мероприятие' },
-  { value: 'Other', label: 'Другое' },
-  { value: 'NotSpecified', label: 'Не указано' },
+  { value: 'SPORT', label: 'Спорт' },
+  { value: 'MUSIC', label: 'Музыка' },
+  { value: 'ART', label: 'Искусство' },
+  { value: 'ENTERTAINMENTS', label: 'Развлечения' },
+  { value: 'BUSINESS', label: 'Бизнес' },
+  { value: 'EDUCATION', label: 'Образование' },
+  { value: 'ACTIVE_RECREATION', label: 'Активный отдых' },
+  { value: 'PASSIVE_RECREATION', label: 'Пассивный отдых' },
+  { value: 'IS_A_MASS_EVENT', label: 'Массовое мероприятие' },
+  { value: 'OTHER', label: 'Другое' },
+  { value: 'NOT_SPECIFIED', label: 'Не указано' },
 ]
