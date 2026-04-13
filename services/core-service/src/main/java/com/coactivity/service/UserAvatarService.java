@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class UserAvatarService {
 
+  private static final String STORAGE_KEY_PREFIX = "avatars/users/";
   private static final Logger log = LoggerFactory.getLogger(UserAvatarService.class);
   private static final Set<String> SUPPORTED_CONTENT_TYPES = Set.of(
       "image/jpeg",
@@ -54,7 +55,7 @@ public class UserAvatarService {
     ValidatedAvatarUpload upload = validateAndReadAvatarFile(file);
 
     UserAvatar previousAvatar = resolveAvatar(user.getAvatarFileId());
-    String storageKey = generateStorageKey(upload.contentType());
+    String storageKey = generateStorageKey(userId, upload.contentType());
     boolean stored = false;
 
     try {
@@ -160,8 +161,8 @@ public class UserAvatarService {
     return userAvatarRepository.getAvatarById(avatarFileId);
   }
 
-  private String generateStorageKey(String contentType) {
-    return "avatars/" + UUID.randomUUID() + extensionForContentType(contentType);
+  private String generateStorageKey(Integer userId, String contentType) {
+    return STORAGE_KEY_PREFIX + userId + "/" + UUID.randomUUID() + extensionForContentType(contentType);
   }
 
   private String extensionForContentType(String contentType) {
