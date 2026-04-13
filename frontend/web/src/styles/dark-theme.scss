@@ -640,6 +640,10 @@
     color: #f2f2f4;
   }
 
+  .organizer-name--link:hover {
+    border-bottom-color: rgba(255, 255, 255, 0.45);
+  }
+
   .room-join-disabled {
     color: rgba(232, 232, 236, 0.45);
   }
@@ -780,6 +784,18 @@
     i {
       color: #e8e8ea;
     }
+  }
+
+  .profile-avatar-meta,
+  .notification-settings-hint,
+  .profile-description {
+    color: rgba(232, 232, 236, 0.7);
+  }
+
+  .profile-avatar-upload {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.04);
+    color: #f2f2f4;
   }
 
   .profile-summary-card {

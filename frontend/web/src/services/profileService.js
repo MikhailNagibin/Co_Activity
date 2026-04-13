@@ -1,16 +1,34 @@
 import { del, get, post, put } from '../api/httpClient.js'
-import { logout as authLogout, me } from './authService.js'
+import { logout as authLogout } from './authService.js'
 
-export function getMyProfile() {
-  return me()
+export function getMyProfile(options = {}) {
+  return get('/users/me', options)
 }
 
 export function updateMyProfile(payload, options = {}) {
   return put('/users/me', payload, options)
 }
 
+export function getPublicUserProfile(userId, options = {}) {
+  return get(`/users/${encodeURIComponent(String(userId))}`, options)
+}
+
+export function getMyNotificationSettings(options = {}) {
+  return get('/users/me/notifications', options)
+}
+
 export function updateMyNotificationSettings(payload, options = {}) {
   return put('/users/me/notifications', payload, options)
+}
+
+export function uploadMyAvatar(file, options = {}) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return put('/users/me/avatar', formData, options)
+}
+
+export function deleteMyAvatar(options = {}) {
+  return del('/users/me/avatar', options)
 }
 
 export function logout(options = {}) {

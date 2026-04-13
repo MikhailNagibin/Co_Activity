@@ -19,6 +19,8 @@ const BY_STATUS = {
 }
 
 const BY_CODE = {
+  AUTH_REQUIRED: 'Сессия истекла или требуется вход. Войдите в аккаунт.',
+  ACCESS_DENIED: 'Недостаточно прав для этого действия.',
   EMAIL_ALREADY_REGISTERED: 'Эта почта уже занята.',
   EMAIL_ALREADY_VERIFIED: 'Эта почта уже подтверждена. Войдите в аккаунт.',
   EMAIL_NOT_VERIFIED: 'Подтвердите почту перед входом.',
@@ -28,7 +30,9 @@ const BY_CODE = {
   VERIFICATION_CODE_EXPIRED: 'Срок действия кода истёк. Запросите новый код.',
   PASSWORD_RESET_CODE_EXPIRED: 'Срок действия кода сброса истёк. Запросите новый код заново.',
   REGISTRATION_CODE_RESEND_COOLDOWN: 'Новый код можно запросить только раз в минуту.',
+  USER_NOT_FOUND: 'Пользователь не найден.',
   USERNAME_ALREADY_TAKEN: 'Это имя пользователя уже занято.',
+  AVATAR_NOT_FOUND: 'Аватар не найден.',
   OWNED_ROOMS_RESOLUTION_REQUIRED: 'Сначала решите, что делать с активностями, где вы владелец.',
   INVALID_OWNERSHIP_TRANSFER: 'Передать владение можно только текущему участнику комнаты.',
 }

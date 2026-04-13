@@ -12,6 +12,7 @@ import MainPage from './pages/MainPage.jsx'
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx'
 import PasswordResetPage from './pages/PasswordResetPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
+import PublicUserProfilePage from './pages/PublicUserProfilePage.jsx'
 import QADataPage from './pages/QADataPage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import SignUp from './pages/SignUp.jsx'
@@ -46,6 +47,7 @@ function App() {
       <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
+      <Route path="/users/:userId" element={<RequireAuth><PublicUserProfilePage /></RequireAuth>} />
       <Route path="/qa" element={<QADataPage />} />
       <Route path="/qa/new" element={<CreateQuestionPage />} />
       <Route path="/cards/default-0" element={<DefaultCard0 />} />

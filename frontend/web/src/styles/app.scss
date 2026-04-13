@@ -1913,6 +1913,16 @@ button.cta-black-button {
   color: #111;
 }
 
+.organizer-name--link {
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+
+  &:hover {
+    border-bottom-color: rgba(0, 0, 0, 0.35);
+  }
+}
+
 .room-join-primary {
   margin-top: 8px;
   width: 100%;
@@ -2397,11 +2407,18 @@ button.cta-black-button {
   border-radius: 18px;
   background: rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
 
   i {
     font-size: 2rem;
     color: #1a1a1a;
   }
+}
+
+.profile-overview__avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .profile-overview__body {
@@ -2412,6 +2429,11 @@ button.cta-black-button {
   p {
     margin: 0;
   }
+}
+
+.profile-avatar-meta {
+  font-size: 0.82rem;
+  color: rgba(26, 26, 26, 0.55);
 }
 
 .profile-summary-grid {
@@ -2469,6 +2491,48 @@ button.cta-black-button {
   input {
     width: auto;
   }
+}
+
+.profile-avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.profile-avatar-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.02);
+  color: #111;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.profile-avatar-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.profile-avatar-submit {
+  margin: 0;
+}
+
+.notification-settings-hint,
+.profile-description {
+  margin: 0;
+  line-height: 1.55;
 }
 
 .profile-links {

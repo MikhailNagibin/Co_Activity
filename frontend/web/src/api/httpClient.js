@@ -49,6 +49,10 @@ function joinUrl(baseUrl, path) {
   return `${normalizedBase}${normalizedPath}`
 }
 
+function isFormDataBody(body) {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
 function readCookie(name) {
   if (typeof document === 'undefined' || !document.cookie) {
     return null
@@ -187,7 +191,8 @@ async function parseResponse(response) {
 
 export async function apiRequest(path, options = {}) {
   const { method = 'GET', body, headers, signal } = options
-  const hasJsonBody = body !== undefined
+  const hasFormDataBody = isFormDataBody(body)
+  const hasJsonBody = body !== undefined && !hasFormDataBody
   const upperMethod = String(method).toUpperCase()
   const csrfToken = ['GET', 'HEAD', 'OPTIONS'].includes(upperMethod)
     ? null
@@ -195,7 +200,12 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(joinUrl(getApiBaseUrl(), path), {
     method,
     headers: buildHeaders(headers, hasJsonBody, csrfToken),
-    body: hasJsonBody ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : hasFormDataBody
+          ? body
+          : JSON.stringify(body),
     signal,
     credentials: 'include',
   })

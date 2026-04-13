@@ -16,6 +16,7 @@ import {
   updateRoomBulletin,
 } from '../services/roomsService.js'
 import { formatDate, normalizeBulletinContent } from '../services/uiMappers.js'
+import { resolveUserName } from '../utils/userProfile.js'
 
 function toArray(payload) {
   if (Array.isArray(payload)) {
@@ -174,6 +175,8 @@ function RoomActivityPage() {
   const isParticipant = room?.isCurrentUserParticipant === true
   const isPublic = room?.isPublic !== false
   const hasProtectedAccess = room?.hasProtectedAccess === true
+  const organizerId = room?.creator?.id
+  const organizerName = resolveUserName(room?.creator, 'Не указано')
 
   const bulletinDisplayText =
     room?.bulletinBoard?.content != null
@@ -468,7 +471,13 @@ function RoomActivityPage() {
                       <i className="fa-regular fa-circle-user"></i>
                     </span>
                     <div className="organizer-details">
-                      <span className="organizer-name">{room.creator?.userName || 'Не указано'}</span>
+                      {organizerId ? (
+                        <Link to={`/users/${organizerId}`} className="organizer-name organizer-name--link">
+                          {organizerName}
+                        </Link>
+                      ) : (
+                        <span className="organizer-name">{organizerName}</span>
+                      )}
                     </div>
                   </div>
                 </article>
