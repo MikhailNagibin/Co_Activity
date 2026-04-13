@@ -57,6 +57,8 @@ public class SecurityConfig {
             .securityContextRepository(securityContextRepository()))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+            .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
+                "/swagger-ui/**", "/swagger-ui.html").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/rooms/me").authenticated()
             .requestMatchers(HttpMethod.GET, "/api/users/*/avatar").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/rooms/*/images/*").permitAll()
