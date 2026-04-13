@@ -85,13 +85,13 @@ async function ensureCsrfToken() {
   }
 }
 
-function buildHeaders(customHeaders = {}, jsonBody = false, csrfToken = null) {
+function buildHeaders(customHeaders = {}, contentType = null, csrfToken = null) {
   const headers = {
     ...customHeaders,
   }
 
-  if (jsonBody) {
-    headers['Content-Type'] = 'application/json'
+  if (contentType) {
+    headers['Content-Type'] = contentType
   }
 
   if (csrfToken) {
@@ -190,22 +190,27 @@ async function parseResponse(response) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = 'GET', body, headers, signal } = options
+  const { method = 'GET', body, headers, signal, stringifyBody = true, contentType = null } = options
   const hasFormDataBody = isFormDataBody(body)
-  const hasJsonBody = body !== undefined && !hasFormDataBody
+  const hasStructuredBody = body !== undefined && !hasFormDataBody
   const upperMethod = String(method).toUpperCase()
   const csrfToken = ['GET', 'HEAD', 'OPTIONS'].includes(upperMethod)
     ? null
     : await ensureCsrfToken()
+  const resolvedContentType =
+    contentType ??
+    (hasStructuredBody && stringifyBody ? 'application/json' : null)
   const response = await fetch(joinUrl(getApiBaseUrl(), path), {
     method,
-    headers: buildHeaders(headers, hasJsonBody, csrfToken),
+    headers: buildHeaders(headers, resolvedContentType, csrfToken),
     body:
       body === undefined
         ? undefined
         : hasFormDataBody
           ? body
-          : JSON.stringify(body),
+          : stringifyBody
+            ? JSON.stringify(body)
+            : body,
     signal,
     credentials: 'include',
   })
