@@ -1,0 +1,15 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  session:
+    store-type: redis
+    redis:
+      repository-type: indexed
+
+app:
+  storage:
+    type: local
+    local:
+      root: ${java.io.tmpdir}/coactivity-test-storage
+

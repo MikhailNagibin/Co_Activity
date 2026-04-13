@@ -76,7 +76,7 @@ cp .env.prod.example .env.prod
 - `NOTIFICATIONS_KAFKA_TOPIC` и `NOTIFICATIONS_KAFKA_DLT_TOPIC` — имена Kafka topic'ов для
   email-контракта
 - `SPRING_DATA_REDIS_HOST=localhost`, `SPRING_DATA_REDIS_PORT=6379` — Redis для Spring Session
-- `SPRING_PROFILES_ACTIVE=local` — локальный профиль `notifications-service` для Mailpit
+- `SPRING_PROFILES_ACTIVE=local` — Spring profile для `core-service` и `notifications-service`
 - `SESSION_COOKIE_SECURE` — политика cookie сессии: `false` для local/dev по HTTP, `true` для
   HTTPS-окружений
 
@@ -216,7 +216,12 @@ Kafka topic'и для email-контракта создаются заранее
 
 ## Object Storage в production-like
 
-`core-service` в этом проекте по умолчанию использует `s3` storage (`APP_STORAGE_TYPE=s3`).
+В этом проекте storage зависит от Spring profile:
+
+- `local` (local/dev): по умолчанию `app.storage.type=local` (файлы на локальной FS)
+- `prod` (production-like/prod): по умолчанию `app.storage.type=s3` (MinIO/S3)
+
+При необходимости можно переопределять через `APP_STORAGE_TYPE`.
 
 В production-like запуске через `docker-compose.prod.yml` роль S3-compatible object storage
 выполняет **MinIO**, который поднимается как отдельный контейнер внутри compose-окружения.
@@ -331,7 +336,7 @@ curl -b /tmp/coactivity.cookies http://localhost:8080/api/auth/me
 ### 1. Поднять только инфраструктуру
 
 ```bash
-docker compose up -d postgres kafka redis kafka-topics-init
+docker compose --env-file .env.local -f docker-compose.yml up -d postgres kafka redis kafka-topics-init mailpit
 ```
 
 Если `kafka-topics-init` не запускать, `notifications-service` теперь падает fail-fast при
@@ -340,30 +345,41 @@ docker compose up -d postgres kafka redis kafka-topics-init
 Повторно прогнать bootstrap topic'ов вручную можно так:
 
 ```bash
-docker compose run --rm kafka-topics-init
+docker compose --env-file .env.local -f docker-compose.yml run --rm kafka-topics-init
 ```
 
 ### 2. Загрузить `.env` в shell
 
+Для local/dev:
+
 ```bash
 cd /Users/bomnik/IdeaProjects/Co_Activity
 set -a
-source .env
+source .env.local
 set +a
 ```
 
 `source` загружает переменные в текущую shell-сессию.  
 `set -a` делает их экспортируемыми для Java-процессов.
 
-Если используешь `.env.example` без изменений, `notifications-service` пойдёт в локальный Mailpit на
-`localhost:1025`.
+Для production-like с реальным SMTP (запуск сервисов не через compose, а из IDE/`mvnw`):
+
+```bash
+cd /Users/bomnik/IdeaProjects/Co_Activity
+set -a
+source .env.prod
+set +a
+```
+
+Если используешь `.env.local` без изменений, `notifications-service` пойдёт в локальный Mailpit на
+`localhost:1025` (контейнер `mailpit` должен быть поднят).
 
 ### 3. Запустить `notifications-service`
 
 ```bash
 cd /Users/bomnik/IdeaProjects/Co_Activity
 set -a
-source .env
+source .env.local
 set +a
 ./mvnw -f services/notifications-service/pom.xml spring-boot:run
 ```
@@ -396,7 +412,7 @@ Yandex SMTP запускай `notifications-service` отдельно через
 ```bash
 cd /Users/bomnik/IdeaProjects/Co_Activity
 set -a
-source .env
+source .env.local
 set +a
 ./mvnw -f services/core-service/pom.xml spring-boot:run
 ```
@@ -476,11 +492,12 @@ Spring context.
 
 - backend слушает `localhost:8080`
 - frontend запущен из `frontend/web`
-- Vite proxy не менялся в [vite.config.js]
+- Vite proxy не менялся в `frontend/web/vite.config.js`
 
 ## Куда смотреть дальше
 
-- backend сервисы: [services/README.md]
-- frontend структура: [frontend/README.md]
-- frontend app: [frontend/web/README.md]
-- auth контракт: [contracts/auth-spec.md]
+- документация (точки входа): `docs/README.md`
+- backend сервисы: `services/README.md`
+- frontend структура: `frontend/README.md`
+- frontend app: `frontend/web/README.md`
+- auth контракт: `contracts/auth-spec.md`
