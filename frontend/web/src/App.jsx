@@ -9,11 +9,14 @@ import QuestionThreadPage from './pages/QuestionThreadPage.jsx'
 import CreateQuestionPage from './pages/CreateQuestionPage.jsx'
 import CreateRoomPage from './pages/CreateRoomPage.jsx'
 import MainPage from './pages/MainPage.jsx'
+import MyRoomsPage from './pages/MyRoomsPage.jsx'
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx'
 import PasswordResetPage from './pages/PasswordResetPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import PublicUserProfilePage from './pages/PublicUserProfilePage.jsx'
 import QADataPage from './pages/QADataPage.jsx'
+import BannedRoomsPage from './pages/BannedRoomsPage.jsx'
+import SentJoinRequestsPage from './pages/SentJoinRequestsPage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import SignUp from './pages/SignUp.jsx'
 
@@ -46,6 +49,9 @@ function App() {
       <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
       <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+      <Route path="/profile/my-rooms" element={<RequireAuth><MyRoomsPage /></RequireAuth>} />
+      <Route path="/profile/sent-requests" element={<RequireAuth><SentJoinRequestsPage /></RequireAuth>} />
+      <Route path="/profile/banned-rooms" element={<RequireAuth><BannedRoomsPage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
       <Route path="/users/:userId" element={<RequireAuth><PublicUserProfilePage /></RequireAuth>} />
       <Route path="/qa" element={<QADataPage />} />

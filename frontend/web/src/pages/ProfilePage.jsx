@@ -640,16 +640,17 @@ function ProfilePage() {
                     <Link to="/profile/notifications" className="profile-links__action">
                       Настройка уведомлений
                     </Link>
-                    <button type="button" disabled>
+                    <Link to="/profile/my-rooms" className="profile-links__action">
                       Мои активности
-                    </button>
-                    <button type="button" disabled>
+                    </Link>
+                    <Link to="/profile/sent-requests" className="profile-links__action">
                       Отправленные заявки
-                    </button>
+                    </Link>
+                    <Link to="/profile/banned-rooms" className="profile-links__action">
+                      Забанен в комнатах
+                    </Link>
                   </div>
-                  <p className="gray-elem">
-                    Эти разделы будут вынесены на отдельные страницы следующим шагом.
-                  </p>
+                  <p className="gray-elem">Откройте нужный раздел профиля отдельной страницей.</p>
                 </section>
 
                 <section className="profile-panel">

@@ -51,6 +51,10 @@ export function getSentJoinRequests(options = {}) {
   return get('/users/requests/sent', options)
 }
 
+export function cancelSentJoinRequest(requestId, options = {}) {
+  return del(`/users/requests/${requestId}`, options)
+}
+
 export function getBannedRooms(options = {}) {
   return get('/users/banned-rooms', options)
 }

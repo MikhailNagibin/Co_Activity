@@ -80,3 +80,190 @@ button {
 .split-fields > * {
   flex: 1;
 }
+
+.profile-list-shell {
+  padding: 88px 20px 32px;
+}
+
+.profile-list-page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.profile-list-backline {
+  margin-bottom: 16px;
+}
+
+.profile-list-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(180px, 220px));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.profile-list-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-list-message {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.profile-list-message--error {
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  color: #991b1b;
+}
+
+.profile-list-message--success {
+  border: 1px solid rgba(22, 101, 52, 0.2);
+  color: #166534;
+}
+
+.profile-room-card,
+.sent-request-card {
+  padding: 18px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.profile-room-card__header,
+.sent-request-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.profile-room-card__title-group {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-room-card__eyebrow {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.profile-room-card__title,
+.sent-request-card__title {
+  color: #111827;
+  text-decoration: none;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.profile-room-card__description,
+.sent-request-card__hint {
+  color: #334155;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.profile-room-card__meta,
+.sent-request-card__meta,
+.profile-room-card__badges,
+.profile-room-card__actions,
+.sent-request-card__actions,
+.room-membership-actions,
+.room-activity-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-room-card__meta,
+.sent-request-card__meta {
+  margin-bottom: 12px;
+  color: #64748b;
+}
+
+.profile-room-card__badge,
+.profile-room-card__status,
+.sent-request-card__status,
+.room-activity-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.profile-room-card__badge,
+.profile-room-card__status--neutral,
+.sent-request-card__status--neutral,
+.room-activity-status {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.profile-room-card__status--danger,
+.sent-request-card__status--danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.sent-request-card__status--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sent-request-card__status--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.profile-room-card__action,
+.room-delete-button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.profile-room-card__action--secondary,
+.room-delete-button {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+}
+
+.profile-room-card__action--danger,
+.room-delete-button {
+  color: #991b1b;
+}
+
+.profile-room-card__action--secondary {
+  color: #111827;
+}
+
+.profile-room-card__action:disabled,
+.room-delete-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.room-join-secondary {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  color: #111827;
+}
+
+@media (max-width: 960px) {
+  .profile-list-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-room-card__header,
+  .sent-request-card__header {
+    flex-direction: column;
+  }
+}

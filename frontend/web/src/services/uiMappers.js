@@ -78,9 +78,107 @@ function pickFirst(...candidates) {
   return null
 }
 
+export function normalizeMembershipStatus(status) {
+  const normalized = String(status ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+
+  if (normalized === 'CONSIDERATION') {
+    return 'PENDING'
+  }
+
+  return normalized
+}
+
+export function normalizeMembershipRole(role) {
+  return String(role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+}
+
+export function getRoomMembershipView(room, membershipOverride = null) {
+  const membership = membershipOverride ?? room?.membershipStatus ?? null
+  const membershipStatus = normalizeMembershipStatus(
+    membership?.status ?? (room?.isCurrentUserParticipant === true ? 'PARTICIPANT' : ''),
+  )
+  const membershipRole = normalizeMembershipRole(membership?.role)
+  const pendingRequestId = membership?.pendingRequestId ?? null
+  const isParticipant = membershipStatus === 'PARTICIPANT'
+  const isBanned = membershipStatus === 'BANNED'
+  const hasPendingRequest = membershipStatus === 'PENDING' || pendingRequestId != null
+  const hasProtectedAccess =
+    membershipOverride != null || room?.membershipStatus != null
+      ? isParticipant
+      : room?.hasProtectedAccess === true
+  const canJoin =
+    typeof membership?.canJoin === 'boolean'
+      ? membership.canJoin
+      : !isParticipant && !isBanned && !hasPendingRequest
+
+  return {
+    membershipStatus,
+    membershipRole,
+    pendingRequestId,
+    isParticipant,
+    isBanned,
+    hasPendingRequest,
+    hasProtectedAccess,
+    canJoin,
+    canLeave: isParticipant && membershipRole !== 'OWNER',
+    canDeleteRoom: membershipRole === 'OWNER',
+    canModerate: membershipRole === 'OWNER' || membershipRole === 'ADMIN',
+  }
+}
+
+export function mergeRoomsWithMembershipStatuses(payload, membershipStatuses) {
+  const statusMap = new Map(
+    toArray(membershipStatuses)
+      .filter((status) => status?.roomId != null)
+      .map((status) => [Number(status.roomId), status]),
+  )
+
+  return toArray(payload).map((room) => {
+    const roomId = Number(pickFirst(room?.id, room?.roomId, room?.uuid))
+    if (!Number.isFinite(roomId)) {
+      return room
+    }
+
+    const membershipStatus = statusMap.get(roomId)
+    if (!membershipStatus) {
+      return room
+    }
+
+    const membershipView = getRoomMembershipView(room, membershipStatus)
+    return {
+      ...room,
+      membershipStatus,
+      isCurrentUserParticipant: membershipView.isParticipant,
+      hasProtectedAccess: membershipView.hasProtectedAccess,
+    }
+  })
+}
+
+export function formatJoinRequestStatus(status) {
+  switch (normalizeMembershipStatus(status)) {
+    case 'PENDING':
+      return 'На рассмотрении'
+    case 'ACCEPTED':
+      return 'Принято'
+    case 'REFUSED':
+      return 'Отклонено'
+    case 'REFUSED_WITH_BAN':
+      return 'Отклонено с баном'
+    default:
+      return 'Статус неизвестен'
+  }
+}
+
 export function mapRoomsToActivityCards(payload) {
   return toArray(payload).map((room) => {
     /** Aligns with core-service RoomSummaryResponse */
+    const membershipView = getRoomMembershipView(room)
     const participantsCount = Number(
       pickFirst(
         room.participantCount,
@@ -137,6 +235,7 @@ export function mapRoomsToActivityCards(payload) {
       isPublic,
       isFull,
       ageRating: Number(room.ageRating) || 0,
+      roomStatus: String(pickFirst(room.status, room.state, room.roomStatus, 'ACTIVE')),
       participantsCount,
       maximumParticipants: capacity,
       creatorCity,
@@ -150,6 +249,43 @@ export function mapRoomsToActivityCards(payload) {
           ? `Набрано ${participantsCount}/${capacity}`
           : `Участников: ${participantsCount || 0}`,
       author: String(pickFirst(creatorName, 'Неизвестный автор')),
+      membershipStatus: membershipView.membershipStatus,
+      membershipRole: membershipView.membershipRole,
+      pendingRequestId: membershipView.pendingRequestId,
+      canJoin: membershipView.canJoin,
+      canLeave: membershipView.canLeave,
+      canDeleteRoom: membershipView.canDeleteRoom,
+      hasProtectedAccess: membershipView.hasProtectedAccess,
+    }
+  })
+}
+
+export function mapSentJoinRequestsToCards(payload) {
+  return toArray(payload).map((request) => {
+    const roomId = pickFirst(request.roomId, request.room?.id)
+    const numericRoomId =
+      roomId !== null &&
+      roomId !== undefined &&
+      String(roomId).trim() !== '' &&
+      !Number.isNaN(Number(roomId))
+        ? Number(roomId)
+        : null
+
+    const createdRaw = pickFirst(request.createdAt, request.createdDate)
+    const createdIso =
+      createdRaw != null && String(createdRaw).trim() !== '' ? String(createdRaw) : null
+
+    return {
+      id: pickFirst(request.requestId, request.id, `${roomId ?? 'room'}-${createdIso ?? 'request'}`),
+      requestId: Number(pickFirst(request.requestId, request.id)) || null,
+      roomId: numericRoomId,
+      roomName: String(pickFirst(request.roomName, request.room?.name, 'Без названия')),
+      username: String(pickFirst(request.username, request.userName, '')),
+      status: normalizeMembershipStatus(request.status),
+      statusLabel: formatJoinRequestStatus(request.status),
+      createdAt: formatDateTimeRu(createdIso),
+      createdAtIso: createdIso,
+      linkTo: numericRoomId != null ? `/rooms/${numericRoomId}` : null,
     }
   })
 }
