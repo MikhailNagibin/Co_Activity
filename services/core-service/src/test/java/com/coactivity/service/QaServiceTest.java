@@ -70,6 +70,31 @@ class QaServiceTest {
   }
 
   @Test
+  void getQuestionWithAnswersBuildsNestedReplies() {
+    UserSummaryResponse questionAuthor = new UserSummaryResponse(1, "questionAuthor", null, null,
+        null, null, null, null);
+    UserSummaryResponse answerAuthor = new UserSummaryResponse(2, "answerAuthor", null, null, null,
+        null, null, null);
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+    when(qaRepository.findQuestionById(7)).thenReturn(Optional.of(
+        new QuestionEntity(7, 1, 1, Category.SPORT, "Question text", questionAuthor)));
+    when(qaRepository.findAnswersByQuestionId(7)).thenReturn(List.of(
+        new AnswerEntity(1, 7, null, 2, "Root answer", createdAt, answerAuthor),
+        new AnswerEntity(2, 7, 1, 2, "Reply answer", createdAt, answerAuthor),
+        new AnswerEntity(3, 7, 2, 2, "Nested reply", createdAt, answerAuthor),
+        new AnswerEntity(4, 7, null, 2, "Second root answer", createdAt, answerAuthor)));
+
+    var thread = qaService.getQuestionWithAnswers(7);
+
+    assertEquals(2, thread.getAnswers().size());
+    assertEquals(1, thread.getAnswers().get(0).getId());
+    assertEquals(2, thread.getAnswers().get(0).getReplies().get(0).getId());
+    assertEquals(3, thread.getAnswers().get(0).getReplies().get(0).getReplies().get(0).getId());
+    assertEquals(4, thread.getAnswers().get(1).getId());
+  }
+
+  @Test
   void askQuestionRejectsNullUserId() {
     QuestionRequest request = new QuestionRequest("How to train?", "sport");
 

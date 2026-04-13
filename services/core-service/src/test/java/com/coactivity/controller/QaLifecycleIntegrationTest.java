@@ -59,6 +59,26 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
   }
 
   @Test
+  void questionThreadReturnsRepliesNestedUnderParentAnswer() throws Exception {
+    UserEntity author = createActiveUser("qa-replies@example.com", "qaReplies", "Password123");
+    CsrfContext csrf = fetchCsrf();
+    Cookie session = login(author.getEmail(), "Password123", csrf, null);
+
+    Integer questionId = createQuestion(session, csrf, "SPORT", "How should replies work?");
+    Integer rootAnswerId = createAnswer(session, csrf, questionId, "Root answer");
+    Integer replyAnswerId = createAnswer(session, csrf, questionId, rootAnswerId, "Reply answer");
+
+    mockMvc.perform(get("/api/qa/questions/" + questionId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.answers.length()").value(1))
+        .andExpect(jsonPath("$.answers[0].id").value(rootAnswerId))
+        .andExpect(jsonPath("$.answers[0].replies.length()").value(1))
+        .andExpect(jsonPath("$.answers[0].replies[0].id").value(replyAnswerId))
+        .andExpect(jsonPath("$.answers[0].replies[0].previousAnswerId").value(rootAnswerId))
+        .andExpect(jsonPath("$.answers[0].replies[0].replies").isEmpty());
+  }
+
+  @Test
   void onlyOwnersCanEditAndDeleteQuestionsAndAnswers() throws Exception {
     UserEntity author = createActiveUser("qa-owner@example.com", "qaOwner", "Password123");
     UserEntity other = createActiveUser("qa-other@example.com", "qaOther", "Password123");
@@ -172,6 +192,11 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
 
   private Integer createAnswer(Cookie session, CsrfContext csrf, Integer questionId, String answer)
       throws Exception {
+    return createAnswer(session, csrf, questionId, null, answer);
+  }
+
+  private Integer createAnswer(Cookie session, CsrfContext csrf, Integer questionId,
+      Integer previousAnswerId, String answer) throws Exception {
     MvcResult result = mockMvc.perform(post("/api/qa/answers")
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token())
@@ -179,9 +204,10 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
             .content("""
                 {
                   "questionId": %d,
+                  "previousAnswerId": %s,
                   "answer": "%s"
                 }
-                """.formatted(questionId, answer)))
+                """.formatted(questionId, previousAnswerId, answer)))
         .andExpect(status().isCreated())
         .andReturn();
 

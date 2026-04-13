@@ -13,7 +13,9 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -132,10 +134,7 @@ public class QaService {
         .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
 
     List<AnswerEntity> answers = qaRepository.findAnswersByQuestionId(questionId);
-    List<AnswerResponse> answerResponses = new ArrayList<>(answers.size());
-    for (AnswerEntity answer : answers) {
-      answerResponses.add(mapAnswer(answer));
-    }
+    List<AnswerResponse> answerResponses = buildAnswerTree(answers);
 
     QuestionResponse questionResponse = new QuestionResponse(question.id(), question.category(),
         question.question(), question.author());
@@ -175,6 +174,37 @@ public class QaService {
   }
 
   private AnswerResponse mapAnswer(AnswerEntity answer) {
+    return mapAnswer(answer, List.of());
+  }
+
+  private List<AnswerResponse> buildAnswerTree(List<AnswerEntity> answers) {
+    Map<Integer, AnswerResponse> responsesById = new LinkedHashMap<>();
+    for (AnswerEntity answer : answers) {
+      responsesById.put(answer.id(), mapAnswer(answer, new ArrayList<>()));
+    }
+
+    List<AnswerResponse> rootAnswers = new ArrayList<>();
+    for (AnswerEntity answer : answers) {
+      AnswerResponse response = responsesById.get(answer.id());
+      Integer previousAnswerId = answer.previousAnswerId();
+      if (previousAnswerId == null) {
+        rootAnswers.add(response);
+        continue;
+      }
+
+      AnswerResponse parent = responsesById.get(previousAnswerId);
+      if (parent == null) {
+        rootAnswers.add(response);
+        continue;
+      }
+
+      parent.getReplies().add(response);
+    }
+
+    return rootAnswers;
+  }
+
+  private AnswerResponse mapAnswer(AnswerEntity answer, List<AnswerResponse> replies) {
     return new AnswerResponse(
         answer.id(),
         answer.questionId(),
@@ -182,7 +212,7 @@ public class QaService {
         answer.answer(),
         answer.author(),
         answer.createdAt(),
-        List.of());
+        replies);
   }
 
   private void validateQuestionRequest(QuestionRequest request) {
