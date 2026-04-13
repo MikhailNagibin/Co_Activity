@@ -260,7 +260,7 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Avatar file cannot be empty"));
+        .andExpect(jsonPath("$.detail").value("Avatar file cannot be empty"));
 
     MockMultipartFile unsupportedFile = new MockMultipartFile("file", "avatar.gif",
         MediaType.IMAGE_GIF_VALUE, TestImageFactory.invalidImagePayload());
@@ -273,7 +273,7 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Unsupported avatar content type"));
+        .andExpect(jsonPath("$.detail").value("Unsupported avatar content type"));
 
     MockMultipartFile spoofedFile = new MockMultipartFile("file", "avatar.png",
         MediaType.IMAGE_PNG_VALUE, TestImageFactory.invalidImagePayload());
@@ -286,7 +286,7 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message")
+        .andExpect(jsonPath("$.detail")
             .value("Avatar file content does not match declared image type"));
 
     MockMultipartFile oversizedFile = new MockMultipartFile("file", "avatar.png",
@@ -300,7 +300,7 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Avatar file exceeds maximum allowed size"));
+        .andExpect(jsonPath("$.detail").value("Avatar file exceeds maximum allowed size"));
   }
 
   @Test
@@ -461,7 +461,7 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
                 }
                 """))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation failed"));
+        .andExpect(jsonPath("$.detail").value("Validation failed"));
   }
 
   @Test
@@ -473,6 +473,6 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
 
     mockMvc.perform(get("/api/users/999999").cookie(session))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("User not found"));
+        .andExpect(jsonPath("$.detail").value("User not found"));
   }
 }

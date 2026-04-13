@@ -150,7 +150,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), requesterSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Only active rooms can accept new participants"));
+        .andExpect(jsonPath("$.detail").value("Only active rooms can accept new participants"));
   }
 
   @Test
@@ -529,7 +529,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), adminSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Room owner cannot be banned"));
+        .andExpect(jsonPath("$.detail").value("Room owner cannot be banned"));
   }
 
   @Test
@@ -604,7 +604,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
                 """.formatted(outsider.getId())))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("INVALID_OWNERSHIP_TRANSFER"))
-        .andExpect(jsonPath("$.message")
+        .andExpect(jsonPath("$.detail")
             .value("Ownership can only be transferred to an existing room participant"));
   }
 
@@ -620,23 +620,23 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), ownerSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999999"));
 
     mockMvc.perform(post("/api/rooms/999999/bans/" + owner.getId())
             .cookie(csrf.cookie(), ownerSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999999"));
 
     mockMvc.perform(get("/api/rooms/999999/bans").cookie(ownerSession))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999999"));
 
     mockMvc.perform(delete("/api/rooms/999999/bans/" + owner.getId())
             .cookie(csrf.cookie(), ownerSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999999"));
 
     mockMvc.perform(post("/api/rooms/999999/ownership/transfer")
             .cookie(csrf.cookie(), ownerSession)
@@ -648,7 +648,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
                 }
                 """.formatted(owner.getId())))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999999"));
   }
 
   @Test
@@ -722,7 +722,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
                 }
                 """))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Only room owner can manage the room"));
+        .andExpect(jsonPath("$.detail").value("Only room owner can manage the room"));
   }
 
   @Test
@@ -771,7 +771,7 @@ class RoomFlowIntegrationTest extends AbstractSessionWebIntegrationTest {
                 }
                 """))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message")
+        .andExpect(jsonPath("$.detail")
             .value("Room capacity cannot be lower than current participant count"));
   }
 

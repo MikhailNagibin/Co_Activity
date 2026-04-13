@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -170,9 +171,42 @@ class PublicReadSecurityWebMvcTest {
   @Test
   void anonymousUserCannotViewOwnRoomsEndpoint() throws Exception {
     mockMvc.perform(get("/api/rooms/me").with(anonymous()))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"))
+        .andExpect(jsonPath("$.detail").value("Authentication is required"))
+        .andExpect(jsonPath("$.instance").value("/api/rooms/me"))
+        .andExpect(jsonPath("$.type").value("urn:coactivity:error:AUTH_REQUIRED"))
+        .andExpect(jsonPath("$.status").value(401))
+        .andExpect(jsonPath("$.title").value("Unauthorized"))
+        .andExpect(jsonPath("$.timestamp").exists())
+        .andExpect(jsonPath("$.traceId").exists())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 
     verifyNoInteractions(roomMembershipService);
+  }
+
+  @Test
+  void authenticatedUserWithoutCsrfGetsProblemDetailForbidden() throws Exception {
+    mockMvc.perform(post("/api/rooms/createRoom")
+            .with(user("csrf-user"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "isPublic": true,
+                  "category": "ART",
+                  "name": "Open room",
+                  "description": "Public description",
+                  "maximumNumberOfPeople": 20
+                }
+                """))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("ACCESS_DENIED"))
+        .andExpect(jsonPath("$.detail").value("Access is denied"))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+    verifyNoInteractions(roomService);
   }
 
   @Test

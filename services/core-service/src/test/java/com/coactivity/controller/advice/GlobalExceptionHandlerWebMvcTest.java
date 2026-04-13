@@ -38,8 +38,8 @@ class GlobalExceptionHandlerWebMvcTest {
   void invalidEnumRequestParamReturnsBadRequestInsteadOfInternalServerError() throws Exception {
     mockMvc.perform(get("/test/sort").param("sortBy", "BROKEN"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.path").value("/test/sort"));
+        .andExpect(jsonPath("$.detail").value("Validation failed"))
+        .andExpect(jsonPath("$.instance").value("/test/sort"));
   }
 
   @Test
@@ -52,8 +52,8 @@ class GlobalExceptionHandlerWebMvcTest {
                 }
                 """))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.path").value("/test/action"));
+        .andExpect(jsonPath("$.detail").value("Validation failed"))
+        .andExpect(jsonPath("$.instance").value("/test/action"));
   }
 
   @RestController

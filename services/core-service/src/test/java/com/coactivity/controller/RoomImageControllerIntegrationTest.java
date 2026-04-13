@@ -149,7 +149,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Room image cannot be empty"));
+        .andExpect(jsonPath("$.detail").value("Room image cannot be empty"));
 
     MockMultipartFile unsupportedFile = new MockMultipartFile(
         "files", "image.gif", MediaType.IMAGE_GIF_VALUE, TestImageFactory.invalidImagePayload());
@@ -158,7 +158,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Unsupported room image content type"));
+        .andExpect(jsonPath("$.detail").value("Unsupported room image content type"));
 
     MockMultipartFile spoofedFile = new MockMultipartFile(
         "files", "image.png", MediaType.IMAGE_PNG_VALUE, TestImageFactory.invalidImagePayload());
@@ -167,7 +167,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message")
+        .andExpect(jsonPath("$.detail")
             .value("Room image content does not match declared image type"));
 
     MockMultipartFile oversizedFile = new MockMultipartFile(
@@ -177,7 +177,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Room image exceeds maximum allowed size"));
+        .andExpect(jsonPath("$.detail").value("Room image exceeds maximum allowed size"));
 
     uploadRoomImages(room.getId(), csrf, session,
         image("files", "1.png", MediaType.IMAGE_PNG_VALUE, TestImageFactory.png()),
@@ -191,7 +191,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(csrf.cookie(), session)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Room cannot have more than 5 images"));
+        .andExpect(jsonPath("$.detail").value("Room cannot have more than 5 images"));
 
     assertEquals(5L, pictureJpaRepository.countByRoom_IdAndStorageKeyIsNotNull(room.getId()));
   }
@@ -221,13 +221,13 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
             .cookie(participantCsrf.cookie(), participantSession)
             .header("X-XSRF-TOKEN", participantCsrf.token()))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Only room owner can manage room images"));
+        .andExpect(jsonPath("$.detail").value("Only room owner can manage room images"));
 
     mockMvc.perform(delete("/api/rooms/" + room.getId() + "/images/" + storedImage.getId())
             .cookie(participantCsrf.cookie(), participantSession)
             .header("X-XSRF-TOKEN", participantCsrf.token()))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Only room owner can manage room images"));
+        .andExpect(jsonPath("$.detail").value("Only room owner can manage room images"));
   }
 
   @Test
@@ -286,7 +286,7 @@ class RoomImageControllerIntegrationTest extends AbstractSessionWebIntegrationTe
 
     mockMvc.perform(get("/api/rooms/" + firstRoom.getId() + "/images/" + secondRoomImage.getId()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room image not found"));
+        .andExpect(jsonPath("$.detail").value("Room image not found"));
   }
 
   @Test

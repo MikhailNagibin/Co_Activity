@@ -101,7 +101,7 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
                 }
                 """))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Cannot update question created by another user"));
+        .andExpect(jsonPath("$.detail").value("Cannot update question created by another user"));
 
     mockMvc.perform(put("/api/qa/answers/" + answerId)
             .cookie(csrf.cookie(), otherSession)
@@ -113,7 +113,7 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
                 }
                 """))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Cannot update answer created by another user"));
+        .andExpect(jsonPath("$.detail").value("Cannot update answer created by another user"));
 
     mockMvc.perform(put("/api/qa/questions/" + questionId)
             .cookie(csrf.cookie(), authorSession)
@@ -145,7 +145,7 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), otherSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Cannot delete answer created by another user"));
+        .andExpect(jsonPath("$.detail").value("Cannot delete answer created by another user"));
 
     mockMvc.perform(delete("/api/qa/answers/" + answerId)
             .cookie(csrf.cookie(), authorSession)
@@ -160,7 +160,7 @@ class QaLifecycleIntegrationTest extends AbstractSessionWebIntegrationTest {
             .cookie(csrf.cookie(), otherSession)
             .header("X-XSRF-TOKEN", csrf.token()))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.message").value("Cannot delete question created by another user"));
+        .andExpect(jsonPath("$.detail").value("Cannot delete question created by another user"));
 
     mockMvc.perform(delete("/api/qa/questions/" + questionId)
             .cookie(csrf.cookie(), authorSession)

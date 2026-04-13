@@ -162,7 +162,7 @@ class RoomManagementControllerWebMvcTest {
                 }
                 """))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation failed"));
+        .andExpect(jsonPath("$.detail").value("Validation failed"));
 
     verifyNoInteractions(roomService);
   }
@@ -222,15 +222,15 @@ class RoomManagementControllerWebMvcTest {
                 }
                 """))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation failed"));
+        .andExpect(jsonPath("$.detail").value("Validation failed"));
 
     verifyNoInteractions(roomMembershipService);
   }
 
-  @Test
-  void missingRoomForRemoveParticipantReturnsNotFound() throws Exception {
-    CurrentUserPrincipal principal = principal(7, "owner@example.com", "roomOwner");
-    doThrow(new ResourceNotFoundException("Room not found: 999"))
+    @Test
+    void missingRoomForRemoveParticipantReturnsNotFound() throws Exception {
+      CurrentUserPrincipal principal = principal(7, "owner@example.com", "roomOwner");
+    doThrow(new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: 999"))
         .when(roomMembershipService).removeParticipant(7, 999, 11);
 
     mockMvc.perform(delete("/api/rooms/999/participants/11")
@@ -238,20 +238,20 @@ class RoomManagementControllerWebMvcTest {
             .with(authentication(UsernamePasswordAuthenticationToken.authenticated(
                 principal, null, principal.getAuthorities()))))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999"));
   }
 
   @Test
-  void missingRoomForBanListReturnsNotFound() throws Exception {
-    CurrentUserPrincipal principal = principal(7, "owner@example.com", "roomOwner");
+    void missingRoomForBanListReturnsNotFound() throws Exception {
+      CurrentUserPrincipal principal = principal(7, "owner@example.com", "roomOwner");
     when(roomMembershipService.getBannedUsers(7, 999))
-        .thenThrow(new ResourceNotFoundException("Room not found: 999"));
+        .thenThrow(new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: 999"));
 
     mockMvc.perform(get("/api/rooms/999/bans")
             .with(authentication(UsernamePasswordAuthenticationToken.authenticated(
                 principal, null, principal.getAuthorities()))))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Room not found: 999"));
+        .andExpect(jsonPath("$.detail").value("Room not found: 999"));
   }
 
   private CurrentUserPrincipal principal(Integer userId, String email, String userName) {
