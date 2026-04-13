@@ -290,6 +290,75 @@ export function mapSentJoinRequestsToCards(payload) {
   })
 }
 
+export function mapIncomingJoinRequests(payload) {
+  return toArray(payload)
+    .map((request) => {
+      const roomId = pickFirst(request.roomId, request.room?.id)
+      const numericRoomId =
+        roomId !== null &&
+        roomId !== undefined &&
+        String(roomId).trim() !== '' &&
+        !Number.isNaN(Number(roomId))
+          ? Number(roomId)
+          : null
+
+      const userId = pickFirst(request.userId, request.user?.id)
+      const numericUserId =
+        userId !== null &&
+        userId !== undefined &&
+        String(userId).trim() !== '' &&
+        !Number.isNaN(Number(userId))
+          ? Number(userId)
+          : null
+
+      const createdRaw = pickFirst(request.createdAt, request.createdDate)
+      const createdIso =
+        createdRaw != null && String(createdRaw).trim() !== '' ? String(createdRaw) : null
+
+      return {
+        id: pickFirst(
+          request.requestId,
+          request.id,
+          `${numericRoomId ?? 'room'}-${numericUserId ?? 'user'}-${createdIso ?? 'request'}`,
+        ),
+        requestId: Number(pickFirst(request.requestId, request.id)) || null,
+        roomId: numericRoomId,
+        roomName: String(pickFirst(request.roomName, request.room?.name, 'Без названия')),
+        roomLink: numericRoomId != null ? `/rooms/${numericRoomId}` : null,
+        userId: numericUserId,
+        username: String(pickFirst(request.username, request.userName, request.user?.username, 'Пользователь')),
+        userLink: numericUserId != null ? `/users/${numericUserId}` : null,
+        status: normalizeMembershipStatus(request.status),
+        statusLabel: formatJoinRequestStatus(request.status),
+        canManage: request.canManage !== false,
+        createdAt: formatDateTimeRu(createdIso),
+        createdAtIso: createdIso,
+      }
+    })
+    .sort((a, b) => String(b.createdAtIso ?? '').localeCompare(String(a.createdAtIso ?? '')))
+}
+
+export function groupIncomingJoinRequestsByRoom(requests) {
+  const groups = new Map()
+
+  for (const request of requests) {
+    const groupKey = request.roomId ?? request.roomName ?? request.id
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        roomId: request.roomId,
+        roomName: request.roomName,
+        roomLink: request.roomLink,
+        requests: [],
+      })
+    }
+    groups.get(groupKey).requests.push(request)
+  }
+
+  return [...groups.values()].sort((a, b) =>
+    String(a.roomName ?? '').localeCompare(String(b.roomName ?? ''), 'ru'),
+  )
+}
+
 export function splitQuestionTitleBody(text) {
   if (!text || typeof text !== 'string') {
     return { title: 'Без названия', body: 'Описание отсутствует' }

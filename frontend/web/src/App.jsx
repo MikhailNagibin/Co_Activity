@@ -3,6 +3,7 @@ import './App.css'
 import { useAuthSession } from './auth/authSessionContext.js'
 import RequireAuth from './auth/RequireAuth.jsx'
 import RoomActivityPage from './pages/RoomActivityPage.jsx'
+import RoomEditPage from './pages/RoomEditPage.jsx'
 import DefaultCard0 from './pages/DefaultCard0.jsx'
 import DefaultQuestion0 from './pages/DefaultQuestion0.jsx'
 import QuestionThreadPage from './pages/QuestionThreadPage.jsx'
@@ -10,6 +11,7 @@ import CreateQuestionPage from './pages/CreateQuestionPage.jsx'
 import CreateRoomPage from './pages/CreateRoomPage.jsx'
 import MainPage from './pages/MainPage.jsx'
 import MyRoomsPage from './pages/MyRoomsPage.jsx'
+import IncomingJoinRequestsPage from './pages/IncomingJoinRequestsPage.jsx'
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx'
 import PasswordResetPage from './pages/PasswordResetPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
@@ -47,9 +49,11 @@ function App() {
       <Route path="/password-reset" element={<PublicOnlyRoute><PasswordResetPage /></PublicOnlyRoute>} />
       <Route path="/main" element={<MainPage />} />
       <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
+      <Route path="/rooms/:roomId/edit" element={<RequireAuth><RoomEditPage /></RequireAuth>} />
       <Route path="/create-room" element={<CreateRoomPage />} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/profile/my-rooms" element={<RequireAuth><MyRoomsPage /></RequireAuth>} />
+      <Route path="/profile/incoming-requests" element={<RequireAuth><IncomingJoinRequestsPage /></RequireAuth>} />
       <Route path="/profile/sent-requests" element={<RequireAuth><SentJoinRequestsPage /></RequireAuth>} />
       <Route path="/profile/banned-rooms" element={<RequireAuth><BannedRoomsPage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />

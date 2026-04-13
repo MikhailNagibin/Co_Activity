@@ -1,6 +1,8 @@
 import AppHeader from '../components/AppHeader.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuthSession } from '../auth/authSessionContext.js'
+import IncomingJoinRequestsSection from '../components/IncomingJoinRequestsSection.jsx'
+import RoomManagementSection from '../components/RoomManagementSection.jsx'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
 import {
@@ -8,12 +10,14 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
+import { cancelSentJoinRequest } from '../services/profileService.js'
 import {
   deleteRoom,
   getRoomById,
   getRoomMembershipStatus,
   joinRoom,
   leaveRoom,
+  deleteRoomBulletin,
   updateRoomBulletin,
 } from '../services/roomsService.js'
 import {
@@ -21,19 +25,13 @@ import {
   getRoomMembershipView,
   normalizeBulletinContent,
 } from '../services/uiMappers.js'
+import { getRoomCategoryLabel } from '../constants/categoryOptions.js'
+import { getRoomStatusLabel } from '../constants/roomStatusOptions.js'
+import { resolveRoomImageUrl, sortRoomImages } from '../utils/roomForm.js'
 import { resolveUserName } from '../utils/userProfile.js'
 
 function formatCategory(category) {
-  if (category == null) {
-    return '—'
-  }
-  if (typeof category === 'string') {
-    return category
-  }
-  if (typeof category === 'object' && category.name != null) {
-    return String(category.name)
-  }
-  return String(category)
+  return getRoomCategoryLabel(category)
 }
 
 function formatDateTime(value) {
@@ -62,7 +60,7 @@ function getRoleLabel(role) {
 
 function RoomActivityPage() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthSession()
+  const { isAuthenticated, currentUser } = useAuthSession()
   const { roomId: roomIdParam } = useParams()
   const roomId = Number.parseInt(String(roomIdParam), 10)
 
@@ -72,6 +70,7 @@ function RoomActivityPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [membershipLoadError, setMembershipLoadError] = useState('')
   const [joinSubmitting, setJoinSubmitting] = useState(false)
+  const [cancelRequestSubmitting, setCancelRequestSubmitting] = useState(false)
   const [leaveSubmitting, setLeaveSubmitting] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [joinFeedback, setJoinFeedback] = useState('')
@@ -80,6 +79,7 @@ function RoomActivityPage() {
   const [bulletinDraft, setBulletinDraft] = useState('')
   const [bulletinSaving, setBulletinSaving] = useState(false)
   const [bulletinFeedback, setBulletinFeedback] = useState('')
+  const [bulletinFeedbackTone, setBulletinFeedbackTone] = useState('success')
 
   const loadRoom = useCallback(async (options = {}) => {
     const { preserveJoinFeedback = false } = options
@@ -149,6 +149,7 @@ function RoomActivityPage() {
     setBulletinEditing(false)
     setBulletinDraft('')
     setBulletinFeedback('')
+    setBulletinFeedbackTone('success')
   }, [room?.id, membership?.status, membership?.role])
 
   const participantCount = room?.participantCount ?? 0
@@ -165,6 +166,12 @@ function RoomActivityPage() {
   const organizerId = room?.creator?.id
   const organizerName = resolveUserName(room?.creator, 'Не указано')
   const membershipRoleLabel = getRoleLabel(membershipView.membershipRole)
+  const roomStatusLabel = getRoomStatusLabel(room?.status)
+  const roomImages = sortRoomImages(room?.images)
+  const roomLocation = [room?.country, room?.city]
+    .map((part) => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(', ')
 
   const bulletinDisplayText =
     room?.bulletinBoard?.content != null
@@ -175,6 +182,7 @@ function RoomActivityPage() {
   const startBulletinEdit = () => {
     setBulletinDraft(normalizeBulletinContent(room?.bulletinBoard?.content ?? ''))
     setBulletinFeedback('')
+    setBulletinFeedbackTone('success')
     setBulletinEditing(true)
   }
 
@@ -182,37 +190,32 @@ function RoomActivityPage() {
     setBulletinEditing(false)
     setBulletinDraft('')
     setBulletinFeedback('')
+    setBulletinFeedbackTone('success')
   }
 
   const saveBulletin = async () => {
     const trimmed = bulletinDraft.trim()
     if (trimmed === '') {
       setBulletinFeedback('Текст объявления не может быть пустым.')
+      setBulletinFeedbackTone('error')
+      return
+    }
+
+    const confirmed = window.confirm('Вы уверены, что хотите изменить доску?')
+    if (!confirmed) {
       return
     }
 
     setBulletinSaving(true)
     setBulletinFeedback('')
+    setBulletinFeedbackTone('success')
     try {
-      const response = await updateRoomBulletin(roomId, trimmed)
-      setRoom((prev) => {
-        if (!prev) {
-          return prev
-        }
-        return {
-          ...prev,
-          bulletinBoard: response
-            ? {
-                id: response.id,
-                content: normalizeBulletinContent(response.content),
-                author: response.author,
-                updatedAt: response.updatedAt,
-              }
-            : prev.bulletinBoard,
-        }
-      })
+      await updateRoomBulletin(roomId, trimmed)
+      await loadRoom({ preserveJoinFeedback: true })
       setBulletinEditing(false)
       setBulletinDraft('')
+      setBulletinFeedback('Доска объявлений обновлена.')
+      setBulletinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -225,6 +228,45 @@ function RoomActivityPage() {
       } else {
         setBulletinFeedback('Не удалось сохранить доску объявлений.')
       }
+      setBulletinFeedbackTone('error')
+    } finally {
+      setBulletinSaving(false)
+    }
+  }
+
+  const handleClearBulletin = async () => {
+    if (!room || !membershipView.canModerate || !hasBulletinText) {
+      return
+    }
+
+    const confirmed = window.confirm('Вы уверены, что хотите очистить доску?')
+    if (!confirmed) {
+      return
+    }
+
+    setBulletinSaving(true)
+    setBulletinFeedback('')
+    setBulletinFeedbackTone('success')
+    try {
+      await deleteRoomBulletin(roomId)
+      await loadRoom({ preserveJoinFeedback: true })
+      setBulletinEditing(false)
+      setBulletinDraft('')
+      setBulletinFeedback('Доска объявлений очищена.')
+      setBulletinFeedbackTone('success')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setBulletinFeedback(getUserFacingApiMessage(error, 'Не удалось очистить доску объявлений.'))
+      } else {
+        setBulletinFeedback('Не удалось очистить доску объявлений.')
+      }
+      setBulletinFeedbackTone('error')
     } finally {
       setBulletinSaving(false)
     }
@@ -305,6 +347,42 @@ function RoomActivityPage() {
       setJoinFeedbackTone('error')
     } finally {
       setLeaveSubmitting(false)
+    }
+  }
+
+  const handleCancelPendingRequest = async () => {
+    if (!room || !membershipView.pendingRequestId || isPublic) {
+      return
+    }
+
+    const confirmed = window.confirm(`Отозвать заявку в «${room.name || 'Без названия'}»?`)
+    if (!confirmed) {
+      return
+    }
+
+    setCancelRequestSubmitting(true)
+    setJoinFeedback('')
+    setJoinFeedbackTone('success')
+    try {
+      await cancelSentJoinRequest(membershipView.pendingRequestId)
+      await loadRoom({ preserveJoinFeedback: true })
+      setJoinFeedback('Заявка отозвана.')
+      setJoinFeedbackTone('success')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setJoinFeedback(getUserFacingApiMessage(error, 'Не удалось отозвать заявку.'))
+      } else {
+        setJoinFeedback('Не удалось отозвать заявку.')
+      }
+      setJoinFeedbackTone('error')
+    } finally {
+      setCancelRequestSubmitting(false)
     }
   }
 
@@ -434,6 +512,16 @@ function RoomActivityPage() {
         <div className="room-join-block room-panel-soft">
           <h2 className="room-section-heading">Заявка на вступление</h2>
           <p className="room-join-status">Заявка на рассмотрении.</p>
+          {membershipView.pendingRequestId ? (
+            <button
+              type="button"
+              className="cta-black-button room-join-secondary"
+              disabled={cancelRequestSubmitting}
+              onClick={handleCancelPendingRequest}
+            >
+              {cancelRequestSubmitting ? 'Отзыв...' : 'Отозвать заявку'}
+            </button>
+          ) : null}
         </div>
       )
     }
@@ -493,16 +581,43 @@ function RoomActivityPage() {
           <>
             <header className="room-activity-hero">
               <div className="room-activity-title-row">
-                <h1 className="room-activity-title">{room.name || 'Без названия'}</h1>
-                <div className="room-activity-statuses">
-                  {membershipRoleLabel ? (
-                    <span className="room-activity-status">{membershipRoleLabel}</span>
-                  ) : null}
-                  {isFull ? (
-                    <span className="room-activity-status room-activity-status--full">Мест нет</span>
+                <div>
+                  <h1 className="room-activity-title">{room.name || 'Без названия'}</h1>
+                  <div className="room-activity-statuses">
+                    <span className="room-activity-status">{roomStatusLabel}</span>
+                    {membershipRoleLabel ? (
+                      <span className="room-activity-status">{membershipRoleLabel}</span>
+                    ) : null}
+                    {isFull ? (
+                      <span className="room-activity-status room-activity-status--full">Мест нет</span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="room-activity-hero-actions">
+                  {membershipView.canModerate ? (
+                    <Link className="room-edit-link" to={`/rooms/${roomId}/edit`}>
+                      Редактировать комнату
+                    </Link>
                   ) : null}
                 </div>
               </div>
+
+              {roomImages.length > 0 ? (
+                <section className="room-images-gallery" aria-label="Изображения комнаты">
+                  {roomImages.map((image) => (
+                    <figure key={image.id ?? image.url} className="room-images-gallery__item">
+                      <img
+                        src={resolveRoomImageUrl(image.url)}
+                        alt={`Изображение активности ${room.name || ''}`}
+                        className="room-images-gallery__image"
+                      />
+                      {image.order != null ? (
+                        <figcaption className="room-images-gallery__caption">Порядок: {image.order}</figcaption>
+                      ) : null}
+                    </figure>
+                  ))}
+                </section>
+              ) : null}
 
               <div
                 className="room-meta-chips"
@@ -559,6 +674,16 @@ function RoomActivityPage() {
                     </span>
                   </div>
                 </div>
+
+                <div className="room-meta-chip">
+                  <span className="room-meta-chip-icon" aria-hidden="true">
+                    <i className="fa-solid fa-location-dot"></i>
+                  </span>
+                  <div className="room-meta-chip-body">
+                    <span className="room-meta-chip-label">Локация</span>
+                    <span className="room-meta-chip-value">{roomLocation || 'Не указана'}</span>
+                  </div>
+                </div>
               </div>
 
               <div className="room-schedule" role="group" aria-label="Расписание">
@@ -587,6 +712,11 @@ function RoomActivityPage() {
             <section className="room-description-section room-panel-soft">
               <h2 className="room-section-heading">Описание</h2>
               <p className="room-description-text">{room.description || 'Описание отсутствует.'}</p>
+              {room.frequency ? (
+                <p className="room-description-meta">
+                  Следующее повторение: <strong>{formatDateTime(room.frequency)}</strong>
+                </p>
+              ) : null}
             </section>
 
             <section className="room-activity-columns">
@@ -625,6 +755,27 @@ function RoomActivityPage() {
                 </p>
               ) : null}
             </section>
+
+            {membershipView.canModerate ? (
+              <IncomingJoinRequestsSection
+                roomId={roomId}
+                title="Заявки на вступление"
+                description="Список ожидающих заявок для этой комнаты. После решения список и страница активности обновляются."
+                emptyMessage="Для этой комнаты нет ожидающих заявок."
+                nextPath={`/rooms/${roomId}`}
+                onAfterAction={() => loadRoom({ preserveJoinFeedback: true })}
+              />
+            ) : null}
+
+            {membershipView.canModerate ? (
+              <RoomManagementSection
+                roomId={roomId}
+                roomName={room.name || 'Без названия'}
+                currentUserId={currentUser?.id ?? currentUser?.userId ?? null}
+                currentUserRole={membershipView.membershipRole}
+                onRefreshRoom={loadRoom}
+              />
+            ) : null}
 
             <section className="room-panel room-panel-soft room-chat-section">
               <h2 className="room-section-heading">Чат</h2>
@@ -686,19 +837,17 @@ function RoomActivityPage() {
                       >
                         Отмена
                       </button>
+                      {hasBulletinText ? (
+                        <button
+                          type="button"
+                          className="room-bulletin-cancel room-bulletin-cancel--danger"
+                          disabled={bulletinSaving}
+                          onClick={handleClearBulletin}
+                        >
+                          Очистить доску
+                        </button>
+                      ) : null}
                     </div>
-                    {bulletinFeedback ? (
-                      <p
-                        className={
-                          bulletinFeedback.includes('не может') || bulletinFeedback.includes('Не удалось')
-                            ? 'room-bulletin-feedback room-bulletin-feedback--error'
-                            : 'room-bulletin-feedback'
-                        }
-                        role="status"
-                      >
-                        {bulletinFeedback}
-                      </p>
-                    ) : null}
                   </div>
                 ) : (
                   <>
@@ -728,10 +877,32 @@ function RoomActivityPage() {
                         <button type="button" className="room-bulletin-edit-btn" onClick={startBulletinEdit}>
                           {hasBulletinText ? 'Изменить доску' : 'Добавить объявление'}
                         </button>
+                        {hasBulletinText ? (
+                          <button
+                            type="button"
+                            className="room-bulletin-cancel room-bulletin-cancel--danger"
+                            disabled={bulletinSaving}
+                            onClick={handleClearBulletin}
+                          >
+                            Очистить доску
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </>
                 )}
+                {bulletinFeedback ? (
+                  <p
+                    className={
+                      bulletinFeedbackTone === 'error'
+                        ? 'room-bulletin-feedback room-bulletin-feedback--error'
+                        : 'room-bulletin-feedback'
+                    }
+                    role="status"
+                  >
+                    {bulletinFeedback}
+                  </p>
+                ) : null}
               </section>
             ) : null}
           </>

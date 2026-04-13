@@ -643,6 +643,9 @@ function ProfilePage() {
                     <Link to="/profile/my-rooms" className="profile-links__action">
                       Мои активности
                     </Link>
+                    <Link to="/profile/incoming-requests" className="profile-links__action">
+                      Входящие заявки
+                    </Link>
                     <Link to="/profile/sent-requests" className="profile-links__action">
                       Отправленные заявки
                     </Link>
