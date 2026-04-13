@@ -1,14 +1,35 @@
+CREATE TABLE IF NOT EXISTS user_avatars (
+  id SERIAL PRIMARY KEY,
+  storage_key VARCHAR(255) NOT NULL UNIQUE,
+  original_filename VARCHAR(255),
+  content_type VARCHAR(100) NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
-  login VARCHAR(100) NOT NULL,
-  username VARCHAR(20) UNIQUE NOT NULL,
-  password VARCHAR(128) NOT NULL,
+  login VARCHAR(255) NOT NULL,
+  email_normalized VARCHAR(255) NOT NULL,
+  username VARCHAR(20) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  email_verified_at TIMESTAMP,
   birthday TIMESTAMP,
   country VARCHAR(100),
   city VARCHAR(100),
   description TEXT,
-  avatar_id INT
+  avatar_id INT,
+  avatar_file_id INT,
+  CONSTRAINT fk_users_avatar_file
+    FOREIGN KEY (avatar_file_id) REFERENCES user_avatars(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_normalized
+  ON users (email_normalized);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username_lower
+  ON users (LOWER(username));
 
 CREATE TABLE IF NOT EXISTS categories (
   id SERIAL PRIMARY KEY,
@@ -17,25 +38,54 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS rooms (
   id SERIAL PRIMARY KEY,
-  is_active BOOLEAN NOT NULL,
+  status VARCHAR(20) NOT NULL,
   is_public BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
   description TEXT,
+  city VARCHAR(100),
+  country VARCHAR(100),
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   age_rating INT NOT NULL,
   frequency TIMESTAMP,
   maximum_number_of_people INT NOT NULL,
+  CONSTRAINT chk_rooms_status
+    CHECK (status IN ('ACTIVE', 'INACTIVE', 'COMPLETED')),
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_rooms_city_lower
+  ON rooms (LOWER(city))
+  WHERE city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_rooms_country_lower
+  ON rooms (LOWER(country))
+  WHERE country IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS pictures (
   picture_id SERIAL PRIMARY KEY,
   room_id INT NOT NULL,
+  storage_key VARCHAR(255),
+  original_filename VARCHAR(255),
+  content_type VARCHAR(100),
+  size_bytes BIGINT,
+  sort_order INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (room_id) REFERENCES rooms(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pictures_storage_key_not_null
+  ON pictures (storage_key)
+  WHERE storage_key IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pictures_room_sort_order_not_null
+  ON pictures (room_id, sort_order)
+  WHERE storage_key IS NOT NULL AND sort_order IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pictures_room_sort_order
+  ON pictures (room_id, sort_order);
 
 CREATE TABLE IF NOT EXISTS roles (
   id SERIAL PRIMARY KEY,
@@ -152,5 +202,6 @@ INSERT INTO notifications (notification) VALUES
 ('MembershipAccepted'),
 ('MembershipRejected'),
 ('ActivityClosed'),
-('NewJoinRequest')
+('NewJoinRequest'),
+('ImportantRoomUpdates')
 ON CONFLICT DO NOTHING;

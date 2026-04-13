@@ -1,16 +1,3 @@
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  login VARCHAR(100) NOT NULL,
-  username VARCHAR(20) UNIQUE NOT NULL,
-  password VARCHAR(128) NOT NULL,
-  birthday TIMESTAMP,
-  country VARCHAR(100),
-  city VARCHAR(100),
-  description TEXT,
-  avatar_id INT,
-  avatar_file_id INT
-);
-
 CREATE TABLE IF NOT EXISTS user_avatars (
   id SERIAL PRIMARY KEY,
   storage_key VARCHAR(255) NOT NULL UNIQUE,
@@ -20,6 +7,30 @@ CREATE TABLE IF NOT EXISTS user_avatars (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  login VARCHAR(255) NOT NULL,
+  email_normalized VARCHAR(255) NOT NULL,
+  username VARCHAR(20) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  email_verified_at TIMESTAMP,
+  birthday TIMESTAMP,
+  country VARCHAR(100),
+  city VARCHAR(100),
+  description TEXT,
+  avatar_id INT,
+  avatar_file_id INT,
+  CONSTRAINT fk_users_avatar_file
+    FOREIGN KEY (avatar_file_id) REFERENCES user_avatars(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_normalized
+  ON users (email_normalized);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username_lower
+  ON users (LOWER(username));
+
 CREATE TABLE IF NOT EXISTS categories (
   id SERIAL PRIMARY KEY,
   name VARCHAR(20) NOT NULL UNIQUE
@@ -27,7 +38,7 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS rooms (
   id SERIAL PRIMARY KEY,
-  is_active BOOLEAN NOT NULL,
+  status VARCHAR(20) NOT NULL,
   is_public BOOLEAN NOT NULL,
   chat_link VARCHAR(100),
   category_id INT NOT NULL,
@@ -40,8 +51,18 @@ CREATE TABLE IF NOT EXISTS rooms (
   age_rating INT NOT NULL,
   frequency TIMESTAMP,
   maximum_number_of_people INT NOT NULL,
+  CONSTRAINT chk_rooms_status
+    CHECK (status IN ('ACTIVE', 'INACTIVE', 'COMPLETED')),
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_rooms_city_lower
+  ON rooms (LOWER(city))
+  WHERE city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_rooms_country_lower
+  ON rooms (LOWER(country))
+  WHERE country IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS pictures (
   picture_id SERIAL PRIMARY KEY,
@@ -54,6 +75,17 @@ CREATE TABLE IF NOT EXISTS pictures (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (room_id) REFERENCES rooms(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pictures_storage_key_not_null
+  ON pictures (storage_key)
+  WHERE storage_key IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pictures_room_sort_order_not_null
+  ON pictures (room_id, sort_order)
+  WHERE storage_key IS NOT NULL AND sort_order IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pictures_room_sort_order
+  ON pictures (room_id, sort_order);
 
 CREATE TABLE IF NOT EXISTS roles (
   id SERIAL PRIMARY KEY,
@@ -130,28 +162,14 @@ CREATE TABLE IF NOT EXISTS user_notifications (
 );
 
 CREATE TABLE IF NOT EXISTS bulletin_board (
-    id SERIAL PRIMARY KEY,
-    room_id INT NOT NULL,
-    content TEXT,
-    author_id INT NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES rooms(id),
-    FOREIGN KEY (author_id) REFERENCES users(id)
+  id SERIAL PRIMARY KEY,
+  room_id INT NOT NULL,
+  content TEXT,
+  author_id INT NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (room_id) REFERENCES rooms(id),
+  FOREIGN KEY (author_id) REFERENCES users(id)
 );
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM information_schema.table_constraints
-    WHERE constraint_name = 'fk_users_avatar_file'
-      AND table_name = 'users'
-  ) THEN
-    ALTER TABLE users
-      ADD CONSTRAINT fk_users_avatar_file
-      FOREIGN KEY (avatar_file_id) REFERENCES user_avatars(id);
-  END IF;
-END $$;
 
 INSERT INTO roles (role) VALUES
 ('Owner'),
