@@ -128,7 +128,7 @@ public class UserProfileService {
     }
     User user = userRepository.getUserById(userId);
     if (user == null) {
-      throw new ResourceNotFoundException("User not found");
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found");
     }
     return user;
   }

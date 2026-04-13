@@ -282,6 +282,7 @@ public class RoomMembershipService {
 
     if (!roomRepository.isUserBannedInRoom(roomId, targetUserId)) {
       throw new ResourceNotFoundException(
+          "ROOM_BAN_NOT_FOUND",
           "User " + targetUserId + " is not banned in room " + roomId);
     }
 
@@ -397,7 +398,8 @@ public class RoomMembershipService {
 
   private void ensureParticipant(Room room, Integer userId) {
     if (!roomRepository.isUserInMembers(room.getId(), userId)) {
-      throw new ResourceNotFoundException("User " + userId + " is not in room " + room.getId());
+      throw new ResourceNotFoundException("ROOM_MEMBERSHIP_NOT_FOUND",
+          "User " + userId + " is not in room " + room.getId());
     }
   }
 
@@ -417,7 +419,7 @@ public class RoomMembershipService {
   private Room getExistingRoom(Integer roomId) {
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found: " + roomId);
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: " + roomId);
     }
     return room;
   }
@@ -425,7 +427,7 @@ public class RoomMembershipService {
   private Room getExistingRoomForUpdate(Integer roomId) {
     Room room = roomRepository.getRoomByIdForUpdate(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found: " + roomId);
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: " + roomId);
     }
     return room;
   }
@@ -434,7 +436,7 @@ public class RoomMembershipService {
     requireUserId(userId);
     User user = userRepository.getUserById(userId);
     if (user == null) {
-      throw new ResourceNotFoundException("User not found: " + userId);
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found: " + userId);
     }
     return user;
   }

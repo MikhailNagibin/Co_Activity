@@ -26,6 +26,7 @@ import com.coactivity.service.event.RoomUpdateNotificationEvent;
 import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotification;
 import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotificationType;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.InternalException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import com.coactivity.util.AvatarUrlResolver;
@@ -76,7 +77,7 @@ public class RoomService {
 
     Room createdRoom = roomRepository.createRoom(ownerId, request);
     if (createdRoom == null) {
-      throw new ResourceNotFoundException("Room could not be created");
+      throw new InternalException("Room could not be created");
     }
 
     return new RoomCreationResponse(createdRoom.getId(), createdRoom.getName(),
@@ -99,7 +100,7 @@ public class RoomService {
 
     Room updatedRoom = roomRepository.updateRoom(roomId, request);
     if (updatedRoom == null) {
-      throw new ResourceNotFoundException("Room could not be updated");
+      throw new InternalException("Room could not be updated");
     }
     RoomDetailedResponse response = getRoomById(roomId, requesterId);
     publishRoomUpdateNotificationEvent(updatedRoom, importantUpdate, request,
@@ -285,7 +286,7 @@ public class RoomService {
   private Room getExistingRoom(Integer roomId) {
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found: " + roomId);
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: " + roomId);
     }
     return room;
   }
@@ -293,7 +294,7 @@ public class RoomService {
   private Room getExistingRoomForUpdate(Integer roomId) {
     Room room = roomRepository.getRoomByIdForUpdate(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found: " + roomId);
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: " + roomId);
     }
     return room;
   }

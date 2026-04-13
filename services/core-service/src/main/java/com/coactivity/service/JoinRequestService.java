@@ -215,7 +215,7 @@ public class JoinRequestService {
   private User getExistingUser(Integer userId) {
     User user = userRepository.getUserById(userId);
     if (user == null) {
-      throw new ResourceNotFoundException("User not found");
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found");
     }
     return user;
   }
@@ -226,7 +226,7 @@ public class JoinRequestService {
     }
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found");
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found");
     }
     return room;
   }
@@ -237,7 +237,7 @@ public class JoinRequestService {
     }
     Room room = roomRepository.getRoomByIdForUpdate(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found");
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found");
     }
     return room;
   }
@@ -245,7 +245,7 @@ public class JoinRequestService {
   private RoomsRequest getExistingRequest(Integer requestId) {
     RoomsRequest request = roomsRequestRepository.getRequestById(requestId);
     if (request == null || request.getRoom() == null || request.getUser() == null) {
-      throw new ResourceNotFoundException("Join request not found");
+      throw new ResourceNotFoundException("JOIN_REQUEST_NOT_FOUND", "Join request not found");
     }
     return request;
   }

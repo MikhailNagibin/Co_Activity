@@ -13,6 +13,7 @@ import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.persistence.repository.RoomsRequestJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Repository;
@@ -40,9 +41,11 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   @Override
   public RoomsRequest createRequest(int userId, int roomId, RequestStatus status) {
     UserEntity userEntity = userJpaRepository.findById(userId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND",
+            "User not found: " + userId));
     RoomEntity roomEntity = roomJpaRepository.findById(roomId)
-        .orElseThrow(() -> new RuntimeException("Room not found: " + roomId));
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_NOT_FOUND",
+            "Room not found: " + roomId));
 
     RoomsRequestEntity entity = new RoomsRequestEntity();
     entity.setUser(userEntity);
@@ -56,7 +59,8 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   @Override
   public RoomsRequest updateRequest(int requestId, RequestStatus status) {
     RoomsRequestEntity entity = roomsRequestJpaRepository.findById(requestId)
-        .orElseThrow(() -> new RuntimeException("Request not found with id: " + requestId));
+        .orElseThrow(() -> new ResourceNotFoundException("REQUEST_NOT_FOUND",
+            "Request not found with id: " + requestId));
     entity.setStatus(findStatusEntity(status));
     return toDomain(entity);
   }
@@ -64,7 +68,8 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   @Override
   public void deleteRequest(int requestId) {
     if (!roomsRequestJpaRepository.existsById(requestId)) {
-      throw new RuntimeException("Request not found with id: " + requestId);
+      throw new ResourceNotFoundException("REQUEST_NOT_FOUND",
+          "Request not found with id: " + requestId);
     }
     roomsRequestJpaRepository.deleteById(requestId);
   }
@@ -130,7 +135,7 @@ public class RoomsRequestRepositoryImpl implements RoomsRequestRepository {
   private RequestStatusEntity findStatusEntity(RequestStatus status) {
     return requestStatusLookupRepository.findByStatusInfoIgnoreCase(
             CoreLookupMapper.toDbRequestStatus(status))
-        .orElseThrow(() -> new RuntimeException("Status not found: " + status));
+        .orElseThrow(() -> new IllegalStateException("Status not found: " + status));
   }
 
   private RoomsRequest toDomain(RoomsRequestEntity entity) {

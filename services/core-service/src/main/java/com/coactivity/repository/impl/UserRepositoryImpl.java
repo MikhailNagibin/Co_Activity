@@ -158,7 +158,7 @@ public class UserRepositoryImpl implements UserRepository {
         .executeUpdate();
 
     if (affectedRows == 0) {
-      throw new ResourceNotFoundException("User not found");
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found");
     }
   }
 
@@ -174,7 +174,8 @@ public class UserRepositoryImpl implements UserRepository {
   public void updateAvatarFile(Integer userId, Integer avatarFileId) {
     UserEntity entity = getExistingUserEntity(userId);
     UserAvatarEntity avatarEntity = userAvatarJpaRepository.findById(avatarFileId)
-        .orElseThrow(() -> new ResourceNotFoundException("Avatar metadata not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("AVATAR_METADATA_NOT_FOUND",
+            "Avatar metadata not found"));
     entity.setAvatarFile(avatarEntity);
     userJpaRepository.flush();
   }
@@ -224,7 +225,7 @@ public class UserRepositoryImpl implements UserRepository {
 
   private UserEntity getExistingUserEntity(Integer userId) {
     return userJpaRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
   }
 
   private User toDomain(UserEntity entity) {

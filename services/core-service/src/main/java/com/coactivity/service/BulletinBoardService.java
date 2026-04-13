@@ -10,6 +10,7 @@ import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.InternalException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import com.coactivity.util.AvatarUrlResolver;
@@ -64,7 +65,7 @@ public class BulletinBoardService {
         ? bulletinBoardRepository.createBulletinBoard(roomId, content, authorId)
         : bulletinBoardRepository.updateBulletinBoard(roomId, content, authorId);
     if (updatedDomainBoard == null) {
-      throw new ResourceNotFoundException("Failed to update bulletin board for room " + roomId);
+      throw new InternalException("Failed to update bulletin board for room " + roomId);
     }
 
     BulletinBoardResponse responseDto = new BulletinBoardResponse();
@@ -85,7 +86,8 @@ public class BulletinBoardService {
     getExistingRoom(roomId);
     enforceBulletinModerationRights(roomId, requesterId);
     if (!bulletinBoardRepository.isBulletinBoardExists(roomId)) {
-      throw new ResourceNotFoundException("Bulletin board not found for room " + roomId);
+      throw new ResourceNotFoundException("BULLETIN_BOARD_NOT_FOUND",
+          "Bulletin board not found for room " + roomId);
     }
     bulletinBoardRepository.deleteBulletinBoard(roomId);
   }
@@ -103,7 +105,7 @@ public class BulletinBoardService {
   private Room getExistingRoom(Integer roomId) {
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found: " + roomId);
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found: " + roomId);
     }
     return room;
   }
@@ -111,7 +113,7 @@ public class BulletinBoardService {
   private User getExistingUser(Integer userId) {
     User user = userRepository.getUserById(userId);
     if (user == null) {
-      throw new ResourceNotFoundException("User not found: " + userId);
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found: " + userId);
     }
     return user;
   }

@@ -98,7 +98,7 @@ public class UserAvatarService {
     User user = getExistingUser(userId);
     UserAvatar avatar = resolveAvatar(user.getAvatarFileId());
     if (avatar == null || !fileStorage.exists(avatar.getStorageKey())) {
-      throw new ResourceNotFoundException("Avatar not found");
+      throw new ResourceNotFoundException("AVATAR_NOT_FOUND", "Avatar not found");
     }
 
     try (InputStream inputStream = fileStorage.open(avatar.getStorageKey())) {
@@ -148,7 +148,7 @@ public class UserAvatarService {
     }
     User user = userRepository.getUserById(userId);
     if (user == null) {
-      throw new ResourceNotFoundException("User not found");
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found");
     }
     return user;
   }

@@ -27,7 +27,7 @@ public class CurrentUserDetailsService implements UserDetailsService {
 
   public CurrentUserPrincipal loadCurrentUser(Integer userId) {
     UserEntity user = userJpaRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
     return toPrincipal(user);
   }
 

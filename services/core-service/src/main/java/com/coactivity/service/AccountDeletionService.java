@@ -187,7 +187,7 @@ public class AccountDeletionService {
 
   private void deleteOwnedRoom(Integer currentUserId, Room room) {
     if (room == null || room.getId() == null) {
-      throw new ResourceNotFoundException("Room not found");
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found");
     }
 
     List<Integer> participantIds = loadRoomUsers(room.getId()).keySet().stream()
@@ -209,7 +209,7 @@ public class AccountDeletionService {
       throw new ValidationException("User id is required");
     }
     if (userRepository.getUserById(userId) == null) {
-      throw new ResourceNotFoundException("User not found");
+      throw new ResourceNotFoundException("USER_NOT_FOUND", "User not found");
     }
   }
 

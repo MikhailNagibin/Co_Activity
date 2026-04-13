@@ -6,6 +6,7 @@ import com.coactivity.persistence.entity.PictureEntity;
 import com.coactivity.persistence.repository.PictureJpaRepository;
 import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.repository.PictureRepository;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Repository;
@@ -29,7 +30,8 @@ public class PictureRepositoryImpl implements PictureRepository {
       String contentType, long sizeBytes, int sortOrder) {
     PictureEntity entity = new PictureEntity();
     entity.setRoom(roomJpaRepository.findById(roomId)
-        .orElseThrow(() -> new RuntimeException("Room not found: " + roomId)));
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_NOT_FOUND",
+            "Room not found: " + roomId)));
     entity.setStorageKey(storageKey);
     entity.setOriginalFilename(originalFilename);
     entity.setContentType(contentType);
@@ -64,7 +66,8 @@ public class PictureRepositoryImpl implements PictureRepository {
   @Override
   public void deletePicture(Integer photoId) {
     if (!pictureJpaRepository.existsById(photoId)) {
-      throw new RuntimeException("Picture not found with id: " + photoId);
+      throw new ResourceNotFoundException("PICTURE_NOT_FOUND",
+          "Picture not found with id: " + photoId);
     }
     pictureJpaRepository.deleteById(photoId);
     pictureJpaRepository.flush();
@@ -73,7 +76,8 @@ public class PictureRepositoryImpl implements PictureRepository {
   @Override
   public void updatePictureSortOrder(Integer photoId, int sortOrder) {
     PictureEntity entity = pictureJpaRepository.findById(photoId)
-        .orElseThrow(() -> new RuntimeException("Picture not found with id: " + photoId));
+        .orElseThrow(() -> new ResourceNotFoundException("PICTURE_NOT_FOUND",
+            "Picture not found with id: " + photoId));
     entity.setSortOrder(sortOrder);
     pictureJpaRepository.saveAndFlush(entity);
   }

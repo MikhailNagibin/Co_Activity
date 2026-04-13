@@ -126,7 +126,7 @@ public class RoomImageService {
   public RoomImageContent getRoomImageContent(Integer roomId, Integer imageId) {
     Picture image = getExistingRoomImage(roomId, imageId);
     if (!StringUtils.hasText(image.getStorageKey()) || !fileStorage.exists(image.getStorageKey())) {
-      throw new ResourceNotFoundException("Room image not found");
+      throw new ResourceNotFoundException("ROOM_IMAGE_NOT_FOUND", "Room image not found");
     }
 
     try (InputStream inputStream = fileStorage.open(image.getStorageKey())) {
@@ -197,7 +197,7 @@ public class RoomImageService {
     }
     Room room = roomRepository.getRoomById(roomId);
     if (room == null) {
-      throw new ResourceNotFoundException("Room not found");
+      throw new ResourceNotFoundException("ROOM_NOT_FOUND", "Room not found");
     }
     if (!roomRepository.isUserInMembers(roomId, requesterId)
         || roomRepository.getUserRoleByRoomId(roomId, requesterId) != Role.OWNER) {
@@ -212,7 +212,7 @@ public class RoomImageService {
     }
     Picture image = pictureRepository.getRoomPicture(roomId, imageId);
     if (image == null) {
-      throw new ResourceNotFoundException("Room image not found");
+      throw new ResourceNotFoundException("ROOM_IMAGE_NOT_FOUND", "Room image not found");
     }
     return image;
   }

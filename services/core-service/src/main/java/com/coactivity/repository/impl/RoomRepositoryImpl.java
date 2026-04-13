@@ -25,6 +25,9 @@ import com.coactivity.persistence.repository.RoomMemberJpaRepository;
 import com.coactivity.persistence.repository.RoomsRequestJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.repository.RoomRepository;
+import com.coactivity.service.exception.AuthorizationException;
+import com.coactivity.service.exception.ConflictException;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -145,15 +148,16 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void addUserToRoom(Integer roomId, Integer userId, Role role) {
     if (isUserBannedInRoom(roomId, userId)) {
-      throw new RuntimeException("User is banned from room");
+      throw new AuthorizationException("USER_BANNED_FROM_ROOM", "User is banned from room");
     }
     if (isUserInMembers(roomId, userId)) {
-      throw new RuntimeException("User is already a member of room");
+      throw new ConflictException("ALREADY_ROOM_MEMBER", "User is already a member of room");
     }
 
     RoomEntity roomEntity = getExistingRoomEntity(roomId);
     UserEntity userEntity = userJpaRepository.findById(userId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND",
+            "User not found: " + userId));
     RoleEntity roleEntity = findRoleEntity(role);
 
     RoomMemberEntity membership = new RoomMemberEntity();
@@ -183,7 +187,8 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void removeUserFromRoom(Integer roomId, Integer userId) {
     if (!roomMemberJpaRepository.existsByRoom_IdAndUser_Id(roomId, userId)) {
-      throw new RuntimeException("User " + userId + " is not a member of room " + roomId);
+      throw new ResourceNotFoundException("ROOM_MEMBERSHIP_NOT_FOUND",
+          "User " + userId + " is not a member of room " + roomId);
     }
     roomMemberJpaRepository.deleteByRoom_IdAndUser_Id(roomId, userId);
   }
@@ -215,7 +220,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void setRoleByUserIdAndRoomId(Integer userId, Integer roomId, Role role) {
     RoomMemberEntity membership = roomMemberJpaRepository.findByRoom_IdAndUser_Id(roomId, userId)
-        .orElseThrow(() -> new RuntimeException(
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_MEMBERSHIP_NOT_FOUND",
             "Failed to update role. User " + userId + " not found in room " + roomId));
     membership.setRole(findRoleEntity(role));
   }
@@ -224,7 +229,7 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Transactional(readOnly = true)
   public Role getUserRoleByRoomId(Integer roomId, Integer userId) {
     RoomMemberEntity membership = roomMemberJpaRepository.findByRoom_IdAndUser_Id(roomId, userId)
-        .orElseThrow(() -> new RuntimeException(
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_MEMBERSHIP_NOT_FOUND",
             "User " + userId + " not found in room " + roomId));
     return CoreLookupMapper.toRole(membership.getRole().getRoleName());
   }
@@ -236,7 +241,8 @@ public class RoomRepositoryImpl implements RoomRepository {
     }
     RoomEntity roomEntity = getExistingRoomEntity(roomId);
     UserEntity userEntity = userJpaRepository.findById(userId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND",
+            "User not found: " + userId));
 
     BanEntity banEntity = new BanEntity();
     banEntity.setId(new BanId(userId, roomId));
@@ -266,7 +272,8 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private RoomEntity getExistingRoomEntity(Integer roomId) {
     return roomJpaRepository.findById(roomId)
-        .orElseThrow(() -> new RuntimeException("Room not found: " + roomId));
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_NOT_FOUND",
+            "Room not found: " + roomId));
   }
 
   private CategoryEntity findCategoryEntity(String categoryName) {
@@ -277,6 +284,6 @@ public class RoomRepositoryImpl implements RoomRepository {
 
   private RoleEntity findRoleEntity(Role role) {
     return roleLookupRepository.findByRoleNameIgnoreCase(CoreLookupMapper.toDbRoleName(role))
-        .orElseThrow(() -> new RuntimeException("Role not found: " + role));
+        .orElseThrow(() -> new IllegalStateException("Role not found: " + role));
   }
 }

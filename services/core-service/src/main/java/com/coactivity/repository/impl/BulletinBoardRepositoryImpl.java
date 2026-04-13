@@ -7,6 +7,7 @@ import com.coactivity.persistence.repository.BulletinBoardJpaRepository;
 import com.coactivity.persistence.repository.RoomJpaRepository;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.service.exception.ResourceNotFoundException;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,9 +32,11 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   public BulletinBoard createBulletinBoard(Integer roomId, String content, Integer authorId) {
     BulletinBoardEntity entity = new BulletinBoardEntity();
     entity.setRoom(roomJpaRepository.findById(roomId)
-        .orElseThrow(() -> new RuntimeException("Room not found: " + roomId)));
+        .orElseThrow(() -> new ResourceNotFoundException("ROOM_NOT_FOUND",
+            "Room not found: " + roomId)));
     entity.setAuthor(userJpaRepository.findById(authorId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + authorId)));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND",
+            "User not found: " + authorId)));
     entity.setContent(content);
     entity.setUpdatedAt(Instant.now());
 
@@ -43,10 +46,12 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   @Override
   public BulletinBoard updateBulletinBoard(Integer roomId, String content, Integer authorId) {
     BulletinBoardEntity entity = bulletinBoardJpaRepository.findByRoom_Id(roomId)
-        .orElseThrow(() -> new RuntimeException("Bulletin board not found for room: " + roomId));
+        .orElseThrow(() -> new ResourceNotFoundException("BULLETIN_BOARD_NOT_FOUND",
+            "Bulletin board not found for room: " + roomId));
     entity.setContent(content);
     entity.setAuthor(userJpaRepository.findById(authorId)
-        .orElseThrow(() -> new RuntimeException("User not found: " + authorId)));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND",
+            "User not found: " + authorId)));
     entity.setUpdatedAt(Instant.now());
     return toDomain(entity);
   }
@@ -62,7 +67,8 @@ public class BulletinBoardRepositoryImpl implements BulletinBoardRepository {
   @Override
   public void deleteBulletinBoard(Integer roomId) {
     if (!bulletinBoardJpaRepository.existsByRoom_Id(roomId)) {
-      throw new RuntimeException("Bulletin board not found for room: " + roomId);
+      throw new ResourceNotFoundException("BULLETIN_BOARD_NOT_FOUND",
+          "Bulletin board not found for room: " + roomId);
     }
     bulletinBoardJpaRepository.deleteByRoom_Id(roomId);
   }

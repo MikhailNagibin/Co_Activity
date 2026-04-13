@@ -44,12 +44,14 @@ public class QaService {
     validateAnswerRequest(request);
 
     if (!qaRepository.questionExists(request.getQuestionId())) {
-      throw new ResourceNotFoundException("Question not found: " + request.getQuestionId());
+      throw new ResourceNotFoundException("QUESTION_NOT_FOUND",
+          "Question not found: " + request.getQuestionId());
     }
     if (request.getPreviousAnswerId() != null
         && !qaRepository.answerExistsForQuestion(request.getPreviousAnswerId(),
         request.getQuestionId())) {
       throw new ResourceNotFoundException(
+          "ANSWER_NOT_FOUND",
           "Previous answer not found: " + request.getPreviousAnswerId());
     }
 
@@ -97,7 +99,8 @@ public class QaService {
     validateQuestionRequest(request);
 
     QuestionEntity existing = qaRepository.findQuestionById(questionId)
-        .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+        .orElseThrow(() -> new ResourceNotFoundException("QUESTION_NOT_FOUND",
+            "Question not found: " + questionId));
     if (!authorId.equals(existing.ownerId())) {
       throw new AuthorizationException("Cannot update question created by another user");
     }
@@ -117,7 +120,8 @@ public class QaService {
     }
 
     QuestionEntity existing = qaRepository.findQuestionById(questionId)
-        .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+        .orElseThrow(() -> new ResourceNotFoundException("QUESTION_NOT_FOUND",
+            "Question not found: " + questionId));
     if (!authorId.equals(existing.ownerId())) {
       throw new AuthorizationException("Cannot delete question created by another user");
     }
@@ -131,7 +135,8 @@ public class QaService {
     }
 
     QuestionEntity question = qaRepository.findQuestionById(questionId)
-        .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+        .orElseThrow(() -> new ResourceNotFoundException("QUESTION_NOT_FOUND",
+            "Question not found: " + questionId));
 
     List<AnswerEntity> answers = qaRepository.findAnswersByQuestionId(questionId);
     List<AnswerResponse> answerResponses = buildAnswerTree(answers);
@@ -150,7 +155,8 @@ public class QaService {
     validateAnswerUpdateRequest(request);
 
     AnswerEntity existing = qaRepository.findAnswerById(answerId)
-        .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + answerId));
+        .orElseThrow(() -> new ResourceNotFoundException("ANSWER_NOT_FOUND",
+            "Answer not found: " + answerId));
     if (!authorId.equals(existing.ownerId())) {
       throw new AuthorizationException("Cannot update answer created by another user");
     }
@@ -165,7 +171,8 @@ public class QaService {
     }
 
     AnswerEntity existing = qaRepository.findAnswerById(answerId)
-        .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + answerId));
+        .orElseThrow(() -> new ResourceNotFoundException("ANSWER_NOT_FOUND",
+            "Answer not found: " + answerId));
     if (!authorId.equals(existing.ownerId())) {
       throw new AuthorizationException("Cannot delete answer created by another user");
     }

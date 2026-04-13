@@ -1,28 +1,21 @@
 package com.coactivity.service.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
  * Thrown when the current user lacks permissions to perform an action.
  */
 public class AuthorizationException extends DomainException {
 
-  private final String code;
-
   public AuthorizationException(String message) {
-    super(message);
-    this.code = null;
+    super(HttpStatus.FORBIDDEN, "ACCESS_DENIED", message);
   }
 
   public AuthorizationException(String code, String message) {
-    super(message);
-    this.code = code;
+    super(HttpStatus.FORBIDDEN, code, message);
   }
 
   public AuthorizationException(String code, String message, Throwable cause) {
-    super(message, cause);
-    this.code = code;
-  }
-
-  public String getCode() {
-    return code;
+    super(HttpStatus.FORBIDDEN, code, message, cause);
   }
 }

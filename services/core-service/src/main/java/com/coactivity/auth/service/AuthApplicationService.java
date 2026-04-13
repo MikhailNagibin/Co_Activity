@@ -128,7 +128,7 @@ public class AuthApplicationService {
 
     String normalizedEmail = normalizeEmail(request.getEmail());
     UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
 
     RedisChallengeStore.VerificationResult result = challengeStore.verify(normalizedEmail,
         request.getCode().trim());
@@ -156,7 +156,7 @@ public class AuthApplicationService {
 
     String normalizedEmail = normalizeEmail(request.getEmail());
     UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
 
     if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
       throw new ConflictException("EMAIL_ALREADY_VERIFIED", "Email is already verified");
@@ -230,7 +230,7 @@ public class AuthApplicationService {
     validateNewPassword(request.getCurrentPassword(), request.getNewPassword());
 
     UserEntity user = userJpaRepository.findById(currentUser.getUserId())
-        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
 
     if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
       throw new AuthorizationException("Current password is incorrect");
