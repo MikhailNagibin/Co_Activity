@@ -1,13 +1,10 @@
 import AppHeader from '../components/AppHeader.jsx'
 import QuestionPreview from '../components/QuestionPreview.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
-import { BROWSE_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
+import { BROWSE_CATEGORY_OPTIONS, browseFilterToQaCategoryId } from '../constants/categoryOptions.js'
 import { QA_SORT_OPTIONS } from '../constants/browseFilterOptions.js'
-import {
-  filterQuestionPreviewsForBrowse,
-  sortQuestionPreviews,
-} from '../utils/browseListFilters.js'
-import { useEffect, useMemo, useState } from 'react'
+import { sortQuestionPreviews } from '../utils/browseListFilters.js'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
@@ -19,6 +16,8 @@ import { useAuthSession } from '../auth/authSessionContext.js'
 import { getQuestions } from '../services/qaService.js'
 import { mapQuestionsToPreview } from '../services/uiMappers.js'
 
+const SEARCH_DEBOUNCE_MS = 320
+
 function QADataPage() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthSession()
@@ -26,22 +25,43 @@ function QADataPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all-categories')
   const [sortBy, setSortBy] = useState('created-desc')
+
+  const deferredSearch = useDeferredValue(debouncedSearchQuery)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim())
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   useEffect(() => {
     let isMounted = true
+    const controller = new AbortController()
+    const categoryId = browseFilterToQaCategoryId(categoryFilter)
+    const queryForApi = deferredSearch.trim() === '' ? undefined : deferredSearch.trim()
 
     const loadQuestions = async () => {
       setIsLoading(true)
       setErrorMessage('')
 
       try {
-        const payload = await getQuestions()
+        const payload = await getQuestions({
+          query: queryForApi,
+          categoryId,
+          signal: controller.signal,
+        })
         if (!isMounted) {
           return
         }
         setQuestions(mapQuestionsToPreview(payload))
       } catch (error) {
+        if (error?.name === 'AbortError') {
+          return
+        }
         if (!isMounted) {
           return
         }
@@ -65,8 +85,9 @@ function QADataPage() {
 
     return () => {
       isMounted = false
+      controller.abort()
     }
-  }, [navigate])
+  }, [navigate, categoryFilter, deferredSearch])
 
   const keywordTags = useMemo(
     () =>
@@ -76,13 +97,14 @@ function QADataPage() {
     [questions],
   )
 
-  const filteredQuestions = useMemo(() => {
-    const filtered = filterQuestionPreviewsForBrowse(questions, {
-      categoryFilter,
-      searchQuery,
-    })
-    return sortQuestionPreviews(filtered, sortBy)
-  }, [questions, categoryFilter, searchQuery, sortBy])
+  const sortedQuestions = useMemo(
+    () => sortQuestionPreviews(questions, sortBy),
+    [questions, sortBy],
+  )
+
+  const hasActiveServerFilter =
+    categoryFilter !== 'all-categories' ||
+    (deferredSearch != null && String(deferredSearch).trim() !== '')
 
   return (
     <>
@@ -163,16 +185,16 @@ function QADataPage() {
                 {errorMessage}
               </p>
             ) : null}
-            {!isLoading && !errorMessage && questions.length === 0 ? (
+            {!isLoading && !errorMessage && questions.length === 0 && !hasActiveServerFilter ? (
               <p className="qa-list-message">Пока нет вопросов</p>
             ) : null}
-            {!isLoading && !errorMessage && questions.length > 0 && filteredQuestions.length === 0 ? (
+            {!isLoading && !errorMessage && questions.length === 0 && hasActiveServerFilter ? (
               <p className="qa-list-message">
                 Ничего не найдено — измените поиск, категорию или сортировку
               </p>
             ) : null}
             {!isLoading && !errorMessage
-              ? filteredQuestions.map((item, index) => (
+              ? sortedQuestions.map((item, index) => (
                   <QuestionPreview key={item.id ?? `${item.title}-${index}`} item={item} />
                 ))
               : null}
