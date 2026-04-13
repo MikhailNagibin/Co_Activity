@@ -209,6 +209,11 @@ Kafka topic'и для email-контракта создаются заранее
 - `notifications.email.v1`
 - `notifications.email.v1.dlt` или topic из `NOTIFICATIONS_KAFKA_DLT_TOPIC`
 
+Где смотреть Swagger UI при запущенном `core-service`:
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- OpenAPI JSON: http://localhost:8080/v3/api-docs
+- OpenAPI YAML: http://localhost:8080/v3/api-docs.yaml
+
 ## Какие файлы использовать
 
 - `docker-compose.yml` + `.env.local` -> local/dev, Mailpit
