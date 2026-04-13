@@ -9,7 +9,21 @@ import {
   isUnauthorizedApiError,
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
-import { getMyProfile, logout, updateMyNotificationSettings } from '../services/profileService.js'
+import {
+  getMyNotificationSettings,
+  logout,
+  updateMyNotificationSettings,
+} from '../services/profileService.js'
+
+function normalizeNotificationSettings(payload) {
+  return {
+    membershipAccepted: payload?.membershipAccepted !== false,
+    membershipRejected: payload?.membershipRejected !== false,
+    activityClosed: payload?.activityClosed !== false,
+    newJoinRequest: payload?.newJoinRequest !== false,
+    importantRoomUpdates: payload?.importantRoomUpdates !== false,
+  }
+}
 
 function NotificationSettingsPage() {
   const navigate = useNavigate()
@@ -18,12 +32,13 @@ function NotificationSettingsPage() {
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-  const [profile, setProfile] = useState(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [notificationsForm, setNotificationsForm] = useState({
     membershipAccepted: true,
     membershipRejected: true,
     activityClosed: true,
     newJoinRequest: true,
+    importantRoomUpdates: true,
   })
 
   useEffect(() => {
@@ -33,23 +48,17 @@ function NotificationSettingsPage() {
       setIsLoading(true)
       setErrorMessage('')
       try {
-        const payload = await getMyProfile()
+        const payload = await getMyNotificationSettings()
         if (!isMounted) {
           return
         }
-        setProfile(payload)
-        const enabled = Array.isArray(payload?.notifications) ? payload.notifications : []
-        const has = (key) => enabled.some((item) => String(item) === key)
-        setNotificationsForm({
-          membershipAccepted: has('MembershipAccepted'),
-          membershipRejected: has('MembershipRejected'),
-          activityClosed: has('ActivityClosed'),
-          newJoinRequest: has('NewJoinRequest'),
-        })
+        setSettingsLoaded(true)
+        setNotificationsForm(normalizeNotificationSettings(payload))
       } catch (error) {
         if (!isMounted) {
           return
         }
+        setSettingsLoaded(false)
         if (isUnauthorizedApiError(error)) {
           redirectToSignInForExpiredSession(navigate, { next: '/profile/notifications' })
           return
@@ -82,7 +91,8 @@ function NotificationSettingsPage() {
       !notificationsForm.membershipAccepted &&
       !notificationsForm.membershipRejected &&
       !notificationsForm.activityClosed &&
-      !notificationsForm.newJoinRequest,
+      !notificationsForm.newJoinRequest &&
+      !notificationsForm.importantRoomUpdates,
     [notificationsForm],
   )
 
@@ -101,14 +111,17 @@ function NotificationSettingsPage() {
       membershipRejected: notificationsForm.membershipRejected,
       activityClosed: notificationsForm.activityClosed,
       newJoinRequest: notificationsForm.newJoinRequest,
+      importantRoomUpdates: notificationsForm.importantRoomUpdates,
     }
 
     setIsSavingNotifications(true)
     try {
-      await updateMyNotificationSettings(payload)
+      const savedSettings = await updateMyNotificationSettings(payload)
+      setSettingsLoaded(true)
+      setNotificationsForm(normalizeNotificationSettings(savedSettings))
       setSuccessMessage(
         notificationsDisabled
-          ? 'Все уведомления отключены'
+          ? 'Все уведомления отключены. По правилам продукта это эквивалентно глобальному отключению.'
           : 'Настройки уведомлений сохранены',
       )
     } catch (error) {
@@ -139,7 +152,7 @@ function NotificationSettingsPage() {
     }
   }
 
-  const sessionEnded = Boolean(isAuthenticated && !isLoading && !profile)
+  const sessionEnded = false
 
   return (
     <>
@@ -166,14 +179,14 @@ function NotificationSettingsPage() {
         {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
         {successMessage ? <p className="profile-success">{successMessage}</p> : null}
 
-        {isAuthenticated && !isLoading && !profile ? (
+        {isAuthenticated && !isLoading && !settingsLoaded ? (
           <section className="profile-panel profile-session-fallback">
             <h3>Настройки не загрузились</h3>
             <p className="gray-elem">Войдите снова.</p>
           </section>
         ) : null}
 
-        {isAuthenticated && !isLoading && profile ? (
+        {isAuthenticated && !isLoading && settingsLoaded ? (
           <section className="profile-panel notification-settings-panel">
             <form onSubmit={handleSaveNotifications} className="profile-form">
               <label className="profile-checkbox">
@@ -216,6 +229,20 @@ function NotificationSettingsPage() {
                 />
                 Новая заявка на вступление в мою активность
               </label>
+              <label className="profile-checkbox">
+                <input
+                  type="checkbox"
+                  name="importantRoomUpdates"
+                  checked={notificationsForm.importantRoomUpdates}
+                  onChange={handleNotificationToggle}
+                  disabled={isSavingNotifications}
+                />
+                Важные обновления по активностям
+              </label>
+
+              <p className="gray-elem notification-settings-hint">
+                Если выключить все пункты, это будет считаться полным отключением уведомлений.
+              </p>
 
               <button type="submit" className="create-room-submit" disabled={isSavingNotifications}>
                 {isSavingNotifications ? 'Сохранение...' : 'Сохранить'}
