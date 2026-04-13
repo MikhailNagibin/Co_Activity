@@ -221,20 +221,40 @@ Kafka topic'и для email-контракта создаются заранее
 В production-like запуске через `docker-compose.prod.yml` роль S3-compatible object storage
 выполняет **MinIO**, который поднимается как отдельный контейнер внутри compose-окружения.
 
-Поэтому для `.env.prod` должны быть заполнены S3-переменные:
+`docker-compose.prod.yml` уже содержит локальные fallback-значения для MinIO, поэтому
+production-like стек может подняться без ручного указания S3-настроек. В `.env.prod.example`
+они оставлены явно, чтобы было видно, какие параметры использует `core-service`:
 
 - `APP_STORAGE_TYPE=s3`
 - `APP_STORAGE_S3_ENDPOINT=http://minio:9000`
 - `APP_STORAGE_S3_REGION=us-east-1`
-- `APP_STORAGE_S3_BUCKET`
-- `APP_STORAGE_S3_ACCESS_KEY`
-- `APP_STORAGE_S3_SECRET_KEY`
+- `APP_STORAGE_S3_BUCKET=coactivity-media`
+- `APP_STORAGE_S3_ACCESS_KEY=minioadmin`
+- `APP_STORAGE_S3_SECRET_KEY=minioadmin`
 - `APP_STORAGE_S3_PATH_STYLE=true`
 - `APP_STORAGE_S3_PREFIX` (опционально)
 
 `docker-compose.prod.yml` передаёт эти переменные в `core-service` через `environment`.
+Если переменная не задана в `.env.prod`, compose использует fallback из файла.
 
-Если endpoint, bucket или credentials не заданы, `core-service` завершится на старте с ошибкой вида:
+Важно: `minioadmin/minioadmin` — допустимые credentials только для локального production-like
+запуска. Для настоящего production их нельзя использовать: задай уникальные секреты через
+environment или `.env.prod`.
+
+Остановить production-like стек:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
+```
+
+Полностью сбросить локальные данные production-like стека, включая PostgreSQL и MinIO volume:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
+```
+
+Если endpoint, bucket или credentials всё же окажутся пустыми, `core-service` завершится на
+старте с ошибкой вида:
 
 ```text
 S3 endpoint is required

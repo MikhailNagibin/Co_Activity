@@ -35,7 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class RoomImageService {
 
-  private static final String STORAGE_KEY_PREFIX = "room-images/rooms/";
+  private static final String STORAGE_KEY_PREFIX = "room-images/";
   private static final Logger log = LoggerFactory.getLogger(RoomImageService.class);
   private static final Set<String> SUPPORTED_CONTENT_TYPES = Set.of(
       "image/jpeg",
@@ -78,7 +78,7 @@ public class RoomImageService {
     try {
       for (ValidatedRoomImageUpload file : uploadFiles) {
         String contentType = file.contentType();
-        String storageKey = generateStorageKey(roomId, contentType);
+        String storageKey = generateStorageKey(contentType);
         fileStorage.save(storageKey, new ByteArrayInputStream(file.bytes()));
         storedKeys.add(storageKey);
         pictureRepository.createPicture(
@@ -242,8 +242,8 @@ public class RoomImageService {
     }
   }
 
-  private String generateStorageKey(Integer roomId, String contentType) {
-    return STORAGE_KEY_PREFIX + roomId + "/" + UUID.randomUUID() + extensionForContentType(contentType);
+  private String generateStorageKey(String contentType) {
+    return STORAGE_KEY_PREFIX + UUID.randomUUID() + extensionForContentType(contentType);
   }
 
   private String extensionForContentType(String contentType) {
