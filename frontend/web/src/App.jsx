@@ -10,6 +10,7 @@ import CreateQuestionPage from './pages/CreateQuestionPage.jsx'
 import CreateRoomPage from './pages/CreateRoomPage.jsx'
 import MainPage from './pages/MainPage.jsx'
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx'
+import PasswordResetPage from './pages/PasswordResetPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import QADataPage from './pages/QADataPage.jsx'
 import SignIn from './pages/SignIn.jsx'
@@ -39,6 +40,7 @@ function App() {
       <Route path="/register" element={<Navigate to="/sign-up" replace />} />
       <Route path="/sign-in" element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
       <Route path="/sign-up" element={<PublicOnlyRoute><SignUp /></PublicOnlyRoute>} />
+      <Route path="/password-reset" element={<PublicOnlyRoute><PasswordResetPage /></PublicOnlyRoute>} />
       <Route path="/main" element={<MainPage />} />
       <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
       <Route path="/create-room" element={<CreateRoomPage />} />

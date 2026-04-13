@@ -8,17 +8,20 @@ function AuthField({
   onChange,
   autoComplete,
   disabled = false,
+  ...inputProps
 }) {
+  const inputId = inputProps.id ?? name
+
   return (
     <div className="auth-field">
       <div className={inlineRight ? 'field-head field-head--between' : 'field-head'}>
-        <label htmlFor={name} className="auth-field__label">
+        <label htmlFor={inputId} className="auth-field__label">
           {label}
         </label>
         {inlineRight}
       </div>
       <input
-        id={name}
+        id={inputId}
         className="auth-field__input"
         type={type}
         name={name}
@@ -27,6 +30,7 @@ function AuthField({
         onChange={onChange}
         autoComplete={autoComplete}
         disabled={disabled}
+        {...inputProps}
       />
     </div>
   )

@@ -40,7 +40,7 @@ function SignIn() {
   const { markAuthenticated } = useAuthSession()
   const [sessionExpiredBanner] = useState(readSessionExpiredFromUrl)
   const [formData, setFormData] = useState({
-    email: '',
+    email: searchParams.get('email')?.trim() ?? '',
     password: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -134,6 +134,18 @@ function SignIn() {
     navigate({ pathname: '/sign-up', search: `?${params.toString()}` })
   }
 
+  const handleOpenPasswordReset = () => {
+    const params = new URLSearchParams()
+    const email = formData.email.trim()
+    if (email) {
+      params.set('email', email)
+    }
+    navigate({
+      pathname: '/password-reset',
+      search: params.toString() ? `?${params.toString()}` : '',
+    })
+  }
+
   return (
     <AuthLayout
       title="Войти в CoActivity"
@@ -151,6 +163,10 @@ function SignIn() {
           Сессия истекла. Требуется заново войти в аккаунт
         </div>
       ) : null}
+      <div className="auth-banner auth-banner--neutral" role="status">
+        Вход сейчас работает только по почте и паролю. Дополнительный код нужен для подтверждения
+        почты и восстановления пароля, но не для обычного входа.
+      </div>
       <form onSubmit={handleSubmit} className="auth-form">
         <AuthField
           label="Почта"
@@ -176,9 +192,17 @@ function SignIn() {
           type="button"
           className="auth-text-button"
           disabled={isSubmitting}
+          onClick={handleOpenPasswordReset}
+        >
+          Забыли пароль?
+        </button>
+        <button
+          type="button"
+          className="auth-text-button"
+          disabled={isSubmitting}
           onClick={handleOpenVerification}
         >
-          Подтвердить почту или запросить код заново
+          Почта не подтверждена? Ввести код подтверждения
         </button>
         <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
           {isSubmitting ? 'Вход...' : 'Войти'}

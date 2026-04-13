@@ -751,6 +751,12 @@ body {
   }
 }
 
+.auth-field__input[aria-invalid='true'],
+.profile-form input[aria-invalid='true'] {
+  border-color: rgba(176, 0, 32, 0.4);
+  box-shadow: 0 0 0 3px rgba(176, 0, 32, 0.08);
+}
+
 .auth-field__textarea,
 .profile-form textarea {
   resize: vertical;
@@ -764,6 +770,11 @@ body {
   font-size: 0.9rem;
   line-height: 1.5;
   border: 1px solid transparent;
+}
+
+.auth-banner:focus {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
 }
 
 .auth-banner--info {
@@ -2530,6 +2541,16 @@ button.cta-black-button {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.profile-security-section + .profile-security-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.profile-security-submit {
+  align-self: flex-start;
 }
 
 .profile-deletion-plan {

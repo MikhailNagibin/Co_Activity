@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader.jsx'
 import { useAuthSession } from '../auth/authSessionContext.js'
 import ProfileAuthRail from '../components/ProfileAuthRail.jsx'
 import { isApiError } from '../api/httpClient.js'
+import { changePassword } from '../services/authService.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import {
   isUnauthorizedApiError,
@@ -64,16 +65,26 @@ function getRoleLabel(role) {
 function ProfilePage() {
   const navigate = useNavigate()
   const { isAuthenticated, clearSession } = useAuthSession()
+  const passwordErrorRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoadingDeletionPreview, setIsLoadingDeletionPreview] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('')
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('')
+  const [passwordInvalidFields, setPasswordInvalidFields] = useState({})
   const [profile, setProfile] = useState(null)
   const [deletionPreview, setDeletionPreview] = useState(null)
   const [deletionModes, setDeletionModes] = useState({})
   const [deletionTransfers, setDeletionTransfers] = useState({})
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
   const [profileForm, setProfileForm] = useState({
     username: '',
     dateOfBirth: '',
@@ -134,9 +145,33 @@ function ProfilePage() {
     }
   }, [isAuthenticated, navigate])
 
+  useEffect(() => {
+    if (!passwordErrorMessage) {
+      return
+    }
+    passwordErrorRef.current?.focus()
+  }, [passwordErrorMessage])
+
   const handleProfileChange = (event) => {
     const { name, value } = event.target
     setProfileForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handlePasswordFieldChange = (event) => {
+    const { name, value } = event.target
+    setPasswordForm((prev) => ({ ...prev, [name]: value }))
+    setPasswordInvalidFields((prev) => {
+      if (!prev[name]) {
+        return prev
+      }
+      return { ...prev, [name]: false }
+    })
+  }
+
+  const showPasswordError = (message, fields = {}) => {
+    setPasswordSuccessMessage('')
+    setPasswordInvalidFields(fields)
+    setPasswordErrorMessage(message)
   }
 
   const handleSaveProfile = async (event) => {
@@ -191,6 +226,56 @@ function ProfilePage() {
       }
     } finally {
       setIsSavingProfile(false)
+    }
+  }
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault()
+    setPasswordErrorMessage('')
+    setPasswordSuccessMessage('')
+    setPasswordInvalidFields({})
+
+    if (passwordForm.currentPassword.length < 8) {
+      showPasswordError('Текущий пароль: от 8 символов', { currentPassword: true })
+      return
+    }
+    if (passwordForm.newPassword.length < 8) {
+      showPasswordError('Новый пароль: от 8 символов', { newPassword: true })
+      return
+    }
+    if (passwordForm.confirmPassword !== passwordForm.newPassword) {
+      showPasswordError('Новые пароли не совпадают', { confirmPassword: true })
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      })
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+      setPasswordSuccessMessage('Пароль обновлён')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile' })
+        return
+      }
+      if (isApiError(error)) {
+        const rawMessage = String(error.message ?? '').toLowerCase()
+        showPasswordError(getUserFacingApiMessage(error, 'Не удалось сменить пароль'), {
+          currentPassword: rawMessage.includes('current password'),
+          newPassword: rawMessage.includes('new password'),
+        })
+      } else {
+        showPasswordError('Не удалось сменить пароль', { newPassword: true })
+      }
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -482,119 +567,199 @@ function ProfilePage() {
 
                 <section className="profile-panel profile-panel--danger">
                   <p className="profile-kicker">Безопасность</p>
-                  <h3>Удаление аккаунта</h3>
+                  <h3>Пароль и удаление аккаунта</h3>
                   <p className="gray-elem">
-                    Перед удалением можно решить, что делать с активностями, где вы владелец.
+                    Смените пароль в текущей сессии или удалите аккаунт с планом для ваших
+                    активностей.
                   </p>
-                  <div className="profile-actions">
-                    <button
-                      type="button"
-                      className="profile-delete-btn"
-                      onClick={handlePrepareDeletion}
-                      disabled={isDeleting || isLoadingDeletionPreview}
-                    >
-                      {isLoadingDeletionPreview
-                        ? 'Проверка...'
-                        : deletionPreview?.ownedRooms?.length
-                          ? 'Обновить план удаления'
-                          : 'Удалить аккаунт'}
-                    </button>
 
-                    {deletionPreview?.ownedRooms?.length ? (
-                      <section className="profile-deletion-plan">
-                        <h4>Перед удалением решите, что делать с вашими активностями</h4>
-                        <p className="gray-elem">
-                          Для каждой активности выберите удаление или передачу владельца.
+                  <section className="profile-security-section">
+                    <h4>Смена пароля</h4>
+                    <form onSubmit={handleChangePassword} className="profile-form">
+                      <div className="profile-form-row">
+                        <label htmlFor="currentPassword">Текущий пароль</label>
+                        <input
+                          id="currentPassword"
+                          name="currentPassword"
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={handlePasswordFieldChange}
+                          disabled={isChangingPassword}
+                          autoComplete="current-password"
+                          aria-invalid={passwordInvalidFields.currentPassword ? 'true' : 'false'}
+                          aria-describedby={passwordErrorMessage ? 'profile-password-error' : undefined}
+                        />
+                      </div>
+
+                      <div className="profile-form-row">
+                        <label htmlFor="newPassword">Новый пароль</label>
+                        <input
+                          id="newPassword"
+                          name="newPassword"
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={handlePasswordFieldChange}
+                          disabled={isChangingPassword}
+                          autoComplete="new-password"
+                          aria-invalid={passwordInvalidFields.newPassword ? 'true' : 'false'}
+                          aria-describedby={passwordErrorMessage ? 'profile-password-error' : undefined}
+                        />
+                      </div>
+
+                      <div className="profile-form-row">
+                        <label htmlFor="confirmPassword">Повторите новый пароль</label>
+                        <input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={handlePasswordFieldChange}
+                          disabled={isChangingPassword}
+                          autoComplete="new-password"
+                          aria-invalid={passwordInvalidFields.confirmPassword ? 'true' : 'false'}
+                          aria-describedby={passwordErrorMessage ? 'profile-password-error' : undefined}
+                        />
+                      </div>
+
+                      {passwordErrorMessage ? (
+                        <p
+                          id="profile-password-error"
+                          ref={passwordErrorRef}
+                          tabIndex={-1}
+                          className="auth-banner auth-banner--error"
+                        >
+                          {passwordErrorMessage}
                         </p>
+                      ) : null}
+                      {passwordSuccessMessage ? (
+                        <p className="auth-banner auth-banner--success">{passwordSuccessMessage}</p>
+                      ) : null}
 
-                        <div className="profile-deletion-rooms">
-                          {deletionPreview.ownedRooms.map((room) => {
-                            const selectedMode = deletionModes[room.roomId] ?? 'DELETE_ROOM'
-                            const hasTransferCandidates = (room.transferCandidates?.length ?? 0) > 0
-                            return (
-                              <article key={room.roomId} className="profile-deletion-room">
-                                <div className="profile-deletion-room__header">
-                                  <strong>{room.roomName}</strong>
-                                  <span className="gray-elem">
-                                    Участников: {room.participantCount}
-                                  </span>
-                                </div>
+                      <button
+                        type="submit"
+                        className="auth-submit-button profile-security-submit"
+                        disabled={isChangingPassword}
+                      >
+                        {isChangingPassword ? 'Сохранение...' : 'Сменить пароль'}
+                      </button>
+                    </form>
+                  </section>
 
-                                <label className="profile-delete-option">
-                                  <input
-                                    type="radio"
-                                    name={`deletion-mode-${room.roomId}`}
-                                    value="DELETE_ROOM"
-                                    checked={selectedMode === 'DELETE_ROOM'}
-                                    onChange={() =>
-                                      handleDeletionModeChange(room.roomId, 'DELETE_ROOM')
-                                    }
-                                    disabled={isDeleting}
-                                  />
-                                  Удалить активность вместе с аккаунтом
-                                </label>
+                  <section className="profile-security-section">
+                    <h4>Удаление аккаунта</h4>
+                    <p className="gray-elem">
+                      Перед удалением можно решить, что делать с активностями, где вы владелец.
+                    </p>
+                    <div className="profile-actions">
+                      <button
+                        type="button"
+                        className="profile-delete-btn"
+                        onClick={handlePrepareDeletion}
+                        disabled={isDeleting || isLoadingDeletionPreview}
+                      >
+                        {isLoadingDeletionPreview
+                          ? 'Проверка...'
+                          : deletionPreview?.ownedRooms?.length
+                            ? 'Обновить план удаления'
+                            : 'Удалить аккаунт'}
+                      </button>
 
-                                <label className="profile-delete-option">
-                                  <input
-                                    type="radio"
-                                    name={`deletion-mode-${room.roomId}`}
-                                    value="TRANSFER_OWNERSHIP"
-                                    checked={selectedMode === 'TRANSFER_OWNERSHIP'}
-                                    onChange={() =>
-                                      handleDeletionModeChange(room.roomId, 'TRANSFER_OWNERSHIP')
-                                    }
-                                    disabled={isDeleting || !hasTransferCandidates}
-                                  />
-                                  Передать владельца другому участнику
-                                </label>
+                      {deletionPreview?.ownedRooms?.length ? (
+                        <section className="profile-deletion-plan">
+                          <h4>Перед удалением решите, что делать с вашими активностями</h4>
+                          <p className="gray-elem">
+                            Для каждой активности выберите удаление или передачу владельца.
+                          </p>
 
-                                {!hasTransferCandidates ? (
-                                  <p className="gray-elem">
-                                    В этой активности нет другого участника. Доступно только удаление.
-                                  </p>
-                                ) : null}
+                          <div className="profile-deletion-rooms">
+                            {deletionPreview.ownedRooms.map((room) => {
+                              const selectedMode = deletionModes[room.roomId] ?? 'DELETE_ROOM'
+                              const hasTransferCandidates = (room.transferCandidates?.length ?? 0) > 0
+                              return (
+                                <article key={room.roomId} className="profile-deletion-room">
+                                  <div className="profile-deletion-room__header">
+                                    <strong>{room.roomName}</strong>
+                                    <span className="gray-elem">
+                                      Участников: {room.participantCount}
+                                    </span>
+                                  </div>
 
-                                {hasTransferCandidates && selectedMode === 'TRANSFER_OWNERSHIP' ? (
-                                  <select
-                                    value={deletionTransfers[room.roomId] ?? ''}
-                                    onChange={(event) =>
-                                      handleDeletionTransferChange(room.roomId, event.target.value)
-                                    }
-                                    disabled={isDeleting}
-                                  >
-                                    <option value="">Выберите нового владельца</option>
-                                    {room.transferCandidates.map((candidate) => (
-                                      <option key={candidate.userId} value={candidate.userId}>
-                                        {candidate.userName} ({getRoleLabel(candidate.role)})
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : null}
-                              </article>
-                            )
-                          })}
-                        </div>
+                                  <label className="profile-delete-option">
+                                    <input
+                                      type="radio"
+                                      name={`deletion-mode-${room.roomId}`}
+                                      value="DELETE_ROOM"
+                                      checked={selectedMode === 'DELETE_ROOM'}
+                                      onChange={() =>
+                                        handleDeletionModeChange(room.roomId, 'DELETE_ROOM')
+                                      }
+                                      disabled={isDeleting}
+                                    />
+                                    Удалить активность вместе с аккаунтом
+                                  </label>
 
-                        <button
-                          type="button"
-                          className="profile-delete-btn"
-                          onClick={handleDeleteWithPlan}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? 'Удаление...' : 'Подтвердить удаление аккаунта'}
-                        </button>
+                                  <label className="profile-delete-option">
+                                    <input
+                                      type="radio"
+                                      name={`deletion-mode-${room.roomId}`}
+                                      value="TRANSFER_OWNERSHIP"
+                                      checked={selectedMode === 'TRANSFER_OWNERSHIP'}
+                                      onChange={() =>
+                                        handleDeletionModeChange(room.roomId, 'TRANSFER_OWNERSHIP')
+                                      }
+                                      disabled={isDeleting || !hasTransferCandidates}
+                                    />
+                                    Передать владельца другому участнику
+                                  </label>
 
-                        <button
-                          type="button"
-                          className="profile-delete-account-link"
-                          onClick={resetDeletionPlanner}
-                          disabled={isDeleting}
-                        >
-                          Скрыть план удаления
-                        </button>
-                      </section>
-                    ) : null}
-                  </div>
+                                  {!hasTransferCandidates ? (
+                                    <p className="gray-elem">
+                                      В этой активности нет другого участника. Доступно только удаление.
+                                    </p>
+                                  ) : null}
+
+                                  {hasTransferCandidates && selectedMode === 'TRANSFER_OWNERSHIP' ? (
+                                    <select
+                                      value={deletionTransfers[room.roomId] ?? ''}
+                                      onChange={(event) =>
+                                        handleDeletionTransferChange(room.roomId, event.target.value)
+                                      }
+                                      disabled={isDeleting}
+                                    >
+                                      <option value="">Выберите нового владельца</option>
+                                      {room.transferCandidates.map((candidate) => (
+                                        <option key={candidate.userId} value={candidate.userId}>
+                                          {candidate.userName} ({getRoleLabel(candidate.role)})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : null}
+                                </article>
+                              )
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="profile-delete-btn"
+                            onClick={handleDeleteWithPlan}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? 'Удаление...' : 'Подтвердить удаление аккаунта'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="profile-delete-account-link"
+                            onClick={resetDeletionPlanner}
+                            disabled={isDeleting}
+                          >
+                            Скрыть план удаления
+                          </button>
+                        </section>
+                      ) : null}
+                    </div>
+                  </section>
                 </section>
               </div>
             ) : null}
