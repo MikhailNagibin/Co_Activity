@@ -5,6 +5,10 @@
 - `core-service` — основной HTTP API, auth, users, rooms, join requests, Q&A
 - `notifications-service` — Kafka consumer для email-уведомлений
 
+## Документация
+
+Точки входа (frontend + DevOps): `docs/README.md`
+
 ## Как они связаны
 
 Схема работы:

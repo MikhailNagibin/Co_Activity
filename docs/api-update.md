@@ -448,7 +448,7 @@
 
 ## 5) Ошибки (типовые 400/401/403/404)
 
-Формат ошибок: **RFC7807 Problem Details** (`application/problem+json`), см. `services/core-service/docs/error-codes.md`.
+Формат ошибок: **RFC7807 Problem Details** (`application/problem+json`), см. `docs/error-codes.md`.
 
 ### Типовые статусы
 

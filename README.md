@@ -11,6 +11,10 @@ Co_Activity — приложение для комнат, заявок на вс
 
 Q&A уже встроен в `core-service`. Отдельного `qa-service` больше нет.
 
+## Документация
+
+Точки входа (frontend + DevOps): `docs/README.md`
+
 ## Стек
 
 - Java 21
