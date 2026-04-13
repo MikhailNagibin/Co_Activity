@@ -8,25 +8,20 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
-import { getBannedRooms, getMyProfile, getSentJoinRequests } from '../services/profileService.js'
 import {
+  deleteRoom,
   getRoomById,
-  getRoomParticipants,
+  getRoomMembershipStatus,
   joinRoom,
+  leaveRoom,
   updateRoomBulletin,
 } from '../services/roomsService.js'
-import { formatDate, normalizeBulletinContent } from '../services/uiMappers.js'
+import {
+  formatDate,
+  getRoomMembershipView,
+  normalizeBulletinContent,
+} from '../services/uiMappers.js'
 import { resolveUserName } from '../utils/userProfile.js'
-
-function toArray(payload) {
-  if (Array.isArray(payload)) {
-    return payload
-  }
-  if (Array.isArray(payload?.items)) {
-    return payload.items
-  }
-  return []
-}
 
 function formatCategory(category) {
   if (category == null) {
@@ -52,11 +47,17 @@ function formatDateTime(value) {
   return parsed.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-function isOwnerOrAdminRole(role) {
-  const normalized = String(role ?? '')
-    .toUpperCase()
-    .replace(/\s+/g, '_')
-  return normalized === 'OWNER' || normalized === 'ADMIN'
+function getRoleLabel(role) {
+  switch (String(role ?? '').toUpperCase()) {
+    case 'OWNER':
+      return 'Создатель'
+    case 'ADMIN':
+      return 'Админ'
+    case 'PARTICIPANT':
+      return 'Участник'
+    default:
+      return ''
+  }
 }
 
 function RoomActivityPage() {
@@ -66,57 +67,67 @@ function RoomActivityPage() {
   const roomId = Number.parseInt(String(roomIdParam), 10)
 
   const [room, setRoom] = useState(null)
+  const [membership, setMembership] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [isBanned, setIsBanned] = useState(false)
-  const [hasPendingRequest, setHasPendingRequest] = useState(false)
+  const [membershipLoadError, setMembershipLoadError] = useState('')
   const [joinSubmitting, setJoinSubmitting] = useState(false)
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [joinFeedback, setJoinFeedback] = useState('')
-  const [canModerateBulletin, setCanModerateBulletin] = useState(false)
+  const [joinFeedbackTone, setJoinFeedbackTone] = useState('success')
   const [bulletinEditing, setBulletinEditing] = useState(false)
   const [bulletinDraft, setBulletinDraft] = useState('')
   const [bulletinSaving, setBulletinSaving] = useState(false)
   const [bulletinFeedback, setBulletinFeedback] = useState('')
 
-  const loadRoom = useCallback(async () => {
+  const loadRoom = useCallback(async (options = {}) => {
+    const { preserveJoinFeedback = false } = options
+
     if (!Number.isFinite(roomId) || roomId < 1) {
       setErrorMessage('Некорректный идентификатор активности')
       setRoom(null)
       setIsLoading(false)
-      return
+      return false
     }
 
     setIsLoading(true)
     setErrorMessage('')
-    setJoinFeedback('')
+    setMembershipLoadError('')
+    if (!preserveJoinFeedback) {
+      setJoinFeedback('')
+    }
+    setMembership(null)
 
     try {
       const payload = await getRoomById(roomId)
       setRoom(payload)
 
-      const [bannedPayload, sentPayload] = await Promise.all([
-        getBannedRooms().catch(() => []),
-        getSentJoinRequests().catch(() => []),
-      ])
-      const bannedIds = new Set(
-        toArray(bannedPayload)
-          .map((r) => r.id ?? r.roomId)
-          .filter((id) => id != null),
-      )
-      setIsBanned(bannedIds.has(roomId))
+      if (!isAuthenticated) {
+        setMembership(payload?.membershipStatus ?? null)
+        return true
+      }
 
-      const pending = toArray(sentPayload).some(
-        (req) =>
-          (req.roomId === roomId || req.roomId === String(roomId)) &&
-          String(req.status).toUpperCase() === 'CONSIDERATION',
-      )
-      setHasPendingRequest(pending)
+      try {
+        const membershipPayload = await getRoomMembershipStatus(roomId)
+        setMembership(membershipPayload ?? payload?.membershipStatus ?? null)
+      } catch (membershipError) {
+        if (isUnauthorizedApiError(membershipError)) {
+          setMembership(null)
+          setMembershipLoadError('Не удалось проверить ваш статус участия. Войдите заново, чтобы управлять участием.')
+          return true
+        }
+
+        setMembership(payload?.membershipStatus ?? null)
+        setMembershipLoadError('Не удалось проверить ваш статус участия. Доступны только публичные данные комнаты.')
+      }
+      return true
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
           next: `/rooms/${encodeURIComponent(String(roomId))}`,
         })
-        return
+        return false
       }
       if (isApiError(error)) {
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить активность'))
@@ -124,59 +135,36 @@ function RoomActivityPage() {
         setErrorMessage('Не удалось загрузить активность')
       }
       setRoom(null)
+      return false
     } finally {
       setIsLoading(false)
     }
-  }, [roomId, navigate])
+  }, [isAuthenticated, navigate, roomId])
 
   useEffect(() => {
     loadRoom()
   }, [loadRoom])
 
   useEffect(() => {
-    let cancelled = false
     setBulletinEditing(false)
     setBulletinDraft('')
     setBulletinFeedback('')
-
-    if (!room || !isAuthenticated || room.hasProtectedAccess !== true) {
-      setCanModerateBulletin(false)
-      return () => {
-        cancelled = true
-      }
-    }
-
-    ;(async () => {
-      try {
-        const [participants, profile] = await Promise.all([
-          getRoomParticipants(roomId),
-          getMyProfile(),
-        ])
-        const list = Array.isArray(participants) ? participants : []
-        const self = list.find((p) => p.id === profile?.id)
-        if (!cancelled) {
-          setCanModerateBulletin(isOwnerOrAdminRole(self?.role))
-        }
-      } catch {
-        if (!cancelled) {
-          setCanModerateBulletin(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [room, roomId, isAuthenticated])
+  }, [room?.id, membership?.status, membership?.role])
 
   const participantCount = room?.participantCount ?? 0
   const maxPeople = room?.maximumParticipants ?? 0
   const isFull = maxPeople > 0 && participantCount >= maxPeople
-  const isParticipant = room?.isCurrentUserParticipant === true
+  const membershipView = getRoomMembershipView(room, membership)
+  const isParticipant = membershipView.isParticipant
+  const isBanned = membershipView.isBanned
+  const hasPendingRequest = membershipView.hasPendingRequest
   const isPublic = room?.isPublic !== false
-  const hasProtectedAccess = room?.hasProtectedAccess === true
+  const hasProtectedAccess = membershipView.hasProtectedAccess
+  const hasMembershipSnapshot = membership != null || room?.membershipStatus != null
+  const membershipUnavailable = isAuthenticated && Boolean(membershipLoadError) && !hasMembershipSnapshot
   const organizerId = room?.creator?.id
   const organizerName = resolveUserName(room?.creator, 'Не указано')
+  const membershipRoleLabel = getRoleLabel(membershipView.membershipRole)
 
   const bulletinDisplayText =
     room?.bulletinBoard?.content != null
@@ -243,19 +231,29 @@ function RoomActivityPage() {
   }
 
   const handleJoin = async () => {
-    if (!isAuthenticated || !room || isParticipant || isFull || isBanned) {
+    if (
+      !isAuthenticated ||
+      !room ||
+      membershipUnavailable ||
+      isParticipant ||
+      isFull ||
+      isBanned ||
+      !membershipView.canJoin
+    ) {
       return
     }
     setJoinSubmitting(true)
     setJoinFeedback('')
+    setJoinFeedbackTone('success')
     try {
       await joinRoom(roomId)
+      await loadRoom({ preserveJoinFeedback: true })
       if (isPublic) {
         setJoinFeedback('Вы присоединились к активности.')
       } else {
         setJoinFeedback('Заявка отправлена и ожидает решения организаторов.')
       }
-      await loadRoom()
+      setJoinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -268,8 +266,81 @@ function RoomActivityPage() {
       } else {
         setJoinFeedback('Не удалось выполнить действие.')
       }
+      setJoinFeedbackTone('error')
     } finally {
       setJoinSubmitting(false)
+    }
+  }
+
+  const handleLeaveRoom = async () => {
+    if (!room || !membershipView.canLeave) {
+      return
+    }
+
+    const confirmed = window.confirm(`Покинуть активность «${room.name || 'Без названия'}»?`)
+    if (!confirmed) {
+      return
+    }
+
+    setLeaveSubmitting(true)
+    setJoinFeedback('')
+    setJoinFeedbackTone('success')
+    try {
+      await leaveRoom(roomId)
+      await loadRoom({ preserveJoinFeedback: true })
+      setJoinFeedback('Вы покинули активность.')
+      setJoinFeedbackTone('success')
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setJoinFeedback(getUserFacingApiMessage(error, 'Не удалось покинуть активность.'))
+      } else {
+        setJoinFeedback('Не удалось покинуть активность.')
+      }
+      setJoinFeedbackTone('error')
+    } finally {
+      setLeaveSubmitting(false)
+    }
+  }
+
+  const handleDeleteRoom = async () => {
+    if (!room || !membershipView.canDeleteRoom) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Удалить активность «${room.name || 'Без названия'}» без возможности восстановления?`,
+    )
+    if (!confirmed) {
+      return
+    }
+
+    setDeleteSubmitting(true)
+    setJoinFeedback('')
+    setJoinFeedbackTone('success')
+    try {
+      await deleteRoom(roomId)
+      navigate('/main', { replace: true })
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, {
+          next: `/rooms/${encodeURIComponent(String(roomId))}`,
+        })
+        return
+      }
+      if (isApiError(error)) {
+        setJoinFeedback(getUserFacingApiMessage(error, 'Не удалось удалить активность.'))
+      } else {
+        setJoinFeedback('Не удалось удалить активность.')
+      }
+      setJoinFeedbackTone('error')
+    } finally {
+      setDeleteSubmitting(false)
     }
   }
 
@@ -292,11 +363,46 @@ function RoomActivityPage() {
       )
     }
 
+    if (membershipUnavailable) {
+      return (
+        <div className="room-join-block room-panel-soft">
+          <h2 className="room-section-heading">Присоединиться к активности</h2>
+          <p className="gray-elem">
+            Не удалось определить ваш статус участия. Обновите страницу или войдите заново.
+          </p>
+        </div>
+      )
+    }
+
     if (isParticipant) {
       return (
         <div className="room-join-block room-panel-soft">
           <h2 className="room-section-heading">Участие</h2>
-          <p className="room-join-status">Вы участник этой активности.</p>
+          <p className="room-join-status">
+            Вы состоите в этой активности{membershipRoleLabel ? ` как ${membershipRoleLabel.toLowerCase()}` : ''}.
+          </p>
+          <div className="room-membership-actions">
+            {membershipView.canLeave ? (
+              <button
+                type="button"
+                className="cta-black-button room-join-secondary"
+                disabled={leaveSubmitting || deleteSubmitting}
+                onClick={handleLeaveRoom}
+              >
+                {leaveSubmitting ? 'Выход...' : 'Покинуть комнату'}
+              </button>
+            ) : null}
+            {membershipView.canDeleteRoom ? (
+              <button
+                type="button"
+                className="room-delete-button"
+                disabled={leaveSubmitting || deleteSubmitting}
+                onClick={handleDeleteRoom}
+              >
+                {deleteSubmitting ? 'Удаление...' : 'Удалить комнату'}
+              </button>
+            ) : null}
+          </div>
         </div>
       )
     }
@@ -328,6 +434,17 @@ function RoomActivityPage() {
         <div className="room-join-block room-panel-soft">
           <h2 className="room-section-heading">Заявка на вступление</h2>
           <p className="room-join-status">Заявка на рассмотрении.</p>
+        </div>
+      )
+    }
+
+    if (!membershipView.canJoin) {
+      return (
+        <div className="room-join-block room-panel-soft">
+          <h2 className="room-section-heading">Присоединиться к активности</h2>
+          <p className="room-join-disabled" role="status">
+            Сейчас вступление недоступно
+          </p>
         </div>
       )
     }
@@ -366,15 +483,25 @@ function RoomActivityPage() {
             {errorMessage}
           </p>
         ) : null}
+        {!isLoading && !errorMessage && membershipLoadError ? (
+          <p className="room-activity-error" role="status">
+            {membershipLoadError}
+          </p>
+        ) : null}
 
         {!isLoading && !errorMessage && room ? (
           <>
             <header className="room-activity-hero">
               <div className="room-activity-title-row">
                 <h1 className="room-activity-title">{room.name || 'Без названия'}</h1>
-                {isFull ? (
-                  <span className="room-activity-status room-activity-status--full">Мест нет</span>
-                ) : null}
+                <div className="room-activity-statuses">
+                  {membershipRoleLabel ? (
+                    <span className="room-activity-status">{membershipRoleLabel}</span>
+                  ) : null}
+                  {isFull ? (
+                    <span className="room-activity-status room-activity-status--full">Мест нет</span>
+                  ) : null}
+                </div>
               </div>
 
               <div
@@ -488,7 +615,7 @@ function RoomActivityPage() {
               {joinFeedback ? (
                 <p
                   className={
-                    joinFeedback.includes('Не удалось')
+                    joinFeedbackTone === 'error'
                       ? 'room-join-feedback room-join-error'
                       : 'room-join-feedback room-join-ok'
                   }
@@ -596,7 +723,7 @@ function RoomActivityPage() {
                     ) : (
                       <p className="gray-elem">На доске пока нет объявлений.</p>
                     )}
-                    {canModerateBulletin ? (
+                    {membershipView.canModerate ? (
                       <div className="room-bulletin-toolbar">
                         <button type="button" className="room-bulletin-edit-btn" onClick={startBulletinEdit}>
                           {hasBulletinText ? 'Изменить доску' : 'Добавить объявление'}
