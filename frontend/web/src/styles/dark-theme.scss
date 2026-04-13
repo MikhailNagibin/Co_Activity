@@ -547,6 +547,44 @@
     color: rgba(232, 232, 236, 0.45);
   }
 
+  .qa-thread-action-btn {
+    background: #2c2c30;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #f2f2f4;
+
+    &:hover:not(:disabled) {
+      background: #36363b;
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+  }
+
+  .qa-thread-action-btn--danger {
+    border-color: rgba(255, 120, 120, 0.35);
+    background: rgba(255, 80, 80, 0.12);
+    color: #ffb4b4;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 80, 80, 0.2);
+      border-color: rgba(255, 120, 120, 0.45);
+    }
+  }
+
+  .qa-modal {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.55),
+      0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .qa-modal-title {
+    color: #f2f2f4;
+  }
+
+  .qa-modal-body {
+    color: rgba(232, 232, 236, 0.78);
+  }
+
   .qa-create-form {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.1);
