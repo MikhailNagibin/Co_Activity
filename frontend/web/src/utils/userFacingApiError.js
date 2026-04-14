@@ -20,6 +20,9 @@ const BY_STATUS = {
 
 const BY_CODE = {
   AUTH_REQUIRED: 'Сессия истекла или требуется вход. Войдите в аккаунт.',
+  INVALID_CREDENTIALS: 'Неверная почта или пароль.',
+  ACCOUNT_DISABLED: 'Аккаунт временно недоступен. Обратитесь в поддержку.',
+  AUTHENTICATION_FAILED: 'Не удалось выполнить вход. Проверьте данные и попробуйте снова.',
   ACCESS_DENIED: 'Недостаточно прав для этого действия.',
   EMAIL_ALREADY_REGISTERED: 'Эта почта уже занята.',
   EMAIL_ALREADY_VERIFIED: 'Эта почта уже подтверждена. Войдите в аккаунт.',
@@ -44,6 +47,8 @@ const ENGLISH_PATTERNS = [
   [/verification code expired|verification code is expired or missing/i, 'Срок действия кода истёк. Запросите новый код.'],
   [/too many verification attempts/i, 'Слишком много попыток. Запросите новый код.'],
   [/email is not verified/i, 'Подтвердите почту перед входом.'],
+  [/user account is disabled/i, 'Аккаунт временно недоступен. Обратитесь в поддержку.'],
+  [/authentication failed/i, 'Не удалось выполнить вход. Проверьте данные и попробуйте снова.'],
   [/invalid password reset code/i, 'Неверный код сброса пароля.'],
   [/password reset code expired|password reset code is expired or missing/i, 'Срок действия кода сброса истёк. Запросите новый код заново.'],
   [/password reset requested|password reset confirmed/i, 'Операция выполнена успешно.'],
