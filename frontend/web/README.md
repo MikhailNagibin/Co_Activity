@@ -43,7 +43,7 @@ npm run preview
 - frontend открыт на `http://localhost:5173`
 - запросы на `/api/*` проксируются Vite на `http://localhost:8080`
 
-Это настроено в [vite.config.js](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/vite.config.js).
+Это настроено в [vite.config.js](./vite.config.js).
 
 ## Backend, который нужен frontend
 
