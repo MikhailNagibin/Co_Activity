@@ -33,8 +33,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -212,8 +214,13 @@ public class AuthApplicationService {
         throw new AuthorizationException("EMAIL_NOT_VERIFIED", "Email is not verified");
       }
       throw new AuthorizationException("User account is disabled");
+    } catch (LockedException ex) {
+      throw new AuthorizationException("ACCOUNT_DISABLED", "User account is disabled", ex);
     } catch (BadCredentialsException ex) {
-      throw new AuthorizationException("Invalid email or password");
+      throw new AuthorizationException("INVALID_CREDENTIALS", "Invalid email or password", ex);
+    } catch (AuthenticationException ex) {
+      throw new AuthorizationException("AUTHENTICATION_FAILED",
+          "Authentication failed", ex);
     }
   }
 

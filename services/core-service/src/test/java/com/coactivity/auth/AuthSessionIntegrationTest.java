@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.coactivity.TestcontainersConfiguration;
+import com.coactivity.auth.model.UserStatus;
 import com.coactivity.service.NotificationService;
 import com.coactivity.support.AbstractSessionWebIntegrationTest;
 import jakarta.servlet.http.Cookie;
@@ -105,6 +106,28 @@ class AuthSessionIntegrationTest extends AbstractSessionWebIntegrationTest {
     mockMvc.perform(get("/api/auth/me").cookie(sessionCookie))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("fresh-login@example.com"));
+  }
+
+  @Test
+  void loginForDisabledUserReturnsDomainErrorInsteadOfInternalError() throws Exception {
+    var user = createActiveUser("disabled-login@example.com", "disabledLogin", "Password123");
+    user.setStatus(UserStatus.DISABLED);
+    userJpaRepository.saveAndFlush(user);
+    CsrfContext csrf = fetchCsrf();
+
+    mockMvc.perform(post("/api/auth/login")
+            .cookie(csrf.cookie())
+            .header("X-XSRF-TOKEN", csrf.token())
+            .contentType("application/json")
+            .content("""
+                {
+                  "email": "disabled-login@example.com",
+                  "password": "Password123"
+                }
+                """))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"))
+        .andExpect(jsonPath("$.detail").value("User account is disabled"));
   }
 
   @Test

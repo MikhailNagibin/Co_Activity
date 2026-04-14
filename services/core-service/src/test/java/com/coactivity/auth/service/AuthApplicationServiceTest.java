@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -463,6 +464,22 @@ class AuthApplicationServiceTest {
 
     assertEquals("EMAIL_NOT_VERIFIED", exception.getCode());
     assertEquals("Email is not verified", exception.getMessage());
+  }
+
+  @Test
+  void loginRejectsDisabledUserWithoutInternalError() {
+    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+
+    when(authenticationManager.authenticate(any()))
+        .thenThrow(new LockedException("locked"));
+
+    AuthorizationException exception = assertThrows(AuthorizationException.class,
+        () -> authApplicationService.login(
+            new LoginRequest("disabled@example.com", "Password123"), request, response));
+
+    assertEquals("ACCOUNT_DISABLED", exception.getCode());
+    assertEquals("User account is disabled", exception.getMessage());
   }
 
   private CurrentUserPrincipal principal(Integer id, String email, String userName) {
