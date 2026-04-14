@@ -1,7 +1,27 @@
 import { apiRequest, del, get, post, put } from '../api/httpClient.js'
 
+function appendQueryString(path, query) {
+  if (!query || typeof query !== 'object') {
+    return path
+  }
+  const usp = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === '') {
+      continue
+    }
+    usp.set(key, String(value))
+  }
+  const serialized = usp.toString()
+  return serialized ? `${path}?${serialized}` : path
+}
+
+/**
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.query] — query string для `GET /api/rooms` (RoomFilter + sortBy)
+ */
 export function getRooms(options = {}) {
-  return get('/rooms', options)
+  const { query, ...fetchOptions } = options
+  return get(appendQueryString('/rooms', query), fetchOptions)
 }
 
 export function getRoomById(roomId, options = {}) {

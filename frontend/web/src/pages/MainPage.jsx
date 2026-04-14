@@ -12,6 +12,7 @@ import {
   filterActivityCardsForBrowse,
   sortActivityCards,
 } from '../utils/browseListFilters.js'
+import { buildRoomsListQueryParams } from '../utils/roomsBrowseQuery.js'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
@@ -42,6 +43,10 @@ function MainPage() {
   const [ageCeiling, setAgeCeiling] = useState('all')
   const [organizerCity, setOrganizerCity] = useState('')
   const [organizerCountry, setOrganizerCountry] = useState('')
+  const serverQuery = useMemo(
+    () => buildRoomsListQueryParams({ categoryFilter, searchQuery, visibilityFilter, sortBy }),
+    [categoryFilter, searchQuery, visibilityFilter, sortBy],
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -51,7 +56,7 @@ function MainPage() {
       setErrorMessage('')
 
       try {
-        const payload = await getRooms()
+        const payload = await getRooms({ query: serverQuery })
         if (!isMounted) {
           return
         }
@@ -84,7 +89,7 @@ function MainPage() {
     return () => {
       isMounted = false
     }
-  }, [location.key, location.pathname, location.search, navigate])
+  }, [location.key, location.pathname, location.search, navigate, serverQuery])
 
   const filteredActivities = useMemo(() => {
     const filtered = filterActivityCardsForBrowse(activities, {
@@ -251,6 +256,10 @@ function MainPage() {
                   </label>
                 </div>
                 <div className="main-browse-filters-actions">
+                  <p className="main-browse-filters-server-note">
+                    Категория, доступ и часть сортировок применяются на сервере; текстовый поиск, фильтры по
+                    заполненности, возрастному потолку и по городу/стране организатора остаются клиентскими.
+                  </p>
                   <button type="button" className="main-browse-filters-reset" onClick={resetBrowseFilters}>
                     Сбросить поиск и фильтры
                   </button>

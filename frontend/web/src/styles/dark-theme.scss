@@ -193,6 +193,10 @@
     color: rgba(232, 232, 236, 0.62);
   }
 
+  .main-browse-filters-server-note {
+    color: rgba(232, 232, 236, 0.62);
+  }
+
   .main-browse-filters-reset {
     border-color: rgba(255, 255, 255, 0.14);
     background: #242428;
@@ -363,6 +367,14 @@
     p {
       color: rgba(232, 232, 236, 0.72);
     }
+  }
+
+  .activity-card-image-shell {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .activity-card-image--placeholder {
+    color: rgba(232, 232, 236, 0.55);
   }
 
   .activity-card-link {
@@ -828,6 +840,10 @@
   .notification-settings-hint,
   .profile-description {
     color: rgba(232, 232, 236, 0.7);
+  }
+
+  .notification-settings-option__hint {
+    color: rgba(232, 232, 236, 0.62);
   }
 
   .profile-avatar-upload {

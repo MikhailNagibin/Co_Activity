@@ -197,7 +197,12 @@ function NotificationSettingsPage() {
                   onChange={handleNotificationToggle}
                   disabled={isSavingNotifications}
                 />
-                Заявка на вступление принята
+                <span className="notification-settings-option">
+                  <span>Заявка на вступление принята</span>
+                  <span className="notification-settings-option__hint">
+                    Приходит подтверждение, что вас добавили в активность.
+                  </span>
+                </span>
               </label>
               <label className="profile-checkbox">
                 <input
@@ -207,7 +212,12 @@ function NotificationSettingsPage() {
                   onChange={handleNotificationToggle}
                   disabled={isSavingNotifications}
                 />
-                Заявка на вступление отклонена
+                <span className="notification-settings-option">
+                  <span>Заявка на вступление отклонена</span>
+                  <span className="notification-settings-option__hint">
+                    Письмо сообщает, что заявка не принята организаторами.
+                  </span>
+                </span>
               </label>
               <label className="profile-checkbox">
                 <input
@@ -217,7 +227,12 @@ function NotificationSettingsPage() {
                   onChange={handleNotificationToggle}
                   disabled={isSavingNotifications}
                 />
-                Активность, в которой я состою, закрылась
+                <span className="notification-settings-option">
+                  <span>Активность, в которой я состою, закрылась</span>
+                  <span className="notification-settings-option__hint">
+                    Уведомление о закрытии активности и прекращении участия.
+                  </span>
+                </span>
               </label>
               <label className="profile-checkbox">
                 <input
@@ -227,7 +242,12 @@ function NotificationSettingsPage() {
                   onChange={handleNotificationToggle}
                   disabled={isSavingNotifications}
                 />
-                Новая заявка на вступление в мою активность
+                <span className="notification-settings-option">
+                  <span>Новая заявка на вступление в мою активность</span>
+                  <span className="notification-settings-option__hint">
+                    Вы получите письмо, когда кто-то попросится в вашу комнату.
+                  </span>
+                </span>
               </label>
               <label className="profile-checkbox">
                 <input
@@ -237,7 +257,12 @@ function NotificationSettingsPage() {
                   onChange={handleNotificationToggle}
                   disabled={isSavingNotifications}
                 />
-                Важные обновления по активностям
+                <span className="notification-settings-option">
+                  <span>Важные обновления по активностям</span>
+                  <span className="notification-settings-option__hint">
+                    Письма о значимых изменениях в ваших активностях.
+                  </span>
+                </span>
               </label>
 
               <p className="gray-elem notification-settings-hint">

@@ -610,6 +610,8 @@ function RoomActivityPage() {
                         src={resolveRoomImageUrl(image.url)}
                         alt={`Изображение активности ${room.name || ''}`}
                         className="room-images-gallery__image"
+                        loading={image === roomImages[0] ? 'eager' : 'lazy'}
+                        decoding="async"
                       />
                       {image.order != null ? (
                         <figcaption className="room-images-gallery__caption">Порядок: {image.order}</figcaption>

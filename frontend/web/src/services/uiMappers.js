@@ -1,4 +1,5 @@
 import { getRoomCategoryLabel } from '../constants/categoryOptions.js'
+import { sortRoomImages } from '../utils/roomForm.js'
 
 function toArray(payload) {
   if (Array.isArray(payload)) {
@@ -223,6 +224,7 @@ export function mapRoomsToActivityCards(payload) {
 
     const creatorCity = String(room.creator?.city ?? '').trim()
     const creatorCountry = String(room.creator?.country ?? '').trim()
+    const images = sortRoomImages(room.images)
 
     return {
       id: roomId,
@@ -256,6 +258,7 @@ export function mapRoomsToActivityCards(payload) {
       canLeave: membershipView.canLeave,
       canDeleteRoom: membershipView.canDeleteRoom,
       hasProtectedAccess: membershipView.hasProtectedAccess,
+      images,
     }
   })
 }
