@@ -190,7 +190,9 @@ public class AuthController {
       @ApiResponse(responseCode = "400", description = "Ошибка валидации.",
           content = @Content(mediaType = "application/problem+json",
               schema = @Schema(implementation = ApiProblemDetail.class))),
-      @ApiResponse(responseCode = "401", description = "Неверные учётные данные.",
+      @ApiResponse(
+          responseCode = "403",
+          description = "Ошибка авторизации/доступа (например, INVALID_CREDENTIALS, ACCOUNT_DISABLED, EMAIL_NOT_VERIFIED, ACCESS_DENIED).",
           content = @Content(mediaType = "application/problem+json",
               schema = @Schema(implementation = ApiProblemDetail.class))),
       @ApiResponse(responseCode = "500", description = "Неожиданная ошибка.",

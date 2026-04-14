@@ -111,6 +111,9 @@
 | `INVALID_PASSWORD_RESET_CODE` | 403 | Неверный password reset code |
 | `PASSWORD_RESET_CODE_EXPIRED` | 403 | Password reset code просрочен/отсутствует |
 | `EMAIL_NOT_VERIFIED` | 403 | Логин/действие запрещены, email не подтвержден |
+| `INVALID_CREDENTIALS` | 403 | Неверная почта или пароль при логине |
+| `ACCOUNT_DISABLED` | 403 | Аккаунт отключён/заблокирован (логин запрещён) |
+| `AUTHENTICATION_FAILED` | 403 | Иная ошибка аутентификации (невалидное состояние провайдера) |
 
 ### 3.5 Too Many Requests (429)
 

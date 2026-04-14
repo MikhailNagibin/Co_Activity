@@ -2111,8 +2111,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiProblemDetail"
-        "401":
-          description: Неверные учётные данные.
+        "403":
+          description: "Ошибка авторизации/доступа (например, INVALID_CREDENTIALS,\
+            \ ACCOUNT_DISABLED, EMAIL_NOT_VERIFIED, ACCESS_DENIED)."
           content:
             application/problem+json:
               schema:

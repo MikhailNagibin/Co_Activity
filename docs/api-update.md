@@ -461,6 +461,9 @@
 - **403** `ACCESS_DENIED`
   - Нет прав (например, не owner/admin), либо проблемы с CSRF (`X-XSRF-TOKEN` не совпал / отсутствует).
   - Специализированные коды, которые часто встречаются в новых фичах:
+    - `INVALID_CREDENTIALS`
+    - `ACCOUNT_DISABLED`
+    - `AUTHENTICATION_FAILED`
     - `EMAIL_NOT_VERIFIED`
     - `INVALID_VERIFICATION_CODE`, `VERIFICATION_CODE_EXPIRED`
     - `INVALID_PASSWORD_RESET_CODE`, `PASSWORD_RESET_CODE_EXPIRED`
