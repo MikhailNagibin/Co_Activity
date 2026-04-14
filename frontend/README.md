@@ -26,4 +26,4 @@ http://localhost:5173
 
 Для локальной разработки frontend ожидает backend на `http://localhost:8080` и использует Vite proxy для `/api`.
 
-Подробности по active app смотри в [frontend/web/README.md](/Users/bomnik/IdeaProjects/Co_Activity/frontend/web/README.md).
+Подробности по active app смотри в [frontend/web/README.md](./web/README.md).
