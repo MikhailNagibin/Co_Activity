@@ -8,6 +8,7 @@ import { changePassword } from '../services/authService.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import {
   isUnauthorizedApiError,
+  redirectToSignInAfterPasswordChange,
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import {
@@ -361,12 +362,11 @@ function ProfilePage() {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       })
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+      clearSession()
+      redirectToSignInAfterPasswordChange(navigate, {
+        next: '/profile',
+        email: profile?.email,
       })
-      setPasswordSuccessMessage('Пароль обновлён')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile' })

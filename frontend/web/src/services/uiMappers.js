@@ -405,6 +405,10 @@ export function mapQuestionsToPreview(payload) {
     return {
       id: rawId ?? title,
       sortId: numericId ?? 0,
+      authorId:
+        question.author?.id != null && !Number.isNaN(Number(question.author.id))
+          ? Number(question.author.id)
+          : null,
       author: String(pickFirst(question.author?.userName, question.authorName, 'Неизвестный автор')),
       createdAt: formatDateTimeRu(createdIso),
       createdAtIso: createdIso,

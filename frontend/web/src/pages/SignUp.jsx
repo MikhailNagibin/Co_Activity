@@ -10,10 +10,13 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import {
+  login,
   register,
   resendRegistrationVerificationCode,
   verifyRegistration,
 } from '../services/authService.js'
+import { uploadMyAvatar } from '../services/profileService.js'
+import { getUnsupportedImageFiles, revokeObjectUrl } from '../utils/mediaFiles.js'
 
 function birthDateInputToInstant(isoDate) {
   if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
@@ -32,7 +35,7 @@ function appendSafeNextParam(searchParams, params) {
 function SignUp() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated } = useAuthSession()
+  const { isAuthenticated, markAuthenticated } = useAuthSession()
   const [formData, setFormData] = useState({
     email: '',
     nickname: '',
@@ -51,12 +54,22 @@ function SignUp() {
   const [step, setStep] = useState('register')
   const [isResendingCode, setIsResendingCode] = useState(false)
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('')
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/main', { replace: true })
+      const next = searchParams.get('next')
+      const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/main'
+      navigate(safeNext, { replace: true })
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, navigate, searchParams])
+
+  useEffect(() => {
+    return () => {
+      revokeObjectUrl(avatarPreviewUrl)
+    }
+  }, [avatarPreviewUrl])
 
   useEffect(() => {
     const requestedStep = searchParams.get('step')
@@ -102,6 +115,35 @@ function SignUp() {
   const handleFieldChange = (event) => {
     const { name, value } = event.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const resetSelectedAvatar = () => {
+    revokeObjectUrl(avatarPreviewUrl)
+    setSelectedAvatarFile(null)
+    setAvatarPreviewUrl('')
+  }
+
+  const handleAvatarChange = (event) => {
+    const file = event.target.files?.[0] ?? null
+    event.target.value = ''
+
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    if (!file) {
+      resetSelectedAvatar()
+      return
+    }
+
+    if (getUnsupportedImageFiles([file]).length > 0) {
+      resetSelectedAvatar()
+      setErrorMessage('Аватар должен быть в формате PNG, JPEG или WEBP')
+      return
+    }
+
+    revokeObjectUrl(avatarPreviewUrl)
+    setSelectedAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
   }
 
   const handleRegister = async (event) => {
@@ -180,14 +222,54 @@ function SignUp() {
     try {
       await verifyRegistration({ email: pendingEmail, code })
       const next = searchParams.get('next')
+      const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/main'
+
+      if (formData.password.length >= 8) {
+        try {
+          const sessionPayload = await login({ email: pendingEmail, password: formData.password })
+          markAuthenticated(sessionPayload)
+
+          if (selectedAvatarFile) {
+            try {
+              const updatedProfile = await uploadMyAvatar(selectedAvatarFile)
+              markAuthenticated(updatedProfile)
+            } catch (avatarError) {
+              const avatarMessage = isApiError(avatarError)
+                ? getUserFacingApiMessage(avatarError, 'Аккаунт подтверждён, но аватар не загрузился.')
+                : 'Аккаунт подтверждён, но аватар не загрузился.'
+              window.alert(`${avatarMessage} Вы сможете загрузить его позже в профиле.`)
+            }
+          }
+
+          resetSelectedAvatar()
+          navigate(safeNext, { replace: true })
+          return
+        } catch {
+          const params = new URLSearchParams()
+          params.set('email', pendingEmail)
+          if (next && next.startsWith('/') && !next.startsWith('//')) {
+            params.set('next', next)
+          }
+          navigate(
+            {
+              pathname: '/sign-in',
+              search: `?${params.toString()}`,
+            },
+            { replace: true },
+          )
+          return
+        }
+      }
+
       const params = new URLSearchParams()
+      params.set('email', pendingEmail)
       if (next && next.startsWith('/') && !next.startsWith('//')) {
         params.set('next', next)
       }
       navigate(
         {
           pathname: '/sign-in',
-          search: params.toString() ? `?${params.toString()}` : '',
+          search: `?${params.toString()}`,
         },
         { replace: true },
       )
@@ -330,6 +412,44 @@ function SignUp() {
               disabled={isSubmitting}
               placeholder="Расскажите коротко о своих интересах"
             />
+          </div>
+
+          <div className="auth-avatar-card">
+            <div className="auth-avatar-card__preview">
+              {avatarPreviewUrl ? (
+                <img src={avatarPreviewUrl} alt="Предпросмотр аватара" />
+              ) : (
+                <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
+              )}
+            </div>
+            <div className="auth-avatar-card__body">
+              <label className="profile-avatar-upload auth-avatar-card__upload">
+                <span>{selectedAvatarFile ? 'Выбрать другой аватар' : 'Выбрать аватар'}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={isSubmitting}
+                  onChange={handleAvatarChange}
+                />
+              </label>
+              <p className="auth-field__meta">
+                Аватар необязателен. Если выберете файл сейчас, он загрузится сразу после
+                подтверждения почты.
+              </p>
+              {selectedAvatarFile ? (
+                <p className="auth-avatar-card__file">Файл: {selectedAvatarFile.name}</p>
+              ) : null}
+              {selectedAvatarFile ? (
+                <button
+                  type="button"
+                  className="auth-text-button auth-avatar-card__reset"
+                  disabled={isSubmitting}
+                  onClick={resetSelectedAvatar}
+                >
+                  Убрать аватар
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}

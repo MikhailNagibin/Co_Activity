@@ -11,11 +11,18 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 
-function readSessionExpiredFromUrl() {
+function readAuthNoticeFromUrl() {
   try {
-    return new URLSearchParams(window.location.search).get('session') === 'expired'
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('reauth') === 'password-changed') {
+      return 'password-changed'
+    }
+    if (params.get('session') === 'expired') {
+      return 'expired'
+    }
+    return null
   } catch {
-    return false
+    return null
   }
 }
 
@@ -38,7 +45,7 @@ function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { markAuthenticated } = useAuthSession()
-  const [sessionExpiredBanner] = useState(readSessionExpiredFromUrl)
+  const [authNotice] = useState(readAuthNoticeFromUrl)
   const [formData, setFormData] = useState({
     email: searchParams.get('email')?.trim() ?? '',
     password: '',
@@ -47,22 +54,29 @@ function SignIn() {
   const [errorMessage, setErrorMessage] = useState('')
 
   useLayoutEffect(() => {
-    if (!sessionExpiredBanner) {
+    if (!authNotice) {
       return
     }
     const sp = new URLSearchParams(window.location.search)
-    if (sp.get('session') !== 'expired') {
+    const hasPasswordChangedNotice = sp.get('reauth') === 'password-changed'
+    const hasExpiredNotice = sp.get('session') === 'expired'
+    if (!hasPasswordChangedNotice && !hasExpiredNotice) {
       return
     }
     sp.delete('session')
+    sp.delete('reauth')
     const next = sp.get('next')
+    const email = sp.get('email')
     const cleaned = new URLSearchParams()
     if (next) {
       cleaned.set('next', next)
     }
+    if (email) {
+      cleaned.set('email', email)
+    }
     const q = cleaned.toString()
     navigate({ pathname: '/sign-in', search: q ? `?${q}` : '' }, { replace: true })
-  }, [sessionExpiredBanner, navigate])
+  }, [authNotice, navigate])
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target
@@ -158,9 +172,14 @@ function SignIn() {
         </p>
       }
     >
-      {sessionExpiredBanner ? (
+      {authNotice === 'expired' ? (
         <div className="auth-banner auth-banner--info" role="status">
           Сессия истекла. Требуется заново войти в аккаунт
+        </div>
+      ) : null}
+      {authNotice === 'password-changed' ? (
+        <div className="auth-banner auth-banner--info" role="status">
+          Пароль изменён. Для безопасности войдите снова с новым паролем.
         </div>
       ) : null}
       <div className="auth-banner auth-banner--neutral" role="status">

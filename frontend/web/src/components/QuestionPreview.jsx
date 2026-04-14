@@ -18,32 +18,50 @@ function answersWord(n) {
 function QuestionPreview({ item }) {
   const answersNum = Number(item.answersCount)
   const answersCount = Number.isFinite(answersNum) ? answersNum : 0
+  const authorLink =
+    item.authorId != null && !Number.isNaN(Number(item.authorId))
+      ? `/users/${Number(item.authorId)}`
+      : null
 
-  const card = (
+  return (
     <article className="qa-question-card">
-      <div className="qa-question-card-body">
-        <h2 className="qa-question-card-title">
-          {item.linkTo ? (
-            <span className="qa-question-card-title-text">{item.title}</span>
-          ) : (
-            item.title
-          )}
-        </h2>
-        <p className="qa-question-card-excerpt">{item.description}</p>
-        {item.tags.length > 0 ? (
-          <div className="qa-question-card-tags" role="list">
-            {item.tags.map((tag) => (
-              <span key={tag} className="qa-tag" role="listitem">
-                {tag}
-              </span>
-            ))}
+      {item.linkTo ? (
+        <Link className="qa-question-card-link" to={item.linkTo}>
+          <div className="qa-question-card-body">
+            <h2 className="qa-question-card-title">
+              <span className="qa-question-card-title-text">{item.title}</span>
+            </h2>
+            <p className="qa-question-card-excerpt">{item.description}</p>
+            {item.tags.length > 0 ? (
+              <div className="qa-question-card-tags" role="list">
+                {item.tags.map((tag) => (
+                  <span key={tag} className="qa-tag" role="listitem">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+        </Link>
+      ) : (
+        <div className="qa-question-card-body">
+          <h2 className="qa-question-card-title">{item.title}</h2>
+          <p className="qa-question-card-excerpt">{item.description}</p>
+          {item.tags.length > 0 ? (
+            <div className="qa-question-card-tags" role="list">
+              {item.tags.map((tag) => (
+                <span key={tag} className="qa-tag" role="listitem">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
       <footer className="qa-question-card-footer">
         <div className="qa-question-card-author">
           <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
-          <span>{item.author}</span>
+          {authorLink ? <Link to={authorLink}>{item.author}</Link> : <span>{item.author}</span>}
         </div>
         {item.createdAt ? (
           <time
@@ -64,16 +82,6 @@ function QuestionPreview({ item }) {
       </footer>
     </article>
   )
-
-  if (item.linkTo) {
-    return (
-      <Link className="qa-question-card-link" to={item.linkTo}>
-        {card}
-      </Link>
-    )
-  }
-
-  return card
 }
 
 export default QuestionPreview

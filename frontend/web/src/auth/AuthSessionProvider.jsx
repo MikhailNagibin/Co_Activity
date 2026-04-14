@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthSessionContext } from './authSessionContext.js'
 import { me } from '../services/authService.js'
+import { setUnauthorizedResponseHandler } from '../api/httpClient.js'
 import { isUnauthorizedApiError } from '../utils/sessionExpiredRedirect.js'
 
 export function AuthSessionProvider({ children }) {
@@ -34,6 +35,16 @@ export function AuthSessionProvider({ children }) {
     setUser(null)
     setIsLoading(false)
   }, [])
+
+  useEffect(() => {
+    setUnauthorizedResponseHandler(() => {
+      clearSession()
+    })
+
+    return () => {
+      setUnauthorizedResponseHandler(null)
+    }
+  }, [clearSession])
 
   useEffect(() => {
     refreshSession().catch(() => {

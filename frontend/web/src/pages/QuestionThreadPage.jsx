@@ -170,6 +170,7 @@ function QuestionThreadPage() {
   const questionAuthorName = String(
     pickFirst(questionBlock?.author?.userName, 'Неизвестный автор'),
   )
+  const questionAuthorId = parseAuthorId(questionBlock?.author)
   const questionCreatedRaw = pickFirst(questionBlock?.createdAt, '')
   const questionCreatedLabel = formatDateTimeRu(questionCreatedRaw)
 
@@ -476,7 +477,13 @@ function QuestionThreadPage() {
                   className="fa-regular fa-circle-user qa-thread-avatar qa-thread-avatar--lg"
                   aria-hidden="true"
                 ></i>
-                <h3 className="qa-thread-author-name">{questionAuthorName}</h3>
+                <h3 className="qa-thread-author-name">
+                  {questionAuthorId != null ? (
+                    <Link to={`/users/${questionAuthorId}`}>{questionAuthorName}</Link>
+                  ) : (
+                    questionAuthorName
+                  )}
+                </h3>
                 {questionCreatedLabel ? (
                   <time className="qa-thread-date" dateTime={String(questionCreatedRaw)}>
                     {questionCreatedLabel}
@@ -585,6 +592,7 @@ function QuestionThreadPage() {
 
               {answers.map((answer) => {
                 const authorName = String(pickFirst(answer.author?.userName, 'Участник'))
+                const authorId = parseAuthorId(answer.author)
                 const when = formatDateTimeRu(answer.createdAt)
                 const isAnswerOwner = isSameAuthor(answer.author, currentUserId)
                 const isEditingThis = editingAnswerId != null && Number(editingAnswerId) === Number(answer.id)
@@ -593,7 +601,13 @@ function QuestionThreadPage() {
                   <article className="qa-answer-card" key={answer.id}>
                     <aside className="qa-answer-sidebar" aria-label="Автор ответа">
                       <i className="fa-regular fa-circle-user qa-thread-avatar" aria-hidden="true"></i>
-                      <h4 className="qa-answer-author">{authorName}</h4>
+                      <h4 className="qa-answer-author">
+                        {authorId != null ? (
+                          <Link to={`/users/${authorId}`}>{authorName}</Link>
+                        ) : (
+                          authorName
+                        )}
+                      </h4>
                       {when ? <time className="qa-thread-date">{when}</time> : null}
                     </aside>
                     <div className="qa-answer-body">

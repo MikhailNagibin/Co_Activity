@@ -343,6 +343,24 @@
     }
   }
 
+  .auth-avatar-card {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .auth-avatar-card__preview {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+
+    i {
+      color: rgba(232, 232, 236, 0.65);
+    }
+  }
+
+  .auth-avatar-card__file {
+    color: rgba(232, 232, 236, 0.68);
+  }
+
   .activity-card {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.1);
@@ -785,6 +803,31 @@
       background-color: #242428;
       color: #e8e8ea;
     }
+  }
+
+  .room-create-images {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .room-editor-images__upload {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.04);
+    color: #f2f2f4;
+  }
+
+  .room-create-images__feedback,
+  .room-create-images__meta {
+    color: rgba(232, 232, 236, 0.72);
+  }
+
+  .room-create-images__preview {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .room-create-images__meta strong {
+    color: #f2f2f4;
   }
 
   .create-room-submit {

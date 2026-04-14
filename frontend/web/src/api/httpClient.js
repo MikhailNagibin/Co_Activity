@@ -49,6 +49,12 @@ function joinUrl(baseUrl, path) {
   return `${normalizedBase}${normalizedPath}`
 }
 
+let unauthorizedResponseHandler = null
+
+export function setUnauthorizedResponseHandler(handler) {
+  unauthorizedResponseHandler = typeof handler === 'function' ? handler : null
+}
+
 function isFormDataBody(body) {
   return typeof FormData !== 'undefined' && body instanceof FormData
 }
@@ -218,6 +224,13 @@ export async function apiRequest(path, options = {}) {
   const payload = await parseResponse(response)
 
   if (!response.ok) {
+    if (response.status === 401) {
+      try {
+        unauthorizedResponseHandler?.()
+      } catch {
+        // Ignore sync errors in auth state cleanup and keep throwing the API error.
+      }
+    }
     const parsedError = parseApiErrorPayload(payload)
     const baseMessage = parsedError.message || `Request failed with status ${response.status}`
     const fullMessage =
