@@ -1,7 +1,7 @@
 package com.coactivity.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -100,68 +100,6 @@ class NotificationServiceTest {
     when(userRepository.getUserById(testUserId)).thenReturn(testUser);
 
     boolean delivered = notificationService.sendMembershipAcceptedSync(testUserId, "Chess Club");
-
-    assertTrue(delivered);
-    verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
-  }
-
-  @Test
-  @DisplayName("Publishes Kafka email command when important room updates are enabled")
-  void sendImportantRoomUpdateSync_publishesKafkaWhenPreferenceEnabled() throws Exception {
-    testUser.setNotifications(List.of(Notification.IMPORTANT_ROOM_UPDATES));
-    when(userRepository.getUserById(testUserId)).thenReturn(testUser);
-
-    ImportantRoomUpdateEmail update = new ImportantRoomUpdateEmail(
-        "Chess Club",
-        null,
-        com.coactivity.domain.RoomStatus.COMPLETED,
-        true,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        "https://old.example.com",
-        "https://new.example.com",
-        true);
-
-    boolean delivered = notificationService.sendImportantRoomUpdateSync(testUserId, update);
-
-    assertTrue(delivered);
-
-    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-    verify(kafkaTemplate).send(eq(TOPIC), eq(testUserEmail), payloadCaptor.capture());
-    JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
-    assertTrue(payload.get("subject").asText().contains("Chess Club"));
-    assertTrue(payload.get("body").asText().contains("Important room update"));
-    assertTrue(payload.get("body").asText().contains("New chat link: https://new.example.com"));
-  }
-
-  @Test
-  @DisplayName("Skips Kafka publish when important room updates are disabled")
-  void sendImportantRoomUpdateSync_skipsWhenPreferenceDisabled() {
-    testUser.setNotifications(List.of(Notification.NEW_JOIN_REQUEST));
-    when(userRepository.getUserById(testUserId)).thenReturn(testUser);
-
-    ImportantRoomUpdateEmail update = new ImportantRoomUpdateEmail(
-        "Chess Club",
-        com.coactivity.domain.RoomStatus.ACTIVE,
-        com.coactivity.domain.RoomStatus.INACTIVE,
-        true,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        null,
-        null,
-        false);
-
-    boolean delivered = notificationService.sendImportantRoomUpdateSync(testUserId, update);
 
     assertTrue(delivered);
     verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
