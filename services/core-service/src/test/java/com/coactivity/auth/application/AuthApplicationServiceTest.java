@@ -1,4 +1,4 @@
-package com.coactivity.auth.service;
+package com.coactivity.auth.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,7 +11,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
+import com.coactivity.auth.port.PasswordResetStore;
+import com.coactivity.auth.port.RegistrationChallengeStore;
+import com.coactivity.auth.port.VerificationResult;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.RegisterVerificationRequest;
 import com.coactivity.controller.dto.request.ResendRegistrationVerificationRequest;
@@ -58,8 +61,8 @@ class AuthApplicationServiceTest {
   private UserProfileService userProfileService;
   private PasswordEncoder passwordEncoder;
   private NotificationService notificationService;
-  private RedisChallengeStore challengeStore;
-  private RedisPasswordResetStore passwordResetStore;
+  private RegistrationChallengeStore challengeStore;
+  private PasswordResetStore passwordResetStore;
   private SessionInvalidationService sessionInvalidationService;
   private AuthApplicationService authApplicationService;
 
@@ -71,8 +74,8 @@ class AuthApplicationServiceTest {
     userProfileService = Mockito.mock(UserProfileService.class);
     passwordEncoder = Mockito.mock(PasswordEncoder.class);
     notificationService = Mockito.mock(NotificationService.class);
-    challengeStore = Mockito.mock(RedisChallengeStore.class);
-    passwordResetStore = Mockito.mock(RedisPasswordResetStore.class);
+    challengeStore = Mockito.mock(RegistrationChallengeStore.class);
+    passwordResetStore = Mockito.mock(PasswordResetStore.class);
     sessionInvalidationService = Mockito.mock(SessionInvalidationService.class);
 
     authApplicationService = new AuthApplicationService(
@@ -249,7 +252,7 @@ class AuthApplicationServiceTest {
     when(userJpaRepository.findByEmailNormalized("verify@example.com"))
         .thenReturn(Optional.of(pendingUser));
     when(challengeStore.verify("verify@example.com", "123456"))
-        .thenReturn(RedisChallengeStore.VerificationResult.SUCCESS);
+        .thenReturn(VerificationResult.SUCCESS);
 
     authApplicationService.verifyRegistration(
         new RegisterVerificationRequest("verify@example.com", "123456"));
@@ -269,7 +272,7 @@ class AuthApplicationServiceTest {
     when(userJpaRepository.findByEmailNormalized("verify@example.com"))
         .thenReturn(Optional.of(pendingUser));
     when(challengeStore.verify("verify@example.com", "000000"))
-        .thenReturn(RedisChallengeStore.VerificationResult.INVALID_CODE);
+        .thenReturn(VerificationResult.INVALID_CODE);
 
     AuthorizationException exception = assertThrows(AuthorizationException.class,
         () -> authApplicationService.verifyRegistration(
@@ -400,7 +403,7 @@ class AuthApplicationServiceTest {
   @Test
   void verifyPasswordResetRejectsInvalidCode() {
     when(passwordResetStore.inspect("reset@example.com", "000000"))
-        .thenReturn(RedisPasswordResetStore.VerificationResult.INVALID_CODE);
+        .thenReturn(VerificationResult.INVALID_CODE);
 
     AuthorizationException exception = assertThrows(AuthorizationException.class,
         () -> authApplicationService.verifyPasswordReset(
@@ -412,7 +415,7 @@ class AuthApplicationServiceTest {
   @Test
   void verifyPasswordResetRejectsExpiredCode() {
     when(passwordResetStore.inspect("reset@example.com", "111111"))
-        .thenReturn(RedisPasswordResetStore.VerificationResult.EXPIRED_OR_MISSING);
+        .thenReturn(VerificationResult.EXPIRED_OR_MISSING);
 
     AuthorizationException exception = assertThrows(AuthorizationException.class,
         () -> authApplicationService.verifyPasswordReset(
@@ -430,7 +433,7 @@ class AuthApplicationServiceTest {
     activeUser.setStatus(UserStatus.ACTIVE);
 
     when(passwordResetStore.consume("reset@example.com", "123456"))
-        .thenReturn(RedisPasswordResetStore.VerificationResult.SUCCESS);
+        .thenReturn(VerificationResult.SUCCESS);
     when(userJpaRepository.findByEmailNormalized("reset@example.com"))
         .thenReturn(Optional.of(activeUser));
     when(passwordEncoder.encode("NewPassword123")).thenReturn("encoded-new-password");

@@ -14,9 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.coactivity.auth.model.UserStatus;
-import com.coactivity.auth.service.AuthApplicationService;
-import com.coactivity.auth.service.SessionInvalidationService;
+import com.coactivity.auth.domain.UserStatus;
+import com.coactivity.auth.application.AuthApplicationService;
+import com.coactivity.auth.application.SessionInvalidationService;
 import com.coactivity.config.SecurityConfig;
 import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.impl.UserControllerImpl;

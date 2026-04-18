@@ -1,6 +1,6 @@
-package com.coactivity.auth.controller;
+package com.coactivity.auth.adapter.web;
 
-import com.coactivity.auth.service.AuthApplicationService;
+import com.coactivity.auth.application.AuthApplicationService;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
 import com.coactivity.controller.dto.request.PasswordResetConfirmRequest;
@@ -38,6 +38,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * HTTP (web) adapter for authentication-related endpoints.
+ *
+ * <p>This controller is a thin transport layer: it exposes REST endpoints, performs request DTO
+ * validation, and delegates business logic to {@link AuthApplicationService}.</p>
+ */
 @RestController
 @Validated
 @RequestMapping("/api/auth")

@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import com.coactivity.config.SecurityConfig;
 import com.coactivity.controller.impl.RoomControllerImpl;
 import com.coactivity.security.CurrentUserDetailsService;

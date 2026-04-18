@@ -1,6 +1,6 @@
 package com.coactivity.security;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import java.io.Serial;
 import java.time.Instant;
 import java.util.Collection;

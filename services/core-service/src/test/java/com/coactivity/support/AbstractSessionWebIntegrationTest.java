@@ -4,7 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import com.coactivity.persistence.entity.UserEntity;
 import com.coactivity.persistence.repository.UserJpaRepository;
 import com.fasterxml.jackson.databind.JsonNode;

@@ -1,6 +1,6 @@
 package com.coactivity.controller.impl;
 
-import com.coactivity.auth.service.AuthApplicationService;
+import com.coactivity.auth.application.AuthApplicationService;
 import com.coactivity.controller.dto.request.AccountDeletionRequest;
 import com.coactivity.controller.dto.request.NotificationSettingsRequest;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
@@ -19,7 +19,7 @@ import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.UserAvatarContent;
 import com.coactivity.service.UserAvatarService;
 import com.coactivity.service.UserProfileService;
-import com.coactivity.auth.service.SessionInvalidationService;
+import com.coactivity.auth.application.SessionInvalidationService;
 import com.coactivity.security.CurrentUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

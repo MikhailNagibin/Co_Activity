@@ -1,6 +1,6 @@
 package com.coactivity.persistence.entity;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

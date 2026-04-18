@@ -1,6 +1,6 @@
 package com.coactivity.repository.impl;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import com.coactivity.controller.dto.request.UserProfileUpdateRequest;
 import com.coactivity.controller.dto.request.UserRegistrationRequest;
 import com.coactivity.domain.Notification;

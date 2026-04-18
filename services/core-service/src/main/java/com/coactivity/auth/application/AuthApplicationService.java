@@ -1,6 +1,9 @@
-package com.coactivity.auth.service;
+package com.coactivity.auth.application;
 
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
+import com.coactivity.auth.port.PasswordResetStore;
+import com.coactivity.auth.port.RegistrationChallengeStore;
+import com.coactivity.auth.port.VerificationResult;
 import com.coactivity.controller.dto.request.LoginRequest;
 import com.coactivity.controller.dto.request.PasswordChangeRequest;
 import com.coactivity.controller.dto.request.PasswordResetConfirmRequest;
@@ -45,6 +48,17 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Application service that orchestrates authentication-related use cases.
+ *
+ * <p>This layer is responsible for coordinating domain/persistence/notification concerns:
+ * validating input, loading and mutating persistent user state, triggering side-effects
+ * (notifications), and delegating temporary-code flows to {@code port} abstractions.</p>
+ *
+ * <p>It intentionally depends on ports such as {@link RegistrationChallengeStore} and
+ * {@link PasswordResetStore} instead of concrete Redis classes, which keeps the core logic
+ * testable and storage-agnostic.</p>
+ */
 @Service
 public class AuthApplicationService {
 
@@ -53,8 +67,8 @@ public class AuthApplicationService {
   private final UserJpaRepository userJpaRepository;
   private final PasswordEncoder passwordEncoder;
   private final NotificationService notificationService;
-  private final RedisChallengeStore challengeStore;
-  private final RedisPasswordResetStore passwordResetStore;
+  private final RegistrationChallengeStore challengeStore;
+  private final PasswordResetStore passwordResetStore;
   private final AuthenticationManager authenticationManager;
   private final SecurityContextRepository securityContextRepository;
   private final UserProfileService userProfileService;
@@ -62,8 +76,8 @@ public class AuthApplicationService {
   private final CurrentUserDetailsService currentUserDetailsService;
 
   public AuthApplicationService(UserJpaRepository userJpaRepository, PasswordEncoder passwordEncoder,
-      NotificationService notificationService, RedisChallengeStore challengeStore,
-      RedisPasswordResetStore passwordResetStore,
+      NotificationService notificationService, RegistrationChallengeStore challengeStore,
+      PasswordResetStore passwordResetStore,
       AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository,
       UserProfileService userProfileService, SessionInvalidationService sessionInvalidationService,
       CurrentUserDetailsService currentUserDetailsService) {
@@ -132,7 +146,7 @@ public class AuthApplicationService {
     UserEntity user = userJpaRepository.findByEmailNormalized(normalizedEmail)
         .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
 
-    RedisChallengeStore.VerificationResult result = challengeStore.verify(normalizedEmail,
+    VerificationResult result = challengeStore.verify(normalizedEmail,
         request.getCode().trim());
 
     switch (result) {
@@ -284,7 +298,7 @@ public class AuthApplicationService {
       throw new ValidationException("Password reset verification request is required");
     }
 
-    RedisPasswordResetStore.VerificationResult result = passwordResetStore.inspect(
+    VerificationResult result = passwordResetStore.inspect(
         normalizeEmail(request.getEmail()), request.getCode().trim());
     handlePasswordResetVerificationResult(result);
   }
@@ -298,7 +312,7 @@ public class AuthApplicationService {
     String normalizedEmail = normalizeEmail(request.getEmail());
     validateNewPassword(null, request.getNewPassword());
 
-    RedisPasswordResetStore.VerificationResult result = passwordResetStore.consume(normalizedEmail,
+    VerificationResult result = passwordResetStore.consume(normalizedEmail,
         request.getCode().trim());
     handlePasswordResetVerificationResult(result);
 
@@ -382,7 +396,7 @@ public class AuthApplicationService {
   }
 
   private void handlePasswordResetVerificationResult(
-      RedisPasswordResetStore.VerificationResult result) {
+      VerificationResult result) {
     switch (result) {
       case SUCCESS -> {
       }

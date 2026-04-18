@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.coactivity.TestcontainersConfiguration;
-import com.coactivity.auth.model.UserStatus;
+import com.coactivity.auth.domain.UserStatus;
 import com.coactivity.service.NotificationService;
 import com.coactivity.support.AbstractSessionWebIntegrationTest;
 import jakarta.servlet.http.Cookie;
