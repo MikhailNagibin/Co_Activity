@@ -78,6 +78,8 @@ notifications:
 
 app:
   auth:
+    redis:
+      key-secret: ${APP_AUTH_REDIS_KEY_SECRET:}
     challenge:
       ttl: ${APP_AUTH_CHALLENGE_TTL:10m}
       max-attempts: ${APP_AUTH_CHALLENGE_MAX_ATTEMPTS:5}

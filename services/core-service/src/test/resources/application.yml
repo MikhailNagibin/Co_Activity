@@ -8,8 +8,10 @@ spring:
       repository-type: indexed
 
 app:
+  auth:
+    redis:
+      key-secret: test-secret
   storage:
     type: local
     local:
       root: ${java.io.tmpdir}/coactivity-test-storage
-

@@ -76,6 +76,7 @@ cp .env.prod.example .env.prod
 - `NOTIFICATIONS_KAFKA_TOPIC` и `NOTIFICATIONS_KAFKA_DLT_TOPIC` — имена Kafka topic'ов для
   email-контракта
 - `SPRING_DATA_REDIS_HOST=localhost`, `SPRING_DATA_REDIS_PORT=6379` — Redis для Spring Session
+- `APP_AUTH_REDIS_KEY_SECRET` — секрет для HMAC ключей Redis в auth (должен совпадать на всех инстансах `core-service`)
 - `SPRING_PROFILES_ACTIVE=local` — Spring profile для `core-service` и `notifications-service`
 - `SESSION_COOKIE_SECURE` — политика cookie сессии: `false` для local/dev по HTTP, `true` для
   HTTPS-окружений
