@@ -3,6 +3,7 @@ package com.coactivity.controller.impl;
 import com.coactivity.controller.dto.request.RoomCreationRequest;
 import com.coactivity.controller.dto.request.RoomFilter;
 import com.coactivity.controller.dto.request.OwnershipTransferRequest;
+import com.coactivity.controller.dto.request.RoomInviteRequest;
 import com.coactivity.controller.dto.request.RoomSort;
 import com.coactivity.controller.dto.request.RoomUpdateRequest;
 import com.coactivity.controller.dto.response.ApiProblemDetail;
@@ -21,6 +22,7 @@ import com.coactivity.security.CurrentUserPrincipal;
 import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.RoomImageContent;
 import com.coactivity.service.RoomImageService;
+import com.coactivity.service.RoomInvitationService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,15 +72,18 @@ public class RoomControllerImpl {
 
   private final RoomService roomService;
   private final RoomMembershipService roomMembershipService;
+  private final RoomInvitationService roomInvitationService;
   private final BulletinBoardService bulletinBoardService;
   private final RoomImageService roomImageService;
 
   public RoomControllerImpl(RoomService roomService,
       RoomMembershipService roomMembershipService,
+      RoomInvitationService roomInvitationService,
       BulletinBoardService bulletinBoardService,
       RoomImageService roomImageService) {
     this.roomService = roomService;
     this.roomMembershipService = roomMembershipService;
+    this.roomInvitationService = roomInvitationService;
     this.bulletinBoardService = bulletinBoardService;
     this.roomImageService = roomImageService;
   }
@@ -410,6 +415,52 @@ public class RoomControllerImpl {
       @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser,
       @Positive @PathVariable Integer roomId) {
     roomMembershipService.joinRoom(currentUser.getUserId(), roomId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/{roomId}/invites")
+  @Operation(
+      summary = "Пригласить пользователя в комнату",
+      description = "Отправляет email-приглашение в комнату. Доступ: только room OWNER. Требуются session cookie и CSRF.",
+      security = @SecurityRequirement(name = "sessionCookie"),
+      parameters = {
+          @Parameter(name = "roomId", in = ParameterIn.PATH, required = true,
+              description = "ID комнаты.", example = "42"),
+          @Parameter(name = "X-XSRF-TOKEN", in = ParameterIn.HEADER, required = true,
+              description = "CSRF токен (дублирует cookie XSRF-TOKEN).")
+      },
+      requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          required = true,
+          content = @Content(mediaType = "application/json",
+              schema = @Schema(implementation = RoomInviteRequest.class))
+      )
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Приглашение отправлено."),
+      @ApiResponse(responseCode = "400", description = "Ошибка валидации.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "401", description = "Требуется аутентификация.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "403", description = "Недостаточно прав (не OWNER).",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "404", description = "Комната или пользователь не найдены.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "409", description = "Пользователь уже участник или забанен.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "503", description = "Не удалось доставить email-приглашение.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class)))
+  })
+  public ResponseEntity<Void> inviteUser(
+      @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer roomId,
+      @Valid @RequestBody RoomInviteRequest request) {
+    roomInvitationService.inviteUserToRoom(currentUser.getUserId(), roomId, request.getUserId());
     return ResponseEntity.noContent().build();
   }
 

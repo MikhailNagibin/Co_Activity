@@ -19,6 +19,7 @@ import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.repository.RoomInvitationRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
@@ -43,6 +44,7 @@ public class RoomMembershipService {
 
   private final UserRepository userRepository;
   private final RoomRepository roomRepository;
+  private final RoomInvitationRepository roomInvitationRepository;
   private final RoomsRequestRepository roomsRequestRepository;
   private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
@@ -51,6 +53,7 @@ public class RoomMembershipService {
 
   public RoomMembershipService(UserRepository userRepository,
       RoomRepository roomRepository,
+      RoomInvitationRepository roomInvitationRepository,
       RoomsRequestRepository roomsRequestRepository,
       RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
@@ -58,6 +61,7 @@ public class RoomMembershipService {
       ApplicationEventPublisher applicationEventPublisher) {
     this.userRepository = userRepository;
     this.roomRepository = roomRepository;
+    this.roomInvitationRepository = roomInvitationRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
@@ -144,6 +148,9 @@ public class RoomMembershipService {
     enforceJoinEligibility(user, room);
 
     if (roomRepository.isUserInMembers(roomId, userId)) {
+      if (roomInvitationRepository.exists(roomId, userId)) {
+        roomInvitationRepository.delete(roomId, userId);
+      }
       if (room.isPublic() && existingRequest != null
           && existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
         roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.ACCEPTED);
@@ -157,6 +164,15 @@ public class RoomMembershipService {
         roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.ACCEPTED);
       }
     } else {
+      if (roomInvitationRepository.exists(roomId, userId)) {
+        roomRepository.addUserToRoom(roomId, userId, Role.PARTICIPANT);
+        if (existingRequest != null && existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
+          roomsRequestRepository.updateRequest(existingRequest.getId(), RequestStatus.ACCEPTED);
+        }
+        roomInvitationRepository.delete(roomId, userId);
+        return;
+      }
+
       if (existingRequest != null) {
         if (existingRequest.getStatus() == RequestStatus.CONSIDERATION) {
           return;

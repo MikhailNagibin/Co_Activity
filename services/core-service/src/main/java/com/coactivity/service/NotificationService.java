@@ -347,6 +347,38 @@ public class NotificationService {
     return publishWithLogging(email, subject, message, "followed-user room notification", null);
   }
 
+  /**
+   * Synchronous invite notification used by room invitation flow.
+   * User preferences are intentionally ignored for invitations.
+   */
+  public boolean sendRoomInvitationSync(Integer invitedUserId, String roomName, String ownerUserName,
+      Integer roomId) {
+    log.debug("Attempting to send room invitation to userId={}, roomId={}", invitedUserId, roomId);
+
+    User invitedUser = userRepository.getUserById(invitedUserId);
+    if (invitedUser == null || !hasUsableEmail(invitedUser.getEmail())) {
+      log.warn("Cannot send room invitation: user {} not found or has no email", invitedUserId);
+      return false;
+    }
+
+    String effectiveRoomName = hasText(roomName) ? roomName : "Untitled room";
+    String effectiveOwnerUserName = hasText(ownerUserName) ? ownerUserName : "Room owner";
+    String roomPath = roomId != null ? "/api/rooms/" + roomId : "/api/rooms";
+
+    String subject = "Room invitation: " + effectiveRoomName;
+    String message = String.format("""
+        Hello!
+
+        You have been invited to join room "%s".
+        Room owner: %s
+        Room link: %s
+
+        The CoActivity Team
+        """, effectiveRoomName, effectiveOwnerUserName, roomPath);
+
+    return publishWithLogging(invitedUser.getEmail(), subject, message, "room invitation", invitedUserId);
+  }
+
   public boolean sendRegistrationVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send registration verification code to email={}", userEmail);
     if (!hasUsableEmail(userEmail)) {
