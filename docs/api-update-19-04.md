@@ -57,3 +57,52 @@
 - получение токена: `GET /api/auth/csrf`
 
 Без CSRF-токена Spring Security вернёт `403` (`application/problem+json`).
+
+---
+
+## Дополнение: приглашения пользователей в комнату (2026-04-19)
+
+### Added
+
+- `POST /api/rooms/{roomId}/invites` (auth + CSRF)
+  - Request body: `{ "userId": <int> }`.
+  - Доступ: только `OWNER` комнаты.
+  - `204 No Content` при успешной отправке или переотправке приглашения.
+
+### Invitation semantics
+
+- Инвайт всегда отправляется email-командой в Kafka topic `notifications.email.v1`.
+- Тело письма содержит:
+  - `roomName`;
+  - имя автора инвайта (`ownerUserName`);
+  - ссылку-путь на комнату: `/api/rooms/{roomId}`.
+- Отдельные endpoints для «входящих приглашений» не добавлялись.
+
+### Join behavior changes
+
+- `POST /api/rooms/{roomId}/join` для **приватной** комнаты:
+  - если у пользователя есть активный инвайт в эту комнату, пользователь вступает сразу (auto-join);
+  - стадия `CONSIDERATION` не создаётся;
+  - если pending-заявка уже существовала в `CONSIDERATION`, её статус обновляется в `ACCEPTED`.
+- Для **публичной** комнаты инвайт не даёт дополнительных side effects: это только письмо со ссылкой.
+
+### Error handling
+
+- `403 Forbidden`:
+  - `ONLY_ROOM_OWNER` — приглашать может только владелец комнаты.
+- `404 Not Found`:
+  - `ROOM_NOT_FOUND`;
+  - `USER_NOT_FOUND`.
+- `409 Conflict`:
+  - `ALREADY_MEMBER` — приглашённый уже участник;
+  - `USER_BANNED` — приглашённый забанен в комнате.
+- `503 Service Unavailable`:
+  - `NOTIFICATION_DELIVERY_FAILED` — email не удалось опубликовать в Kafka.
+
+### Transaction and consistency notes
+
+- Повторная отправка приглашения разрешена, пока пользователь не стал участником комнаты.
+- Создание приглашения и отправка письма связаны транзакционно:
+  - при ошибке публикации email-команды возвращается `503`;
+  - запись приглашения не должна сохраняться.
+- При удалении комнаты или пользователя связанные записи в `room_invitations` удаляются.
