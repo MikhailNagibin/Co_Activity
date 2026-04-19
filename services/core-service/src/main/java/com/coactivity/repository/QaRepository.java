@@ -200,7 +200,8 @@ public class QaRepository {
         entity.getAvatarId(),
         AvatarUrlResolver.resolveUserAvatarUrl(
             entity.getId(),
-            entity.getAvatarFile() != null ? entity.getAvatarFile().getId() : null));
+            entity.getAvatarFile() != null ? entity.getAvatarFile().getId() : null),
+        null);
   }
 
   public record QuestionEntity(

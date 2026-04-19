@@ -201,6 +201,38 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
         "you can now join directly"));
   }
 
+  @Test
+  void roomCreationPublishesEmailForFollowersOfAuthor() throws Exception {
+    var ownerEntity = createActiveUser("follow-owner@example.com", "followOwner", "Password123");
+    var followerEntity = createActiveUser("follow-subscriber@example.com", "followSubscriber",
+        "Password123");
+
+    SessionContext owner = loginWithSessionCsrf(ownerEntity.getEmail(), "Password123");
+    SessionContext follower = loginWithSessionCsrf(followerEntity.getEmail(), "Password123");
+
+    mockMvc.perform(post("/api/users/" + ownerEntity.getId() + "/follow")
+            .cookie(follower.csrf().cookie(), follower.session())
+            .header("X-XSRF-TOKEN", follower.csrf().token()))
+        .andExpect(status().isNoContent());
+
+    reset(kafkaTemplate);
+    when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+        .thenReturn(CompletableFuture.<SendResult<String, String>>completedFuture(null));
+
+    Integer roomId = createRoom(owner.session(), owner.csrf(), true, "Followed Author Room",
+        "https://chat.example.com/followed-room");
+
+    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+    verify(kafkaTemplate, timeout(3000).times(1))
+        .send(eq("notifications.email.v1"), eq("follow-subscriber@example.com"),
+            payloadCaptor.capture());
+
+    assertTrue(containsAll(payloadCaptor.getValue(),
+        "followOwner",
+        "Followed Author Room",
+        "/api/rooms/" + roomId));
+  }
+
   private void enableImportantRoomUpdates(Cookie session, CsrfContext csrf) throws Exception {
     SecurityContextHolder.clearContext();
     mockMvc.perform(put("/api/users/me/notifications")

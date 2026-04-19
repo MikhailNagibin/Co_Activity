@@ -86,7 +86,7 @@ class PublicReadSecurityWebMvcTest {
             null,
             3,
             20,
-            new UserSummaryResponse(7, "owner", null, null, null, null, null, null),
+            new UserSummaryResponse(7, "owner", null, null, null, null, null, null, null),
             false,
             List.of())));
 
@@ -112,7 +112,7 @@ class PublicReadSecurityWebMvcTest {
     room.setAgeRating(12);
     room.setParticipantCount(3);
     room.setMaximumParticipants(20);
-    room.setCreator(new UserSummaryResponse(7, "owner", null, null, null, null, null, null));
+    room.setCreator(new UserSummaryResponse(7, "owner", null, null, null, null, null, null, null));
     room.setIsCurrentUserParticipant(false);
     room.setImageIds(List.of());
     room.setImages(List.of());
@@ -133,7 +133,7 @@ class PublicReadSecurityWebMvcTest {
   void anonymousUserCanViewAllQuestions() throws Exception {
     when(qaService.getQuestions(null))
         .thenReturn(List.of(new QuestionResponse(5, Category.ART, "What is this?",
-            new UserSummaryResponse(7, "author", null, null, null, null, null, null))));
+            new UserSummaryResponse(7, "author", null, null, null, null, null, null, null))));
 
     mockMvc.perform(get("/api/qa/questions").with(anonymous()))
         .andExpect(status().isOk())
@@ -158,7 +158,7 @@ class PublicReadSecurityWebMvcTest {
     when(qaService.getQuestionWithAnswers(9))
         .thenReturn(new QuestionWithAnswersResponse(
             new QuestionResponse(9, Category.ART, "Question",
-                new UserSummaryResponse(7, "author", null, null, null, null, null, null)),
+                new UserSummaryResponse(7, "author", null, null, null, null, null, null, null)),
             List.of()));
 
     mockMvc.perform(get("/api/qa/questions/9").with(anonymous()))

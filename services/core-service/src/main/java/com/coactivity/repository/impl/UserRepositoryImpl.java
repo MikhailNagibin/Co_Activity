@@ -150,6 +150,13 @@ public class UserRepositoryImpl implements UserRepository {
     entityManager.createNativeQuery("DELETE FROM user_notifications WHERE user_id = :userId")
         .setParameter("userId", userId)
         .executeUpdate();
+    entityManager.createNativeQuery("""
+            DELETE FROM user_follows
+            WHERE follower_id = :userId
+               OR followed_id = :userId
+            """)
+        .setParameter("userId", userId)
+        .executeUpdate();
     entityManager.createNativeQuery("DELETE FROM bulletin_board WHERE author_id = :userId")
         .setParameter("userId", userId)
         .executeUpdate();

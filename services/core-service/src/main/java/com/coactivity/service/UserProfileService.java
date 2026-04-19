@@ -7,6 +7,7 @@ import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
+import com.coactivity.repository.UserFollowRepository;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -19,16 +20,21 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
   private final UserRepository userRepository;
+  private final UserFollowRepository userFollowRepository;
 
-  public UserProfileService(UserRepository userRepository) {
+  public UserProfileService(UserRepository userRepository,
+      UserFollowRepository userFollowRepository) {
     this.userRepository = userRepository;
+    this.userFollowRepository = userFollowRepository;
   }
 
   public UserSummaryResponse getPublicUserProfileById(Integer userId) {
     if (userId == null) {
       throw new ValidationException("User id is required");
     }
-    return mapToUserSummary(getExistingUser(userId));
+    User user = getExistingUser(userId);
+    long followersCount = userFollowRepository.countFollowers(userId);
+    return mapToUserSummary(user, followersCount);
   }
 
   public UserProfileResponse getUserProfile(Integer userId) {
@@ -108,7 +114,7 @@ public class UserProfileService {
         Instant.now());
   }
 
-  private UserSummaryResponse mapToUserSummary(User user) {
+  private UserSummaryResponse mapToUserSummary(User user, Long followersCount) {
     UserSummaryResponse response = new UserSummaryResponse();
     response.setId(user.getId());
     response.setUserName(user.getUserName());
@@ -119,6 +125,7 @@ public class UserProfileService {
     response.setAvatarId(user.getAvatarId());
     response.setAvatarUrl(
         AvatarUrlResolver.resolveUserAvatarUrl(user.getId(), user.getAvatarFileId()));
+    response.setFollowersCount(followersCount);
     return response;
   }
 

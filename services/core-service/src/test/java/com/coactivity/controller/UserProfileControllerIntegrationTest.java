@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -436,7 +437,101 @@ class UserProfileControllerIntegrationTest extends AbstractSessionWebIntegration
         .andExpect(jsonPath("$.city").value("Kazan"))
         .andExpect(jsonPath("$.country").value("Russia"))
         .andExpect(jsonPath("$.description").value("Visible public bio"))
-        .andExpect(jsonPath("$.avatarId").value(15));
+        .andExpect(jsonPath("$.avatarId").value(15))
+        .andExpect(jsonPath("$.followersCount").value(0));
+  }
+
+  @Test
+  void followSelfReturnsValidationError() throws Exception {
+    UserEntity user = createActiveUser("self-follow@example.com", "selfFollow", "Password123");
+    CsrfContext csrf = fetchCsrf();
+    Cookie session = login(user.getEmail(), "Password123", csrf, null);
+
+    mockMvc.perform(post("/api/users/" + user.getId() + "/follow")
+            .cookie(csrf.cookie(), session)
+            .header("X-XSRF-TOKEN", csrf.token()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+  }
+
+  @Test
+  void followCreatesSubscription() throws Exception {
+    UserEntity follower = createActiveUser("follow-ok-follower@example.com", "followOkFollower",
+        "Password123");
+    UserEntity followed = createActiveUser("follow-ok-target@example.com", "followOkTarget",
+        "Password123");
+    CsrfContext followerCsrf = fetchCsrf();
+    Cookie followerSession = login(follower.getEmail(), "Password123", followerCsrf, null);
+
+    mockMvc.perform(post("/api/users/" + followed.getId() + "/follow")
+            .cookie(followerCsrf.cookie(), followerSession)
+            .header("X-XSRF-TOKEN", followerCsrf.token()))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void duplicateFollowReturnsConflictWithExpectedCode() throws Exception {
+    UserEntity follower = createActiveUser("dup-follow-follower@example.com", "dupFollowFollower",
+        "Password123");
+    UserEntity followed = createActiveUser("dup-follow-target@example.com", "dupFollowTarget",
+        "Password123");
+    CsrfContext followerCsrf = fetchCsrf();
+    Cookie followerSession = login(follower.getEmail(), "Password123", followerCsrf, null);
+
+    mockMvc.perform(post("/api/users/" + followed.getId() + "/follow")
+            .cookie(followerCsrf.cookie(), followerSession)
+            .header("X-XSRF-TOKEN", followerCsrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/users/" + followed.getId() + "/follow")
+            .cookie(followerCsrf.cookie(), followerSession)
+            .header("X-XSRF-TOKEN", followerCsrf.token()))
+        .andExpect(status().isConflict())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.code").value("ALREADY_FOLLOWING"));
+  }
+
+  @Test
+  void unfollowWithoutExistingSubscriptionReturnsConflictWithExpectedCode() throws Exception {
+    UserEntity follower = createActiveUser("not-following-follower@example.com",
+        "notFollowingFollower", "Password123");
+    UserEntity followed = createActiveUser("not-following-target@example.com", "notFollowingTarget",
+        "Password123");
+    CsrfContext followerCsrf = fetchCsrf();
+    Cookie followerSession = login(follower.getEmail(), "Password123", followerCsrf, null);
+
+    mockMvc.perform(delete("/api/users/" + followed.getId() + "/follow")
+            .cookie(followerCsrf.cookie(), followerSession)
+            .header("X-XSRF-TOKEN", followerCsrf.token()))
+        .andExpect(status().isConflict())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.code").value("NOT_FOLLOWING"));
+  }
+
+  @Test
+  void currentUserCanReadFollowingAndFollowersLists() throws Exception {
+    UserEntity follower = createActiveUser("list-follower@example.com", "listFollower", "Password123");
+    UserEntity followed = createActiveUser("list-followed@example.com", "listFollowed", "Password123");
+
+    CsrfContext followerCsrf = fetchCsrf();
+    Cookie followerSession = login(follower.getEmail(), "Password123", followerCsrf, null);
+    CsrfContext followedCsrf = fetchCsrf();
+    Cookie followedSession = login(followed.getEmail(), "Password123", followedCsrf, null);
+
+    mockMvc.perform(post("/api/users/" + followed.getId() + "/follow")
+            .cookie(followerCsrf.cookie(), followerSession)
+            .header("X-XSRF-TOKEN", followerCsrf.token()))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/users/me/following").cookie(followerSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(followed.getId()))
+        .andExpect(jsonPath("$[0].userName").value("listFollowed"));
+
+    mockMvc.perform(get("/api/users/me/followers").cookie(followedSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(follower.getId()))
+        .andExpect(jsonPath("$[0].userName").value("listFollower"));
   }
 
   @Test

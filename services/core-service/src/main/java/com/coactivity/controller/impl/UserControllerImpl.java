@@ -18,6 +18,7 @@ import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.UserAvatarContent;
 import com.coactivity.service.UserAvatarService;
+import com.coactivity.service.UserFollowService;
 import com.coactivity.service.UserProfileService;
 import com.coactivity.auth.application.SessionInvalidationService;
 import com.coactivity.security.CurrentUserPrincipal;
@@ -72,6 +73,7 @@ public class UserControllerImpl {
   private final AccountDeletionService accountDeletionService;
   private final AuthApplicationService authApplicationService;
   private final UserAvatarService userAvatarService;
+  private final UserFollowService userFollowService;
 
   public UserControllerImpl(UserProfileService userProfileService,
       RoomMembershipService roomMembershipService,
@@ -79,7 +81,8 @@ public class UserControllerImpl {
       SessionInvalidationService sessionInvalidationService,
       AccountDeletionService accountDeletionService,
       AuthApplicationService authApplicationService,
-      UserAvatarService userAvatarService) {
+      UserAvatarService userAvatarService,
+      UserFollowService userFollowService) {
     this.userProfileService = userProfileService;
     this.roomMembershipService = roomMembershipService;
     this.joinRequestService = joinRequestService;
@@ -87,6 +90,7 @@ public class UserControllerImpl {
     this.accountDeletionService = accountDeletionService;
     this.authApplicationService = authApplicationService;
     this.userAvatarService = userAvatarService;
+    this.userFollowService = userFollowService;
   }
 
   @GetMapping("/me")
@@ -138,6 +142,120 @@ public class UserControllerImpl {
       @Parameter(description = "ID пользователя.", example = "7")
       @Positive @PathVariable Integer userId) {
     UserSummaryResponse response = userProfileService.getPublicUserProfileById(userId);
+    return ResponseEntity.ok(response);
+  }
+
+  @PostMapping("/{userId}/follow")
+  @Operation(
+      summary = "Подписаться на пользователя",
+      description = "Создаёт подписку текущего пользователя на пользователя по ID. Требуются session cookie и CSRF.",
+      security = @SecurityRequirement(name = "sessionCookie"),
+      parameters = {
+          @Parameter(name = "X-XSRF-TOKEN", in = ParameterIn.HEADER, required = true,
+              description = "CSRF токен (дублирует cookie XSRF-TOKEN).")
+      }
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Подписка создана."),
+      @ApiResponse(responseCode = "400", description = "Ошибка валидации (включая self-follow).",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "401", description = "Требуется аутентификация.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "404", description = "Пользователь не найден.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "409", description = "Уже подписан (`code=ALREADY_FOLLOWING`).",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "500", description = "Неожиданная ошибка.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class)))
+  })
+  public ResponseEntity<Void> followUser(
+      @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer userId) {
+    userFollowService.followUser(currentUser.getUserId(), userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping("/{userId}/follow")
+  @Operation(
+      summary = "Отписаться от пользователя",
+      description = "Удаляет подписку текущего пользователя на пользователя по ID. Требуются session cookie и CSRF.",
+      security = @SecurityRequirement(name = "sessionCookie"),
+      parameters = {
+          @Parameter(name = "X-XSRF-TOKEN", in = ParameterIn.HEADER, required = true,
+              description = "CSRF токен (дублирует cookie XSRF-TOKEN).")
+      }
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Подписка удалена."),
+      @ApiResponse(responseCode = "400", description = "Ошибка валидации.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "401", description = "Требуется аутентификация.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "404", description = "Пользователь не найден.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "409", description = "Подписки нет (`code=NOT_FOLLOWING`).",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "500", description = "Неожиданная ошибка.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class)))
+  })
+  public ResponseEntity<Void> unfollowUser(
+      @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser,
+      @Positive @PathVariable Integer userId) {
+    userFollowService.unfollowUser(currentUser.getUserId(), userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/me/following")
+  @Operation(
+      summary = "Список пользователей, на которых подписан текущий пользователь",
+      security = @SecurityRequirement(name = "sessionCookie")
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Список подписок.",
+          content = @Content(mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = UserSummaryResponse.class)))),
+      @ApiResponse(responseCode = "401", description = "Требуется аутентификация.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "500", description = "Неожиданная ошибка.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class)))
+  })
+  public ResponseEntity<List<UserSummaryResponse>> getFollowingUsers(
+      @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    List<UserSummaryResponse> response = userFollowService.getFollowingUsers(currentUser.getUserId());
+    return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/me/followers")
+  @Operation(
+      summary = "Список подписчиков текущего пользователя",
+      security = @SecurityRequirement(name = "sessionCookie")
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Список подписчиков.",
+          content = @Content(mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = UserSummaryResponse.class)))),
+      @ApiResponse(responseCode = "401", description = "Требуется аутентификация.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class))),
+      @ApiResponse(responseCode = "500", description = "Неожиданная ошибка.",
+          content = @Content(mediaType = "application/problem+json",
+              schema = @Schema(implementation = ApiProblemDetail.class)))
+  })
+  public ResponseEntity<List<UserSummaryResponse>> getFollowerUsers(
+      @Parameter(hidden = true) @AuthenticationPrincipal CurrentUserPrincipal currentUser) {
+    List<UserSummaryResponse> response = userFollowService.getFollowerUsers(currentUser.getUserId());
     return ResponseEntity.ok(response);
   }
 

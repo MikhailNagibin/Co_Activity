@@ -14,6 +14,7 @@ import com.coactivity.controller.dto.response.UserProfileResponse;
 import com.coactivity.controller.dto.response.UserSummaryResponse;
 import com.coactivity.domain.Notification;
 import com.coactivity.domain.User;
+import com.coactivity.repository.UserFollowRepository;
 import com.coactivity.repository.UserRepository;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
@@ -28,12 +29,14 @@ import org.mockito.Mockito;
 class UserProfileServiceTest {
 
   private UserRepository userRepository;
+  private UserFollowRepository userFollowRepository;
   private UserProfileService userProfileService;
 
   @BeforeEach
   void setUp() {
     userRepository = Mockito.mock(UserRepository.class);
-    userProfileService = new UserProfileService(userRepository);
+    userFollowRepository = Mockito.mock(UserFollowRepository.class);
+    userProfileService = new UserProfileService(userRepository, userFollowRepository);
   }
 
   @Test
@@ -71,6 +74,7 @@ class UserProfileServiceTest {
   void getPublicUserProfileById_returnsPublicSummary() {
     User user = user(7, List.of(Notification.MEMBERSHIP_ACCEPTED));
     when(userRepository.getUserById(7)).thenReturn(user);
+    when(userFollowRepository.countFollowers(7)).thenReturn(3L);
 
     UserSummaryResponse response = userProfileService.getPublicUserProfileById(7);
 
@@ -79,6 +83,7 @@ class UserProfileServiceTest {
     assertEquals("Moscow", response.getCity());
     assertEquals("Russia", response.getCountry());
     assertEquals("/api/users/7/avatar", response.getAvatarUrl());
+    assertEquals(3L, response.getFollowersCount());
   }
 
   @Test

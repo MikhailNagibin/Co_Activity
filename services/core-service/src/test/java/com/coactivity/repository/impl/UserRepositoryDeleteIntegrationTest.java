@@ -86,6 +86,23 @@ class UserRepositoryDeleteIntegrationTest {
     assertNull(getPrevAnswerId(replyId));
   }
 
+  @Test
+  void deleteUserRemovesAllUserFollowsRelations() throws SQLException {
+    Integer deletedUserId = createUser("follow-deleted@example.com", "followDeleted");
+    Integer followerId = createUser("follow-follower@example.com", "followFollower");
+    Integer followedId = createUser("follow-followed@example.com", "followFollowed");
+
+    insertFollow(followerId, deletedUserId);
+    insertFollow(deletedUserId, followedId);
+
+    userRepository.deleteUser(deletedUserId);
+
+    assertFalse(userExists(deletedUserId));
+    assertEquals(0, countFollowByUser(deletedUserId));
+    assertEquals(0, countFollowPair(followerId, deletedUserId));
+    assertEquals(0, countFollowPair(deletedUserId, followedId));
+  }
+
   private Integer createUser(String login, String username) {
     UserRegistrationRequest request = new UserRegistrationRequest();
     request.setEmail(login);
@@ -101,6 +118,7 @@ class UserRepositoryDeleteIntegrationTest {
              TRUNCATE TABLE
                bulletin_board,
                user_notifications,
+               user_follows,
                answers,
                questions,
                bans,
@@ -214,6 +232,50 @@ class UserRepositoryDeleteIntegrationTest {
          PreparedStatement statement =
              connection.prepareStatement("SELECT owner FROM answers WHERE id = ?")) {
       statement.setInt(1, answerId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private void insertFollow(Integer followerId, Integer followedId) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             INSERT INTO user_follows (follower_id, followed_id)
+             VALUES (?, ?)
+             """)) {
+      statement.setInt(1, followerId);
+      statement.setInt(2, followedId);
+      statement.executeUpdate();
+    }
+  }
+
+  private int countFollowByUser(Integer userId) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             SELECT COUNT(*)
+             FROM user_follows
+             WHERE follower_id = ? OR followed_id = ?
+             """)) {
+      statement.setInt(1, userId);
+      statement.setInt(2, userId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private int countFollowPair(Integer followerId, Integer followedId) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             SELECT COUNT(*)
+             FROM user_follows
+             WHERE follower_id = ? AND followed_id = ?
+             """)) {
+      statement.setInt(1, followerId);
+      statement.setInt(2, followedId);
       try (ResultSet resultSet = statement.executeQuery()) {
         resultSet.next();
         return resultSet.getInt(1);

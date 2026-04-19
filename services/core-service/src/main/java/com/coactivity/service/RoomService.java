@@ -22,6 +22,8 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.repository.UserRepository;
+import com.coactivity.service.event.RoomCreatedNotificationEvent;
 import com.coactivity.service.event.RoomUpdateNotificationEvent;
 import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotification;
 import com.coactivity.service.event.RoomUpdateNotificationEvent.PendingRequestNotificationType;
@@ -48,6 +50,7 @@ public class RoomService {
   private final RoomsRequestRepository roomsRequestRepository;
   private final RoomImageService roomImageService;
   private final BulletinBoardRepository bulletinBoardRepository;
+  private final UserRepository userRepository;
   private final NotificationService notificationService;
   private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -55,12 +58,14 @@ public class RoomService {
       RoomsRequestRepository roomsRequestRepository,
       RoomImageService roomImageService,
       BulletinBoardRepository bulletinBoardRepository,
+      UserRepository userRepository,
       NotificationService notificationService,
       ApplicationEventPublisher applicationEventPublisher) {
     this.roomRepository = roomRepository;
     this.roomsRequestRepository = roomsRequestRepository;
     this.roomImageService = roomImageService;
     this.bulletinBoardRepository = bulletinBoardRepository;
+    this.userRepository = userRepository;
     this.notificationService = notificationService;
     this.applicationEventPublisher = applicationEventPublisher;
   }
@@ -79,6 +84,13 @@ public class RoomService {
     if (createdRoom == null) {
       throw new InternalException("Room could not be created");
     }
+    User owner = userRepository.getUserById(ownerId);
+    String ownerUserName = owner != null ? owner.getUserName() : null;
+    applicationEventPublisher.publishEvent(new RoomCreatedNotificationEvent(
+        ownerId,
+        ownerUserName,
+        createdRoom.getId(),
+        createdRoom.getName()));
 
     return new RoomCreationResponse(createdRoom.getId(), createdRoom.getName(),
         createdRoom.getCategory());

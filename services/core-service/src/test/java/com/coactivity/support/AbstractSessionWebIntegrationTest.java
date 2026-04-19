@@ -128,6 +128,7 @@ public abstract class AbstractSessionWebIntegrationTest {
              TRUNCATE TABLE
                bulletin_board,
                user_notifications,
+               user_follows,
                answers,
                questions,
                bans,

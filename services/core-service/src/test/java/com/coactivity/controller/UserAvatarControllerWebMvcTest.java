@@ -29,6 +29,7 @@ import com.coactivity.service.JoinRequestService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.UserAvatarContent;
 import com.coactivity.service.UserAvatarService;
+import com.coactivity.service.UserFollowService;
 import com.coactivity.service.UserProfileService;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -74,6 +75,9 @@ class UserAvatarControllerWebMvcTest {
 
   @MockitoBean
   private UserAvatarService userAvatarService;
+
+  @MockitoBean
+  private UserFollowService userFollowService;
 
   @MockitoBean
   private CurrentUserDetailsService currentUserDetailsService;

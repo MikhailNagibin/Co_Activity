@@ -30,6 +30,8 @@ import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
+import com.coactivity.repository.UserRepository;
+import com.coactivity.service.event.RoomCreatedNotificationEvent;
 import com.coactivity.service.event.RoomUpdateNotificationEvent;
 import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ResourceNotFoundException;
@@ -53,6 +55,7 @@ class RoomServiceTest {
     private RoomImageService roomImageService;
     private BulletinBoardRepository bulletinBoardRepository;
     private RoomsRequestRepository roomsRequestRepository;
+    private UserRepository userRepository;
     private NotificationService notificationService;
     private ApplicationEventPublisher applicationEventPublisher;
     private RoomService roomService;
@@ -68,16 +71,18 @@ class RoomServiceTest {
         roomImageService = Mockito.mock(RoomImageService.class);
         bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
         roomsRequestRepository = Mockito.mock(RoomsRequestRepository.class);
+        userRepository = Mockito.mock(UserRepository.class);
         notificationService = Mockito.mock(NotificationService.class);
         applicationEventPublisher = Mockito.mock(ApplicationEventPublisher.class);
         roomService = new RoomService(roomRepository, roomsRequestRepository, roomImageService, bulletinBoardRepository,
-                notificationService, applicationEventPublisher);
+                userRepository, notificationService, applicationEventPublisher);
 
         ownerId = 10;
         roomId = 100;
 
         User owner = createUser(ownerId, "owner@example.com", "owner");
         User participant = createUser(20, "participant@example.com", "participant");
+        when(userRepository.getUserById(ownerId)).thenReturn(owner);
 
         roomUsers = new LinkedHashMap<>();
         roomUsers.put(owner, Role.OWNER);
@@ -347,6 +352,15 @@ class RoomServiceTest {
         assertEquals(777, response.getRoomId());
         assertEquals("New Room", response.getName());
         assertEquals(Category.ART, response.getCategory());
+
+        ArgumentCaptor<RoomCreatedNotificationEvent> eventCaptor =
+            ArgumentCaptor.forClass(RoomCreatedNotificationEvent.class);
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+        RoomCreatedNotificationEvent event = eventCaptor.getValue();
+        assertEquals(ownerId, event.ownerId());
+        assertEquals("owner", event.ownerUserName());
+        assertEquals(777, event.roomId());
+        assertEquals("New Room", event.roomName());
     }
 
     @Test

@@ -322,6 +322,31 @@ public class NotificationService {
         "pending request removed notification", userId);
   }
 
+  public boolean sendNewRoomFromFollowedUser(String email, String authorName, Integer roomId,
+      String roomName) {
+    if (!hasUsableEmail(email)) {
+      log.warn("Cannot send followed-user room notification: email is blank");
+      return false;
+    }
+
+    String effectiveAuthorName = hasText(authorName) ? authorName : "Unknown user";
+    String effectiveRoomName = hasText(roomName) ? roomName : "Untitled room";
+    String roomPath = roomId != null ? "/api/rooms/" + roomId : "/api/rooms";
+
+    String subject = "New room by " + effectiveAuthorName + ": " + effectiveRoomName;
+    String message = String.format("""
+        Hello!
+
+        User you follow: %s
+        New room: %s
+        Room link: %s
+
+        The CoActivity Team
+        """, effectiveAuthorName, effectiveRoomName, roomPath);
+
+    return publishWithLogging(email, subject, message, "followed-user room notification", null);
+  }
+
   public boolean sendRegistrationVerificationCode(String userEmail, String verificationCode) {
     log.debug("Attempting to send registration verification code to email={}", userEmail);
     if (!hasUsableEmail(userEmail)) {

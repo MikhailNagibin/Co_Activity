@@ -37,7 +37,7 @@ class QaServiceTest {
   @Test
   void getQuestionsReturnsAuthorSummaryFromRepository() {
     UserSummaryResponse author = new UserSummaryResponse(5, "author", null, "Moscow", "Russia",
-        "bio", 1, null);
+        "bio", 1, null, null);
     when(qaRepository.findQuestions(null)).thenReturn(List.of(
         new QuestionEntity(10, 5, 1, Category.SPORT, "How to train?", author)));
 
@@ -51,9 +51,9 @@ class QaServiceTest {
   @Test
   void getQuestionWithAnswersReturnsAnswerAuthorsFromRepository() {
     UserSummaryResponse questionAuthor = new UserSummaryResponse(1, "questionAuthor", null, null,
-        null, null, null, null);
+        null, null, null, null, null);
     UserSummaryResponse answerAuthor = new UserSummaryResponse(2, "answerAuthor", null, null, null,
-        null, null, null);
+        null, null, null, null);
 
     when(qaRepository.findQuestionById(7)).thenReturn(Optional.of(
         new QuestionEntity(7, 1, 1, Category.SPORT, "Question text", questionAuthor)));
@@ -72,9 +72,9 @@ class QaServiceTest {
   @Test
   void getQuestionWithAnswersBuildsNestedReplies() {
     UserSummaryResponse questionAuthor = new UserSummaryResponse(1, "questionAuthor", null, null,
-        null, null, null, null);
+        null, null, null, null, null);
     UserSummaryResponse answerAuthor = new UserSummaryResponse(2, "answerAuthor", null, null, null,
-        null, null, null);
+        null, null, null, null);
     Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
     when(qaRepository.findQuestionById(7)).thenReturn(Optional.of(

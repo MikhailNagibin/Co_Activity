@@ -25,4 +25,6 @@ public class UserSummaryResponse {
   private Integer avatarId;
 
   private String avatarUrl;
+
+  private Long followersCount;
 }
