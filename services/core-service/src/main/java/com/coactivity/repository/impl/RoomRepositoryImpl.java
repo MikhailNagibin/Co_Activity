@@ -29,6 +29,8 @@ import com.coactivity.service.exception.AuthorizationException;
 import com.coactivity.service.exception.ConflictException;
 import com.coactivity.service.exception.ResourceNotFoundException;
 import com.coactivity.service.exception.ValidationException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,9 @@ public class RoomRepositoryImpl implements RoomRepository {
   private final UserJpaRepository userJpaRepository;
   private final RoomsRequestJpaRepository roomsRequestJpaRepository;
   private final BulletinBoardJpaRepository bulletinBoardJpaRepository;
+
+  @PersistenceContext
+  private EntityManager entityManager;
 
   public RoomRepositoryImpl(RoomJpaRepository roomJpaRepository,
       RoomMemberJpaRepository roomMemberJpaRepository,
@@ -171,6 +176,12 @@ public class RoomRepositoryImpl implements RoomRepository {
   @Override
   public void deleteRoom(Integer roomId) {
     RoomEntity roomEntity = getExistingRoomEntity(roomId);
+    entityManager.createNativeQuery("""
+            DELETE FROM room_invitations
+            WHERE room_id = :roomId
+            """)
+        .setParameter("roomId", roomId)
+        .executeUpdate();
     bulletinBoardJpaRepository.deleteByRoom_Id(roomId);
     banJpaRepository.deleteAllByRoom_Id(roomId);
     roomsRequestJpaRepository.deleteAllByRoom_Id(roomId);

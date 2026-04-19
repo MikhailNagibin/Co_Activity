@@ -157,6 +157,13 @@ public class UserRepositoryImpl implements UserRepository {
             """)
         .setParameter("userId", userId)
         .executeUpdate();
+    entityManager.createNativeQuery("""
+            DELETE FROM room_invitations
+            WHERE invited_user_id = :userId
+               OR invited_by_user_id = :userId
+            """)
+        .setParameter("userId", userId)
+        .executeUpdate();
     entityManager.createNativeQuery("DELETE FROM bulletin_board WHERE author_id = :userId")
         .setParameter("userId", userId)
         .executeUpdate();
