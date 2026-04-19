@@ -24,6 +24,7 @@ import com.coactivity.security.RestAuthenticationEntryPoint;
 import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.RoomImageContent;
 import com.coactivity.service.RoomImageService;
+import com.coactivity.service.RoomInvitationService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import java.nio.charset.StandardCharsets;
@@ -55,6 +56,9 @@ class RoomImageControllerWebMvcTest {
 
   @MockitoBean
   private RoomMembershipService roomMembershipService;
+
+  @MockitoBean
+  private RoomInvitationService roomInvitationService;
 
   @MockitoBean
   private BulletinBoardService bulletinBoardService;

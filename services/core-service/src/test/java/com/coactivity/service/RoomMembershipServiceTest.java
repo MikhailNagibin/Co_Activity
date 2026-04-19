@@ -18,6 +18,7 @@ import com.coactivity.domain.RoomStatus;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.repository.RoomInvitationRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
@@ -40,6 +41,7 @@ class RoomMembershipServiceTest {
 
   private UserRepository userRepository;
   private RoomRepository roomRepository;
+  private RoomInvitationRepository roomInvitationRepository;
   private RoomsRequestRepository roomsRequestRepository;
   private RoomImageService roomImageService;
   private BulletinBoardRepository bulletinBoardRepository;
@@ -56,6 +58,7 @@ class RoomMembershipServiceTest {
   void setUp() {
     userRepository = Mockito.mock(UserRepository.class);
     roomRepository = Mockito.mock(RoomRepository.class);
+    roomInvitationRepository = Mockito.mock(RoomInvitationRepository.class);
     roomsRequestRepository = Mockito.mock(RoomsRequestRepository.class);
     roomImageService = Mockito.mock(RoomImageService.class);
     bulletinBoardRepository = Mockito.mock(BulletinBoardRepository.class);
@@ -65,6 +68,7 @@ class RoomMembershipServiceTest {
     roomMembershipService = new RoomMembershipService(
         userRepository,
         roomRepository,
+        roomInvitationRepository,
         roomsRequestRepository,
         roomImageService,
         bulletinBoardRepository,

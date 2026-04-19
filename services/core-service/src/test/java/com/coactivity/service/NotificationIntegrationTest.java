@@ -16,6 +16,7 @@ import com.coactivity.domain.Room;
 import com.coactivity.domain.RoomsRequest;
 import com.coactivity.domain.User;
 import com.coactivity.repository.BulletinBoardRepository;
+import com.coactivity.repository.RoomInvitationRepository;
 import com.coactivity.repository.RoomRepository;
 import com.coactivity.repository.RoomsRequestRepository;
 import com.coactivity.repository.UserRepository;
@@ -91,6 +92,7 @@ class NotificationIntegrationTest {
     roomMembershipService = new RoomMembershipService(
         userRepository,
         roomRepository,
+        Mockito.mock(RoomInvitationRepository.class),
         roomsRequestRepository,
         Mockito.mock(RoomImageService.class),
         Mockito.mock(BulletinBoardRepository.class),

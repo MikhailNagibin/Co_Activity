@@ -29,6 +29,7 @@ import com.coactivity.security.RestAuthenticationEntryPoint;
 import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.QaService;
 import com.coactivity.service.RoomImageService;
+import com.coactivity.service.RoomInvitationService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import java.time.Instant;
@@ -57,6 +58,9 @@ class PublicReadSecurityWebMvcTest {
 
   @MockitoBean
   private RoomMembershipService roomMembershipService;
+
+  @MockitoBean
+  private RoomInvitationService roomInvitationService;
 
   @MockitoBean
   private BulletinBoardService bulletinBoardService;

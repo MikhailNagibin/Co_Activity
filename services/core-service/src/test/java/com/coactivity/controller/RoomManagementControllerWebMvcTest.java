@@ -29,6 +29,7 @@ import com.coactivity.security.RestAccessDeniedHandler;
 import com.coactivity.security.RestAuthenticationEntryPoint;
 import com.coactivity.service.BulletinBoardService;
 import com.coactivity.service.RoomImageService;
+import com.coactivity.service.RoomInvitationService;
 import com.coactivity.service.RoomMembershipService;
 import com.coactivity.service.RoomService;
 import com.coactivity.service.exception.ResourceNotFoundException;
@@ -59,6 +60,9 @@ class RoomManagementControllerWebMvcTest {
 
   @MockitoBean
   private RoomMembershipService roomMembershipService;
+
+  @MockitoBean
+  private RoomInvitationService roomInvitationService;
 
   @MockitoBean
   private BulletinBoardService bulletinBoardService;
