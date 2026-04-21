@@ -102,7 +102,7 @@ function QADataPage() {
     [questions, sortBy],
   )
 
-  const hasActiveServerFilter =
+  const hasActiveRefinement =
     categoryFilter !== 'all-categories' ||
     (deferredSearch != null && String(deferredSearch).trim() !== '')
 
@@ -112,7 +112,11 @@ function QADataPage() {
       <div className="main-page-shell">
         <section className="main-hero qa-hero">
           <h2>Вопросы и ответы</h2>
-          <h3>Задавайте вопросы и делитесь опытом с сообществом</h3>
+          <h3>
+            {isAuthenticated
+              ? 'Задавайте вопросы и делитесь опытом с сообществом'
+              : 'Читайте обсуждения сообщества. Чтобы задать вопрос или ответить, войдите в аккаунт.'}
+          </h3>
         </section>
 
         <main className="main-page-content">
@@ -185,17 +189,21 @@ function QADataPage() {
                 {errorMessage}
               </p>
             ) : null}
-            {!isLoading && !errorMessage && questions.length === 0 && !hasActiveServerFilter ? (
+            {!isLoading && !errorMessage && questions.length === 0 && !hasActiveRefinement ? (
               <p className="qa-list-message">Пока нет вопросов</p>
             ) : null}
-            {!isLoading && !errorMessage && questions.length === 0 && hasActiveServerFilter ? (
+            {!isLoading && !errorMessage && questions.length === 0 && hasActiveRefinement ? (
               <p className="qa-list-message">
                 Ничего не найдено — измените поиск, категорию или сортировку
               </p>
             ) : null}
             {!isLoading && !errorMessage
               ? sortedQuestions.map((item, index) => (
-                  <QuestionPreview key={item.id ?? `${item.title}-${index}`} item={item} />
+                  <QuestionPreview
+                    key={item.id ?? `${item.title}-${index}`}
+                    item={item}
+                    canViewProfiles={isAuthenticated}
+                  />
                 ))
               : null}
           </section>

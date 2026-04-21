@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AppHeader from '../components/AppHeader.jsx'
+import UserAvatar from '../components/UserAvatar.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
 import { isApiError } from '../api/httpClient.js'
 import { useAuthSession } from '../auth/authSessionContext.js'
@@ -127,12 +128,25 @@ function QuestionThreadPage() {
 
   const currentUserId = useMemo(() => parseUserId(currentUser), [currentUser])
 
-  const loadThread = useCallback(async () => {
-    setIsLoading(true)
-    setLoadError('')
+  const signInHref = useMemo(() => {
+    if (Number.isFinite(questionId) && questionId > 0) {
+      return `/sign-in?${new URLSearchParams({ next: `/questions/${questionId}` }).toString()}`
+    }
+    return '/sign-in'
+  }, [questionId])
+
+  const loadThread = useCallback(async (options = {}) => {
+    const { silent = false } = options
+    if (!silent) {
+      setIsLoading(true)
+      setLoadError('')
+    }
     try {
       const data = await getQuestionWithAnswers(questionId)
       setPayload(data)
+      if (silent) {
+        setLoadError('')
+      }
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -145,9 +159,13 @@ function QuestionThreadPage() {
       } else {
         setLoadError('Не удалось загрузить вопрос')
       }
-      setPayload(null)
+      if (!silent) {
+        setPayload(null)
+      }
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [questionId, navigate])
 
@@ -218,7 +236,7 @@ function QuestionThreadPage() {
         question: trimmed,
       })
       setIsEditingQuestion(false)
-      await loadThread()
+      await loadThread({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -307,7 +325,7 @@ function QuestionThreadPage() {
       await updateAnswer(editingAnswerId, { answer: trimmed })
       setEditingAnswerId(null)
       setEditAnswerText('')
-      await loadThread()
+      await loadThread({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -350,7 +368,7 @@ function QuestionThreadPage() {
     try {
       await deleteAnswer(aid)
       setConfirmDialog(null)
-      await loadThread()
+      await loadThread({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -392,7 +410,7 @@ function QuestionThreadPage() {
         previousAnswerId: null,
       })
       setAnswerText('')
-      await loadThread()
+      await loadThread({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -473,12 +491,14 @@ function QuestionThreadPage() {
           <>
             <article className="qa-thread-op">
               <aside className="qa-thread-op-sidebar" aria-label="Автор вопроса">
-                <i
-                  className="fa-regular fa-circle-user qa-thread-avatar qa-thread-avatar--lg"
-                  aria-hidden="true"
-                ></i>
+                <UserAvatar
+                  user={questionBlock?.author}
+                  alt={`Аватар, ${questionAuthorName}`}
+                  className="qa-thread-avatar-slot qa-thread-avatar-slot--question"
+                  size="xl"
+                />
                 <h3 className="qa-thread-author-name">
-                  {questionAuthorId != null ? (
+                  {isAuthenticated && questionAuthorId != null ? (
                     <Link to={`/users/${questionAuthorId}`}>{questionAuthorName}</Link>
                   ) : (
                     questionAuthorName
@@ -600,9 +620,14 @@ function QuestionThreadPage() {
                 return (
                   <article className="qa-answer-card" key={answer.id}>
                     <aside className="qa-answer-sidebar" aria-label="Автор ответа">
-                      <i className="fa-regular fa-circle-user qa-thread-avatar" aria-hidden="true"></i>
+                      <UserAvatar
+                        user={answer.author}
+                        alt={`Аватар, ${authorName}`}
+                        className="qa-thread-avatar-slot qa-thread-avatar-slot--answer"
+                        size="lg"
+                      />
                       <h4 className="qa-answer-author">
-                        {authorId != null ? (
+                        {isAuthenticated && authorId != null ? (
                           <Link to={`/users/${authorId}`}>{authorName}</Link>
                         ) : (
                           authorName
@@ -711,7 +736,7 @@ function QuestionThreadPage() {
               </section>
             ) : (
               <div className="qa-thread-cta">
-                <Link className="main-create-activity-btn qa-thread-cta-link" to="/sign-in">
+                <Link className="main-create-activity-btn qa-thread-cta-link" to={signInHref}>
                   Войти, чтобы ответить на вопрос
                 </Link>
               </div>

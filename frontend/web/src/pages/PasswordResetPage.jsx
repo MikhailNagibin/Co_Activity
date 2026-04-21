@@ -36,7 +36,6 @@ function PasswordResetPage() {
   const [step, setStep] = useState('request')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [invalidFields, setInvalidFields] = useState({})
 
   useEffect(() => {
@@ -48,13 +47,6 @@ function PasswordResetPage() {
     if (email) {
       setFormData((prev) => ({ ...prev, email }))
     }
-
-    if (normalizedStep === 'verify') {
-      setSuccessMessage('Мы отправили инструкции на почту, если аккаунт существует и активирован.')
-    }
-    if (normalizedStep === 'confirm') {
-      setSuccessMessage('Код подтверждён. Теперь задайте новый пароль.')
-    }
   }, [searchParams])
 
   useEffect(() => {
@@ -64,7 +56,7 @@ function PasswordResetPage() {
     errorRef.current?.focus()
   }, [errorMessage])
 
-  const openStep = (nextStep, nextEmail, message) => {
+  const openStep = (nextStep, nextEmail = '') => {
     const params = new URLSearchParams()
     if (nextStep !== 'request') {
       params.set('step', nextStep)
@@ -76,7 +68,6 @@ function PasswordResetPage() {
     setStep(nextStep)
     setErrorMessage('')
     setInvalidFields({})
-    setSuccessMessage(message)
     navigate(
       {
         pathname: '/password-reset',
@@ -105,7 +96,6 @@ function PasswordResetPage() {
   const handleRequestReset = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
     setInvalidFields({})
 
     const email = formData.email.trim()
@@ -117,11 +107,7 @@ function PasswordResetPage() {
     setIsSubmitting(true)
     try {
       await requestPasswordReset({ email })
-      openStep(
-        'verify',
-        email,
-        'Если аккаунт существует и подтверждён, мы отправили код для сброса пароля на эту почту.',
-      )
+      openStep('verify', email)
     } catch (error) {
       if (isApiError(error)) {
         showError(getUserFacingApiMessage(error, 'Не удалось отправить код для сброса пароля.'), {
@@ -138,7 +124,6 @@ function PasswordResetPage() {
   const handleVerifyCode = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
     setInvalidFields({})
 
     const email = formData.email.trim()
@@ -146,7 +131,7 @@ function PasswordResetPage() {
 
     if (!email) {
       showError('Сначала укажите почту', { email: true })
-      openStep('request', '', '')
+      openStep('request')
       return
     }
     if (!/^\d{6}$/.test(code)) {
@@ -157,7 +142,7 @@ function PasswordResetPage() {
     setIsSubmitting(true)
     try {
       await verifyPasswordReset({ email, code })
-      openStep('confirm', email, 'Код подтверждён. Теперь задайте новый пароль.')
+      openStep('confirm', email)
     } catch (error) {
       if (isApiError(error)) {
         const codeInvalid =
@@ -178,19 +163,18 @@ function PasswordResetPage() {
   const handleConfirmReset = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
     setInvalidFields({})
 
     const email = formData.email.trim()
     const code = formData.code.trim()
     if (!email) {
       showError('Сначала запросите код сброса', { email: true })
-      openStep('request', '', '')
+      openStep('request')
       return
     }
     if (!/^\d{6}$/.test(code)) {
       showError('Сначала подтвердите корректный 6-значный код', { code: true })
-      openStep('verify', email, '')
+      openStep('verify', email)
       return
     }
     if (formData.newPassword.length < 8) {
@@ -215,7 +199,7 @@ function PasswordResetPage() {
         newPassword: '',
         confirmPassword: '',
       })
-      openStep('done', email, 'Пароль обновлён. Теперь можно войти с новым паролем.')
+      openStep('done', email)
     } catch (error) {
       if (isApiError(error)) {
         const codeInvalid =
@@ -282,7 +266,6 @@ function PasswordResetPage() {
               {errorMessage}
             </p>
           ) : null}
-          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
           <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
             {isSubmitting ? 'Отправка...' : 'Получить код'}
@@ -320,14 +303,13 @@ function PasswordResetPage() {
               {errorMessage}
             </p>
           ) : null}
-          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
           <div className="auth-actions auth-actions--split">
             <button
               type="button"
               className="auth-secondary-button"
               disabled={isSubmitting}
-              onClick={() => openStep('request', '', '')}
+              onClick={() => openStep('request')}
             >
               Изменить почту
             </button>
@@ -380,14 +362,13 @@ function PasswordResetPage() {
               {errorMessage}
             </p>
           ) : null}
-          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
           <div className="auth-actions auth-actions--split">
             <button
               type="button"
               className="auth-secondary-button"
               disabled={isSubmitting}
-              onClick={() => openStep('verify', formData.email.trim(), '')}
+              onClick={() => openStep('verify', formData.email.trim())}
             >
               Назад к коду
             </button>
@@ -400,7 +381,6 @@ function PasswordResetPage() {
 
       {step === 'done' ? (
         <div className="auth-form">
-          <p className="auth-banner auth-banner--success">{successMessage}</p>
           <button
             type="button"
             className="auth-submit-button"

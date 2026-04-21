@@ -51,6 +51,25 @@ export function formatDate(value) {
   return parsed.toLocaleDateString('ru-RU')
 }
 
+/** Дата с днём недели для карточек активности на главной (ФТ: день недели начала/окончания). */
+export function formatDateWithWeekday(value) {
+  if (!value) {
+    return ''
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value)
+  }
+
+  return parsed.toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 /** Дата и время для Q&A (пустая строка, если значения нет). */
 export function formatDateTimeRu(value) {
   if (!value) {
@@ -222,9 +241,40 @@ export function mapRoomsToActivityCards(payload) {
       eventStartMs = Number.isNaN(parsed) ? null : parsed
     }
 
+    const endRaw = pickFirst(room.dateOfEndEvent, room.endDate, room.eventEndDate)
+    let eventEndMs = null
+    if (endRaw != null && String(endRaw).trim() !== '') {
+      const parsed = Date.parse(endRaw)
+      eventEndMs = Number.isNaN(parsed) ? null : parsed
+    }
+
+    const createdRaw = pickFirst(room.createdAt, room.creationDate)
+    const scheduleStartLabel =
+      startRaw != null && String(startRaw).trim() !== '' ? formatDateWithWeekday(startRaw) : ''
+    const scheduleEndLabel =
+      endRaw != null && String(endRaw).trim() !== '' ? formatDateWithWeekday(endRaw) : ''
+    const scheduleFallbackLabel =
+      !scheduleStartLabel && !scheduleEndLabel
+        ? createdRaw != null && String(createdRaw).trim() !== ''
+          ? `Создано: ${formatDateWithWeekday(createdRaw)}`
+          : 'Дата события не указана'
+        : ''
+
     const creatorCity = String(room.creator?.city ?? '').trim()
     const creatorCountry = String(room.creator?.country ?? '').trim()
     const images = sortRoomImages(room.images)
+
+    const creatorRaw = room.creator ?? room.owner ?? null
+    const creatorUser =
+      creatorRaw != null && typeof creatorRaw === 'object'
+        ? {
+            id: pickFirst(creatorRaw.id, creatorRaw.userId),
+            userId: creatorRaw.userId,
+            userName: creatorRaw.userName,
+            avatarId: creatorRaw.avatarId,
+            avatarUrl: creatorRaw.avatarUrl,
+          }
+        : null
 
     return {
       id: roomId,
@@ -243,6 +293,10 @@ export function mapRoomsToActivityCards(payload) {
       creatorCity,
       creatorCountry,
       eventStartMs,
+      eventEndMs,
+      scheduleStartLabel,
+      scheduleEndLabel,
+      scheduleFallbackLabel,
       date: formatDate(
         pickFirst(room.dateOfStartEvent, room.date, room.eventDate, room.createdAt),
       ),
@@ -251,6 +305,7 @@ export function mapRoomsToActivityCards(payload) {
           ? `Набрано ${participantsCount}/${capacity}`
           : `Участников: ${participantsCount || 0}`,
       author: String(pickFirst(creatorName, 'Неизвестный автор')),
+      creatorUser,
       membershipStatus: membershipView.membershipStatus,
       membershipRole: membershipView.membershipRole,
       pendingRequestId: membershipView.pendingRequestId,
@@ -278,6 +333,31 @@ export function mapSentJoinRequestsToCards(payload) {
     const createdIso =
       createdRaw != null && String(createdRaw).trim() !== '' ? String(createdRaw) : null
 
+    const nestedRoom = request.room != null && typeof request.room === 'object' ? request.room : null
+    const participantCount = Number(
+      pickFirst(
+        request.participantCount,
+        request.roomParticipantCount,
+        nestedRoom?.participantCount,
+        nestedRoom?.participantsCount,
+        NaN,
+      ),
+    )
+    const maximumParticipants = Number(
+      pickFirst(
+        request.maximumParticipants,
+        request.roomMaximumParticipants,
+        nestedRoom?.maximumParticipants,
+        nestedRoom?.maxParticipants,
+        NaN,
+    ),
+    )
+    const hasCapacityHint =
+      Number.isFinite(participantCount) &&
+      Number.isFinite(maximumParticipants) &&
+      maximumParticipants > 0
+    const roomIsFull = hasCapacityHint && participantCount >= maximumParticipants
+
     return {
       id: pickFirst(request.requestId, request.id, `${roomId ?? 'room'}-${createdIso ?? 'request'}`),
       requestId: Number(pickFirst(request.requestId, request.id)) || null,
@@ -289,6 +369,9 @@ export function mapSentJoinRequestsToCards(payload) {
       createdAt: formatDateTimeRu(createdIso),
       createdAtIso: createdIso,
       linkTo: numericRoomId != null ? `/rooms/${numericRoomId}` : null,
+      participantCount: hasCapacityHint ? participantCount : null,
+      maximumParticipants: hasCapacityHint ? maximumParticipants : null,
+      roomIsFull: hasCapacityHint ? roomIsFull : null,
     }
   })
 }
@@ -318,6 +401,20 @@ export function mapIncomingJoinRequests(payload) {
       const createdIso =
         createdRaw != null && String(createdRaw).trim() !== '' ? String(createdRaw) : null
 
+      const rawUser = request.user
+      const applicantUser =
+        rawUser != null && typeof rawUser === 'object'
+          ? {
+              id: pickFirst(rawUser.id, rawUser.userId, numericUserId),
+              userId: rawUser.userId,
+              userName: pickFirst(rawUser.userName, rawUser.username),
+              avatarId: rawUser.avatarId,
+              avatarUrl: rawUser.avatarUrl,
+            }
+          : numericUserId != null
+            ? { id: numericUserId }
+            : null
+
       return {
         id: pickFirst(
           request.requestId,
@@ -330,6 +427,7 @@ export function mapIncomingJoinRequests(payload) {
         roomLink: numericRoomId != null ? `/rooms/${numericRoomId}` : null,
         userId: numericUserId,
         username: String(pickFirst(request.username, request.userName, request.user?.username, 'Пользователь')),
+        applicantUser,
         userLink: numericUserId != null ? `/users/${numericUserId}` : null,
         status: normalizeMembershipStatus(request.status),
         statusLabel: formatJoinRequestStatus(request.status),
@@ -402,6 +500,9 @@ export function mapQuestionsToPreview(payload) {
     const answersNum = Number(answersRaw)
     const answersCount = Number.isFinite(answersNum) ? answersNum : 0
 
+    const authorUser =
+      question.author != null && typeof question.author === 'object' ? question.author : null
+
     return {
       id: rawId ?? title,
       sortId: numericId ?? 0,
@@ -410,6 +511,7 @@ export function mapQuestionsToPreview(payload) {
           ? Number(question.author.id)
           : null,
       author: String(pickFirst(question.author?.userName, question.authorName, 'Неизвестный автор')),
+      authorUser,
       createdAt: formatDateTimeRu(createdIso),
       createdAtIso: createdIso,
       categoryKey,

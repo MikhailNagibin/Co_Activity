@@ -50,6 +50,11 @@ test.describe('Q&A thread', () => {
     await expect(page.getByRole('heading', { name: /Исходный текст вопроса/ })).toBeVisible()
     await expect(page.getByTestId('qa-thread-edit-question')).toHaveCount(0)
     await expect(page.getByTestId('qa-thread-delete-question')).toHaveCount(0)
+    await expect(page.getByLabel('Текст ответа')).toHaveCount(0)
+    const signInToAnswer = page.getByRole('link', { name: 'Войти, чтобы ответить на вопрос' })
+    await expect(signInToAnswer).toBeVisible()
+    await expect(signInToAnswer).toHaveAttribute('href', /[?&]next=/)
+    await expect(page.getByRole('link', { name: 'other-user' })).toHaveCount(0)
   })
 
   test('authenticated author can edit own question', async ({ page }) => {
@@ -142,6 +147,6 @@ test.describe('Q&A thread', () => {
 
     await page.getByTestId('qa-thread-save-question').click()
 
-    await expect(page.getByText('Мой вопрос после правки')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Мой вопрос после правки' })).toBeVisible()
   })
 })

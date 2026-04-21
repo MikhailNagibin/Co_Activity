@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import UserAvatar from './UserAvatar.jsx'
 
 function ProfileRoomCard({
   item,
@@ -7,18 +8,16 @@ function ProfileRoomCard({
   statusTone = 'neutral',
   actions = [],
 }) {
-  return (
-    <article className="profile-room-card">
+  const hasLink = Boolean(item?.linkTo)
+  const hasActions = actions.length > 0
+  const bodyClassName = `profile-room-card__body${hasActions ? '' : ' profile-room-card__body--solo'}`
+
+  const bodyInner = (
+    <>
       <div className="profile-room-card__header">
         <div className="profile-room-card__title-group">
           {eyebrow ? <p className="profile-room-card__eyebrow">{eyebrow}</p> : null}
-          {item.linkTo ? (
-            <Link className="profile-room-card__title" to={item.linkTo}>
-              {item.title}
-            </Link>
-          ) : (
-            <h2 className="profile-room-card__title">{item.title}</h2>
-          )}
+          <h2 className="profile-room-card__title">{item.title}</h2>
         </div>
         {statusLabel ? (
           <span className={`profile-room-card__status profile-room-card__status--${statusTone}`}>
@@ -33,13 +32,21 @@ function ProfileRoomCard({
         <span>{item.category}</span>
         <span>{item.date}</span>
         <span>{item.capacity}</span>
-        <span>Организатор: {item.author}</span>
+        <span className="profile-room-card__organizer">
+          <UserAvatar user={item.creatorUser} alt={`Аватар, ${item.author}`} size="sm" />
+          <span>Организатор: {item.author}</span>
+        </span>
       </div>
 
       <div className="profile-room-card__badges">
         {item.membershipRole ? (
           <span className="profile-room-card__badge">
-            Роль: {item.membershipRole === 'OWNER' ? 'создатель' : item.membershipRole === 'ADMIN' ? 'админ' : 'участник'}
+            Роль:{' '}
+            {item.membershipRole === 'OWNER'
+              ? 'создатель'
+              : item.membershipRole === 'ADMIN'
+                ? 'админ'
+                : 'участник'}
           </span>
         ) : null}
         <span className="profile-room-card__badge">
@@ -47,8 +54,24 @@ function ProfileRoomCard({
         </span>
         {item.roomStatus ? <span className="profile-room-card__badge">Статус: {item.roomStatus}</span> : null}
       </div>
+    </>
+  )
 
-      {actions.length > 0 ? (
+  return (
+    <article className="profile-room-card">
+      {hasLink ? (
+        <Link
+          className={bodyClassName}
+          to={item.linkTo}
+          aria-label={`Открыть активность: ${item.title}`}
+        >
+          {bodyInner}
+        </Link>
+      ) : (
+        <div className={bodyClassName}>{bodyInner}</div>
+      )}
+
+      {hasActions ? (
         <div className="profile-room-card__actions">
           {actions.map((action) => (
             <button

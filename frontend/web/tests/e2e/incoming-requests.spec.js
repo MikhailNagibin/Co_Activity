@@ -99,7 +99,7 @@ test('pending list accepts request and refreshes groups', async ({ page }) => {
   await page.goto('/profile/incoming-requests')
   await page.getByRole('button', { name: 'Принять' }).click()
 
-  await expect(page.getByText('Заявка принята.')).toBeVisible()
+  await expect(page.getByText('pending-user')).not.toBeVisible()
   await expect(page.getByText('Сейчас у вас нет ожидающих заявок на вступление.')).toBeVisible()
   expect(mockedApi.getProcessedAction()).toBe('ACCEPTED')
 })
@@ -119,6 +119,6 @@ test.describe('real stand moderation', () => {
     page.once('dialog', (dialog) => dialog.accept())
     await acceptButton.click()
 
-    await expect(page.getByText('Заявка принята.')).toBeVisible()
+    await expect(page.getByText('Принятие...')).toHaveCount(0, { timeout: 15000 })
   })
 })

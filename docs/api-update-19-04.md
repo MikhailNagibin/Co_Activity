@@ -75,7 +75,7 @@
 - Тело письма содержит:
   - `roomName`;
   - имя автора инвайта (`ownerUserName`);
-  - ссылку-путь на комнату: `/api/rooms/{roomId}`.
+  - кликабельную ссылку на страницу комнаты во фронте: `{APP_WEB_APP_BASE_URL}/rooms/{roomId}` (настройка `app.links.web-app-base-url` в `core-service`, по умолчанию `http://localhost:5173`).
 - Отдельные endpoints для «входящих приглашений» не добавлялись.
 
 ### Join behavior changes

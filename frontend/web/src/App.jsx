@@ -9,10 +9,12 @@ import DefaultQuestion0 from './pages/DefaultQuestion0.jsx'
 import QuestionThreadPage from './pages/QuestionThreadPage.jsx'
 import CreateQuestionPage from './pages/CreateQuestionPage.jsx'
 import CreateRoomPage from './pages/CreateRoomPage.jsx'
+import AgreementsPage from './pages/AgreementsPage.jsx'
 import MainPage from './pages/MainPage.jsx'
 import MyRoomsPage from './pages/MyRoomsPage.jsx'
 import IncomingJoinRequestsPage from './pages/IncomingJoinRequestsPage.jsx'
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx'
+import SiteSettingsPage from './pages/SiteSettingsPage.jsx'
 import PasswordResetPage from './pages/PasswordResetPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import PublicUserProfilePage from './pages/PublicUserProfilePage.jsx'
@@ -50,16 +52,19 @@ function App() {
       <Route path="/main" element={<MainPage />} />
       <Route path="/rooms/:roomId" element={<RoomActivityPage />} />
       <Route path="/rooms/:roomId/edit" element={<RequireAuth><RoomEditPage /></RequireAuth>} />
-      <Route path="/create-room" element={<CreateRoomPage />} />
+      <Route path="/create-room" element={<RequireAuth><CreateRoomPage /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/profile/my-rooms" element={<RequireAuth><MyRoomsPage /></RequireAuth>} />
       <Route path="/profile/incoming-requests" element={<RequireAuth><IncomingJoinRequestsPage /></RequireAuth>} />
       <Route path="/profile/sent-requests" element={<RequireAuth><SentJoinRequestsPage /></RequireAuth>} />
       <Route path="/profile/banned-rooms" element={<RequireAuth><BannedRoomsPage /></RequireAuth>} />
       <Route path="/profile/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
+      <Route path="/profile/site-settings" element={<RequireAuth><SiteSettingsPage /></RequireAuth>} />
+      <Route path="/profile/network" element={<Navigate to="/profile/site-settings" replace />} />
+      <Route path="/agreements" element={<RequireAuth><AgreementsPage /></RequireAuth>} />
       <Route path="/users/:userId" element={<RequireAuth><PublicUserProfilePage /></RequireAuth>} />
       <Route path="/qa" element={<QADataPage />} />
-      <Route path="/qa/new" element={<CreateQuestionPage />} />
+      <Route path="/qa/new" element={<RequireAuth><CreateQuestionPage /></RequireAuth>} />
       <Route path="/cards/default-0" element={<DefaultCard0 />} />
       <Route path="/questions/default-0" element={<Navigate to="/questions/demo" replace />} />
       <Route path="/questions/demo" element={<DefaultQuestion0 />} />

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import AppHeader from '../components/AppHeader.jsx'
 import { useAuthSession } from '../auth/authSessionContext.js'
-import ProfileAuthRail from '../components/ProfileAuthRail.jsx'
+import ProfileCabinetShell from '../components/ProfileCabinetShell.jsx'
 import { isApiError } from '../api/httpClient.js'
 import { changePassword } from '../services/authService.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
@@ -22,6 +21,7 @@ import {
   updateMyProfile,
 } from '../services/profileService.js'
 import { resolveUserAvatarUrl, resolveUserName, withCacheBust } from '../utils/userProfile.js'
+import { useConfirmDialog } from '../hooks/useConfirmDialog.jsx'
 
 function instantToInputDate(value) {
   if (!value) {
@@ -79,6 +79,7 @@ function buildProfileForm(payload) {
 function ProfilePage() {
   const navigate = useNavigate()
   const { isAuthenticated, clearSession } = useAuthSession()
+  const { requestConfirm, confirmDialog } = useConfirmDialog()
   const passwordErrorRef = useRef(null)
   const avatarInputRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -87,9 +88,7 @@ function ProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoadingDeletionPreview, setIsLoadingDeletionPreview] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [passwordErrorMessage, setPasswordErrorMessage] = useState('')
-  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('')
   const [passwordInvalidFields, setPasswordInvalidFields] = useState({})
   const [profile, setProfile] = useState(null)
   const [selectedAvatarFile, setSelectedAvatarFile] = useState(null)
@@ -177,8 +176,11 @@ function ProfilePage() {
   }, [avatarPreviewUrl])
 
   const handleProfileChange = (event) => {
-    const { name, value } = event.target
-    setProfileForm((prev) => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = event.target
+    setProfileForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
   }
 
   const handlePasswordFieldChange = (event) => {
@@ -193,7 +195,6 @@ function ProfilePage() {
   }
 
   const showPasswordError = (message, fields = {}) => {
-    setPasswordSuccessMessage('')
     setPasswordInvalidFields(fields)
     setPasswordErrorMessage(message)
   }
@@ -216,12 +217,10 @@ function ProfilePage() {
     const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
     if (file.type && !allowedMimeTypes.has(file.type)) {
       resetSelectedAvatar()
-      setSuccessMessage('')
       setErrorMessage('Аватар должен быть в формате PNG, JPEG или WEBP')
       return
     }
 
-    setSuccessMessage('')
     setErrorMessage('')
     setSelectedAvatarFile(file)
     setAvatarPreviewUrl(URL.createObjectURL(file))
@@ -234,14 +233,12 @@ function ProfilePage() {
     }
 
     setErrorMessage('')
-    setSuccessMessage('')
     setIsUploadingAvatar(true)
     try {
       const updated = await uploadMyAvatar(selectedAvatarFile)
       applyProfilePayload(updated)
       resetSelectedAvatar()
       setAvatarVersion((prev) => prev + 1)
-      setSuccessMessage('Аватар обновлён')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile' })
@@ -259,7 +256,6 @@ function ProfilePage() {
 
   const handleDeleteAvatar = async () => {
     setErrorMessage('')
-    setSuccessMessage('')
     setIsDeletingAvatar(true)
     try {
       await deleteMyAvatar()
@@ -274,7 +270,6 @@ function ProfilePage() {
           : prev,
       )
       setAvatarVersion((prev) => prev + 1)
-      setSuccessMessage('Аватар удалён')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile' })
@@ -293,7 +288,6 @@ function ProfilePage() {
   const handleSaveProfile = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
 
     const username = profileForm.username.trim()
     if (username.length < 2 || username.length > 20) {
@@ -321,7 +315,6 @@ function ProfilePage() {
     try {
       const updated = await updateMyProfile(payload)
       applyProfilePayload(updated)
-      setSuccessMessage('Профиль сохранён')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile' })
@@ -340,7 +333,6 @@ function ProfilePage() {
   const handleChangePassword = async (event) => {
     event.preventDefault()
     setPasswordErrorMessage('')
-    setPasswordSuccessMessage('')
     setPasswordInvalidFields({})
 
     if (passwordForm.currentPassword.length < 8) {
@@ -388,7 +380,6 @@ function ProfilePage() {
 
   const handleLogout = async () => {
     setErrorMessage('')
-    setSuccessMessage('')
     try {
       await logout()
     } catch {
@@ -426,7 +417,6 @@ function ProfilePage() {
   const executeAccountDeletion = async (requestFactory) => {
     setIsDeleting(true)
     setErrorMessage('')
-    setSuccessMessage('')
     try {
       await requestFactory()
       finishDeletedAccount()
@@ -439,15 +429,19 @@ function ProfilePage() {
 
   const handlePrepareDeletion = async () => {
     setErrorMessage('')
-    setSuccessMessage('')
     setIsLoadingDeletionPreview(true)
     try {
       const preview = await getMyDeletionPreview()
       if (preview?.canDeleteImmediately) {
-        const confirmed = window.confirm(
-          'У аккаунта нет активностей во владении. Удалить аккаунт без возможности восстановления?',
-        )
-        if (!confirmed) {
+        const ok = await requestConfirm({
+          title: 'Удаление аккаунта',
+          message:
+            'У аккаунта нет активностей во владении. Удалить аккаунт без возможности восстановления?',
+          confirmLabel: 'Удалить',
+          cancelLabel: 'Отмена',
+          variant: 'danger',
+        })
+        if (!ok) {
           return
         }
         await executeAccountDeletion(() => deleteMyAccount())
@@ -501,10 +495,15 @@ function ProfilePage() {
       })
     }
 
-    const confirmed = window.confirm(
-      'Аккаунт и выбранные изменения по вашим активностям будут удалены без возможности восстановления. Продолжить?',
-    )
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Удаление аккаунта',
+      message:
+        'Аккаунт и выбранные изменения по вашим активностям будут удалены без возможности восстановления. Продолжить?',
+      confirmLabel: 'Удалить',
+      cancelLabel: 'Отмена',
+      variant: 'danger',
+    })
+    if (!ok) {
       return
     }
 
@@ -520,33 +519,34 @@ function ProfilePage() {
 
   return (
     <>
-      <AppHeader activeTab={null} />
-      <div className="profile-shell">
-        <div className="profile-shell__column">
-          <section className="main-hero">
-            <h2>Личный кабинет</h2>
-            <h3 className="gray-elem">Настройки профиля и быстрые переходы</h3>
-          </section>
-
+      <ProfileCabinetShell
+        heroTitle="Личный кабинет"
+        heroSubtitle="Данные аккаунта, настройки сайта и безопасность"
+        sessionEnded={sessionEnded}
+        onLogout={handleLogout}
+        showCabinetNav={isAuthenticated}
+      >
+        {!isAuthenticated ? (
           <main className="profile-page">
-            {!isAuthenticated ? (
-              <p className="create-room-hint">
-                <Link to="/sign-in">Войдите</Link>, чтобы открыть личный кабинет.
-              </p>
-            ) : null}
+            <p className="create-room-hint">
+              <Link to="/sign-in">Войдите</Link>, чтобы открыть личный кабинет.
+            </p>
+          </main>
+        ) : null}
 
-            {isAuthenticated && isLoading ? <p>Загрузка профиля...</p> : null}
+        {isAuthenticated ? (
+          <main className="profile-page">
+            {isLoading ? <p>Загрузка профиля...</p> : null}
             {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
-            {successMessage ? <p className="profile-success">{successMessage}</p> : null}
 
-            {isAuthenticated && !isLoading && !profile ? (
+            {!isLoading && !profile ? (
               <section className="profile-panel profile-session-fallback">
                 <h3>Профиль не загрузился</h3>
                 <p className="gray-elem">Войдите снова.</p>
               </section>
             ) : null}
 
-            {isAuthenticated && !isLoading && profile ? (
+            {!isLoading && profile ? (
               <div className="profile-grid">
                 <section className="profile-panel profile-panel--overview">
                   <div className="profile-overview">
@@ -631,29 +631,6 @@ function ProfilePage() {
                       </button>
                     ) : null}
                   </div>
-                </section>
-
-                <section className="profile-panel">
-                  <p className="profile-kicker">Навигация</p>
-                  <h3>Быстрые разделы</h3>
-                  <div className="profile-links">
-                    <Link to="/profile/notifications" className="profile-links__action">
-                      Настройка уведомлений
-                    </Link>
-                    <Link to="/profile/my-rooms" className="profile-links__action">
-                      Мои активности
-                    </Link>
-                    <Link to="/profile/incoming-requests" className="profile-links__action">
-                      Входящие заявки
-                    </Link>
-                    <Link to="/profile/sent-requests" className="profile-links__action">
-                      Отправленные заявки
-                    </Link>
-                    <Link to="/profile/banned-rooms" className="profile-links__action">
-                      Забанен в комнатах
-                    </Link>
-                  </div>
-                  <p className="gray-elem">Откройте нужный раздел профиля отдельной страницей.</p>
                 </section>
 
                 <section className="profile-panel">
@@ -791,9 +768,6 @@ function ProfilePage() {
                           {passwordErrorMessage}
                         </p>
                       ) : null}
-                      {passwordSuccessMessage ? (
-                        <p className="auth-banner auth-banner--success">{passwordSuccessMessage}</p>
-                      ) : null}
 
                       <button
                         type="submit"
@@ -924,13 +898,9 @@ function ProfilePage() {
               </div>
             ) : null}
           </main>
-        </div>
-        <ProfileAuthRail
-          hasToken={isAuthenticated}
-          onLogout={handleLogout}
-          sessionEnded={sessionEnded}
-        />
-      </div>
+        ) : null}
+      </ProfileCabinetShell>
+      {confirmDialog}
     </>
   )
 }

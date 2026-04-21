@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import AppHeader from '../components/AppHeader.jsx'
+import ProfileCabinetShell from '../components/ProfileCabinetShell.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
+import { useAuthSession } from '../auth/authSessionContext.js'
 import { isApiError } from '../api/httpClient.js'
 import {
   cancelSentJoinRequest,
   getSentJoinRequests,
 } from '../services/profileService.js'
-import { getRoomMembershipStatus } from '../services/roomsService.js'
+import { getRoomMembershipStatus, joinRoom } from '../services/roomsService.js'
 import {
   mapSentJoinRequestsToCards,
   normalizeMembershipStatus,
@@ -17,12 +18,61 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
+import { useConfirmDialog } from '../hooks/useConfirmDialog.jsx'
 
 const SORT_OPTIONS = [
   { value: 'created-desc', label: 'Сначала новые' },
   { value: 'created-asc', label: 'Сначала старые' },
   { value: 'name-asc', label: 'По названию А-Я' },
 ]
+
+const DISMISSED_STORAGE_NS = 'coactivity.sentRequests.dismissed'
+const MAX_STORED_DISMISSED_IDS = 200
+
+function resolveSessionUserId(user) {
+  const raw = user?.id ?? user?.userId
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+function dismissedIdsStorageKey(userId) {
+  return `${DISMISSED_STORAGE_NS}:${userId}`
+}
+
+function readStoredDismissedIds(userId) {
+  if (userId == null) {
+    return []
+  }
+  try {
+    const raw = localStorage.getItem(dismissedIdsStorageKey(userId))
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.map((id) => String(id)).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function writeStoredDismissedIds(userId, ids) {
+  if (userId == null) {
+    return
+  }
+  try {
+    const unique = [...new Set(ids.map((id) => String(id)).filter(Boolean))]
+    const capped =
+      unique.length > MAX_STORED_DISMISSED_IDS
+        ? unique.slice(unique.length - MAX_STORED_DISMISSED_IDS)
+        : unique
+    localStorage.setItem(dismissedIdsStorageKey(userId), JSON.stringify(capped))
+  } catch {
+    // ignore quota / private mode
+  }
+}
 
 function normalizeSearch(value) {
   return String(value ?? '').trim().toLowerCase()
@@ -58,6 +108,24 @@ function getMembershipHint(status) {
   }
 }
 
+function canDismissRequest(status) {
+  return normalizeMembershipStatus(status) !== 'PENDING'
+}
+
+function canRepeatJoinRequest(request) {
+  if (
+    normalizeMembershipStatus(request.status) !== 'REFUSED' ||
+    normalizeMembershipStatus(request.membershipStatus) !== 'NOT_JOINED' ||
+    !Number.isFinite(Number(request.roomId))
+  ) {
+    return false
+  }
+  if (request.roomIsFull === true) {
+    return false
+  }
+  return true
+}
+
 function sortRequests(items, sortBy) {
   const copy = [...items]
 
@@ -87,17 +155,32 @@ async function loadMembershipStatuses(requests) {
 
 function SentJoinRequestsPage() {
   const navigate = useNavigate()
+  const { requestConfirm, confirmDialog } = useConfirmDialog()
+  const { currentUser } = useAuthSession()
+  const sessionUserId = useMemo(() => resolveSessionUserId(currentUser), [currentUser])
+
   const [requests, setRequests] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('created-desc')
   const [activeRequestId, setActiveRequestId] = useState(null)
+  const [dismissedRequestIds, setDismissedRequestIds] = useState([])
 
-  const loadRequests = useCallback(async () => {
-    setIsLoading(true)
-    setErrorMessage('')
+  useLayoutEffect(() => {
+    if (sessionUserId == null) {
+      setDismissedRequestIds([])
+      return
+    }
+    setDismissedRequestIds(readStoredDismissedIds(sessionUserId))
+  }, [sessionUserId])
+
+  const loadRequests = useCallback(async (options = {}) => {
+    const { silent = false } = options
+    if (!silent) {
+      setIsLoading(true)
+      setErrorMessage('')
+    }
 
     try {
       const payload = await getSentJoinRequests()
@@ -110,6 +193,9 @@ function SentJoinRequestsPage() {
             request.roomId != null ? membershipStatuses.get(request.roomId)?.status ?? '' : '',
         })),
       )
+      if (silent) {
+        setErrorMessage('')
+      }
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile/sent-requests' })
@@ -120,9 +206,13 @@ function SentJoinRequestsPage() {
       } else {
         setErrorMessage('Не удалось загрузить отправленные заявки')
       }
-      setRequests([])
+      if (!silent) {
+        setRequests([])
+      }
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [navigate])
 
@@ -131,38 +221,43 @@ function SentJoinRequestsPage() {
   }, [loadRequests])
 
   const filteredRequests = useMemo(() => {
+    const dismissed = new Set(dismissedRequestIds.map(String))
+    const visibleRequests = requests.filter((request) => !dismissed.has(String(request.id)))
     const query = normalizeSearch(searchQuery)
     const visible = query
-      ? requests.filter((request) =>
+      ? visibleRequests.filter((request) =>
           [request.roomName, request.statusLabel, request.createdAt].some((part) =>
             String(part ?? '')
               .toLowerCase()
               .includes(query),
           ),
         )
-      : requests
+      : visibleRequests
 
     return sortRequests(visible, sortBy)
-  }, [requests, searchQuery, sortBy])
+  }, [dismissedRequestIds, requests, searchQuery, sortBy])
 
   const handleCancelRequest = async (request) => {
     if (!request?.requestId) {
       return
     }
 
-    const confirmed = window.confirm(`Отозвать заявку в «${request.roomName}»?`)
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Заявка',
+      message: `Отозвать заявку в «${request.roomName}»?`,
+      confirmLabel: 'Отозвать',
+      variant: 'danger',
+    })
+    if (!ok) {
       return
     }
 
     setActiveRequestId(request.requestId)
     setErrorMessage('')
-    setSuccessMessage('')
 
     try {
       await cancelSentJoinRequest(request.requestId)
-      setSuccessMessage(`Заявка в «${request.roomName}» отозвана`)
-      await loadRequests()
+      await loadRequests({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile/sent-requests' })
@@ -178,56 +273,97 @@ function SentJoinRequestsPage() {
     }
   }
 
+  const handleDismissRequest = (request) => {
+    if (!request?.id || !canDismissRequest(request.status)) {
+      return
+    }
+    const idStr = String(request.id)
+    setDismissedRequestIds((prev) => {
+      if (prev.includes(idStr)) {
+        return prev
+      }
+      const next = [...prev, idStr]
+      if (sessionUserId != null) {
+        writeStoredDismissedIds(sessionUserId, next)
+      }
+      return next
+    })
+  }
+
+  const handleRepeatRequest = async (request) => {
+    if (!canRepeatJoinRequest(request)) {
+      return
+    }
+
+    const ok = await requestConfirm({
+      title: 'Заявка',
+      message: `Повторно отправить заявку в «${request.roomName}»?`,
+      confirmLabel: 'Отправить',
+      variant: 'primary',
+    })
+    if (!ok) {
+      return
+    }
+
+    setActiveRequestId(request.requestId ?? request.id)
+    setErrorMessage('')
+
+    try {
+      await joinRoom(request.roomId)
+      await loadRequests({ silent: true })
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        redirectToSignInForExpiredSession(navigate, { next: '/profile/sent-requests' })
+        return
+      }
+      if (isApiError(error)) {
+        setErrorMessage(getUserFacingApiMessage(error, 'Не удалось отправить заявку повторно'))
+      } else {
+        setErrorMessage('Не удалось отправить заявку повторно')
+      }
+    } finally {
+      setActiveRequestId(null)
+    }
+  }
+
   return (
     <>
-      <AppHeader activeTab={null} />
-      <div className="profile-list-shell">
-        <section className="main-hero">
-          <h2>Отправленные заявки</h2>
-          <h3 className="gray-elem">Следите за статусом заявок и отзывайте ожидающие</h3>
-        </section>
-
+      <ProfileCabinetShell
+        heroTitle="Отправленные заявки"
+        heroSubtitle="Следите за статусом заявок и отзывайте ожидающие"
+      >
         <main className="profile-list-page">
-          <div className="profile-list-backline">
-            <Link className="back-link" to="/profile">
-              ← Назад в профиль
-            </Link>
-          </div>
+          <div className="main-toolbar-shell">
+            <div className="main-toolbar profile-list-toolbar profile-list-toolbar--rich">
+              <div className="search-wrapper">
+                <button className="search-button" type="button" aria-label="Поиск">
+                  <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                </button>
+                <input
+                  placeholder="Комната, статус, дата…"
+                  type="search"
+                  name="q"
+                  autoComplete="off"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label="Поиск по отправленным заявкам"
+                />
+              </div>
 
-          <div className="profile-list-toolbar">
-            <div className="search-wrapper">
-              <button className="search-button" type="button" aria-label="Поиск">
-                <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-              </button>
-              <input
-                placeholder="Комната, статус, дата…"
-                type="search"
-                name="q"
-                autoComplete="off"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                aria-label="Поиск по отправленным заявкам"
+              <StyledDropdown
+                variant="toolbar"
+                id="sent-requests-sort"
+                ariaLabel="Сортировка"
+                options={SORT_OPTIONS}
+                value={sortBy}
+                onChange={setSortBy}
               />
             </div>
-
-            <StyledDropdown
-              variant="toolbar"
-              id="sent-requests-sort"
-              ariaLabel="Сортировка"
-              options={SORT_OPTIONS}
-              value={sortBy}
-              onChange={setSortBy}
-            />
           </div>
 
           {errorMessage ? (
             <p className="profile-list-message profile-list-message--error" role="alert">
               {errorMessage}
-            </p>
-          ) : null}
-          {successMessage ? (
-            <p className="profile-list-message profile-list-message--success" role="status">
-              {successMessage}
             </p>
           ) : null}
 
@@ -266,8 +402,8 @@ function SentJoinRequestsPage() {
                       <p className="sent-request-card__hint">{getMembershipHint(request.membershipStatus)}</p>
                     ) : null}
 
-                    {request.status === 'PENDING' ? (
-                      <div className="sent-request-card__actions">
+                    <div className="sent-request-card__actions">
+                      {request.status === 'PENDING' ? (
                         <button
                           type="button"
                           className="profile-room-card__action profile-room-card__action--secondary"
@@ -276,14 +412,36 @@ function SentJoinRequestsPage() {
                         >
                           {activeRequestId === request.requestId ? 'Отзыв...' : 'Отозвать заявку'}
                         </button>
-                      </div>
-                    ) : null}
+                      ) : null}
+                      {canRepeatJoinRequest(request) ? (
+                        <button
+                          type="button"
+                          className="profile-room-card__action profile-room-card__action--secondary"
+                          onClick={() => handleRepeatRequest(request)}
+                          disabled={activeRequestId === (request.requestId ?? request.id)}
+                        >
+                          {activeRequestId === (request.requestId ?? request.id)
+                            ? 'Отправка...'
+                            : 'Отправить заявку снова'}
+                        </button>
+                      ) : null}
+                      {canDismissRequest(request.status) ? (
+                        <button
+                          type="button"
+                          className="profile-room-card__action profile-room-card__action--secondary"
+                          onClick={() => handleDismissRequest(request)}
+                        >
+                          Убрать из списка
+                        </button>
+                      ) : null}
+                    </div>
                   </article>
                 ))
               : null}
           </section>
         </main>
-      </div>
+      </ProfileCabinetShell>
+      {confirmDialog}
     </>
   )
 }

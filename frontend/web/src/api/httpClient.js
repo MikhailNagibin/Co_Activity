@@ -1,12 +1,14 @@
 import { getApiBaseUrl } from './config.js'
 
 export class ApiError extends Error {
-  constructor(message, status, details = null, code = null) {
+  constructor(message, status, details = null, code = null, fieldErrors = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.details = details
     this.code = code
+    /** @type {{ field: string, message: string, code: string }[] | null} */
+    this.fieldErrors = fieldErrors
   }
 }
 
@@ -33,14 +35,14 @@ export function describeFetchFailure(error) {
     raw.includes('Load failed') ||
     raw.includes('fetch') && raw.includes('Network')
   ) {
-    return 'Не удаётся связаться с сервером. Проверьте интернет и что сервер приложения запущен (для разработки: core-service, CORS и адрес API в настройках фронта).'
+    return 'Не удаётся установить соединение. Проверьте интернет и попробуйте позже.'
   }
 
   if (raw) {
-    return 'Запрос не выполнен. Проверьте подключение к интернету и что сервер приложения запущен.'
+    return 'Запрос не выполнен. Проверьте подключение к интернету и попробуйте снова.'
   }
 
-  return 'Запрос не выполнен. Проверьте подключение и настройки приложения.'
+  return 'Запрос не выполнен. Попробуйте позже.'
 }
 
 function joinUrl(baseUrl, path) {
@@ -145,12 +147,32 @@ function normalizeDetails(details) {
   }
 }
 
+function parseFieldErrorsFromPayload(payload) {
+  const raw = payload?.errors
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return null
+  }
+  const out = raw
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      field: typeof item.field === 'string' ? item.field : '',
+      message: typeof item.message === 'string' ? item.message : '',
+      code: typeof item.code === 'string' ? item.code : '',
+    }))
+    .filter((item) => item.field || item.message)
+  return out.length > 0 ? out : null
+}
+
 function parseApiErrorPayload(payload) {
   if (!payload || typeof payload !== 'object') {
-    return { message: null, details: null, code: null }
+    return { message: null, details: null, code: null, fieldErrors: null }
   }
 
-  const rawDetails = payload.details ?? payload.errors ?? null
+  const fieldErrors = parseFieldErrorsFromPayload(payload)
+  const rawDetails =
+    typeof payload.details === 'string' && payload.details.trim()
+      ? payload.details
+      : null
   const details = normalizeDetails(rawDetails)
   const code =
     typeof payload.code === 'string' && payload.code.trim()
@@ -167,7 +189,7 @@ function parseApiErrorPayload(payload) {
             ? payload.title
         : null
 
-  return { message, details, code }
+  return { message, details, code, fieldErrors }
 }
 
 async function parseResponse(response) {
@@ -237,7 +259,13 @@ export async function apiRequest(path, options = {}) {
       parsedError.details && parsedError.details !== baseMessage
         ? `${baseMessage}${baseMessage.endsWith('.') ? '' : '.'} ${parsedError.details}`
         : baseMessage
-    throw new ApiError(fullMessage, response.status, parsedError.details, parsedError.code)
+    throw new ApiError(
+      fullMessage,
+      response.status,
+      parsedError.details,
+      parsedError.code,
+      parsedError.fieldErrors,
+    )
   }
 
   return payload

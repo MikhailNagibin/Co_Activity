@@ -81,7 +81,7 @@ class RoomInvitationIntegrationTest extends AbstractSessionWebIntegrationTest {
     assertTrue(containsAll(payloadCaptor.getValue(),
         "Invite Room",
         "inviteOwner",
-        "/api/rooms/" + roomId));
+        "http://localhost:5173/rooms/" + roomId));
   }
 
   @Test

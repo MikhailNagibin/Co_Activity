@@ -15,13 +15,14 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
+import { useConfirmDialog } from '../hooks/useConfirmDialog.jsx'
+import UserAvatar from './UserAvatar.jsx'
 
 const REQUEST_ACTIONS = [
   {
     key: 'ACCEPTED',
     label: 'Принять',
     pendingLabel: 'Принятие...',
-    successMessage: 'Заявка принята.',
     errorMessage: 'Не удалось принять заявку.',
     buildConfirmMessage: (request) =>
       `Принять заявку пользователя «${request.username}» в активность «${request.roomName}»?`,
@@ -30,7 +31,6 @@ const REQUEST_ACTIONS = [
     key: 'REFUSED',
     label: 'Отклонить',
     pendingLabel: 'Отклонение...',
-    successMessage: 'Заявка отклонена.',
     errorMessage: 'Не удалось отклонить заявку.',
     buildConfirmMessage: (request) =>
       `Отклонить заявку пользователя «${request.username}» в активности «${request.roomName}»?`,
@@ -39,7 +39,6 @@ const REQUEST_ACTIONS = [
     key: 'REFUSED_WITH_BAN',
     label: 'Отклонить с баном',
     pendingLabel: 'Блокировка...',
-    successMessage: 'Заявка отклонена, пользователь заблокирован.',
     errorMessage: 'Не удалось отклонить заявку с баном.',
     tone: 'danger',
     buildConfirmMessage: (request) =>
@@ -63,15 +62,18 @@ function IncomingJoinRequestCard({
   return (
     <article className="incoming-request-card">
       <div className="incoming-request-card__header">
-        <div className="incoming-request-card__title-group">
-          <span className="profile-room-card__eyebrow">Заявка на вступление</span>
-          {request.userLink ? (
-            <Link className="sent-request-card__title" to={request.userLink}>
-              {request.username}
-            </Link>
-          ) : (
-            <h3 className="sent-request-card__title">{request.username}</h3>
-          )}
+        <div className="incoming-request-card__identity">
+          <UserAvatar user={request.applicantUser} alt={`Аватар, ${request.username}`} size="md" />
+          <div className="incoming-request-card__title-group">
+            <span className="profile-room-card__eyebrow">Заявка на вступление</span>
+            {request.userLink ? (
+              <Link className="sent-request-card__title" to={request.userLink}>
+                {request.username}
+              </Link>
+            ) : (
+              <h3 className="sent-request-card__title">{request.username}</h3>
+            )}
+          </div>
         </div>
         <span className="sent-request-card__status sent-request-card__status--neutral">
           {request.statusLabel}
@@ -115,6 +117,7 @@ function IncomingJoinRequestsSection({
   onAfterAction,
 }) {
   const navigate = useNavigate()
+  const { requestConfirm, confirmDialog } = useConfirmDialog()
   const [requests, setRequests] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -123,13 +126,13 @@ function IncomingJoinRequestsSection({
   const [pendingActionKey, setPendingActionKey] = useState('')
 
   const loadRequests = useCallback(async (options = {}) => {
-    const { preserveFeedback = false } = options
-    setIsLoading(true)
-    setErrorMessage('')
-    if (!preserveFeedback) {
-      setFeedback('')
-      setFeedbackTone('success')
+    const { silent = false } = options
+    if (!silent) {
+      setIsLoading(true)
+      setErrorMessage('')
     }
+    setFeedback('')
+    setFeedbackTone('success')
 
     try {
       const payload =
@@ -137,6 +140,9 @@ function IncomingJoinRequestsSection({
           ? await getPendingJoinRequestsForRoom(roomId)
           : await getPendingJoinRequests()
       setRequests(mapIncomingJoinRequests(payload))
+      if (silent) {
+        setErrorMessage('')
+      }
       return true
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -146,7 +152,9 @@ function IncomingJoinRequestsSection({
         return false
       }
 
-      setRequests([])
+      if (!silent) {
+        setRequests([])
+      }
       if (isApiError(error)) {
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить входящие заявки.'))
       } else {
@@ -154,7 +162,9 @@ function IncomingJoinRequestsSection({
       }
       return false
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [navigate, nextPath, roomId])
 
@@ -169,8 +179,13 @@ function IncomingJoinRequestsSection({
       return
     }
 
-    const confirmed = window.confirm(action.buildConfirmMessage(request))
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Подтверждение',
+      message: action.buildConfirmMessage(request),
+      confirmLabel: action.label,
+      variant: action.tone === 'danger' ? 'danger' : 'primary',
+    })
+    if (!ok) {
       return
     }
 
@@ -183,8 +198,8 @@ function IncomingJoinRequestsSection({
       if (typeof onAfterAction === 'function') {
         await onAfterAction()
       }
-      await loadRequests({ preserveFeedback: true })
-      setFeedback(action.successMessage)
+      await loadRequests({ silent: true })
+      setFeedback('')
       setFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -225,6 +240,7 @@ function IncomingJoinRequestsSection({
   )
 
   return (
+    <>
     <section className="room-panel room-panel-soft incoming-requests-section" aria-labelledby="incoming-requests-heading">
       <div className="room-governance-header">
         <div>
@@ -235,15 +251,8 @@ function IncomingJoinRequestsSection({
         </div>
       </div>
 
-      {feedback ? (
-        <p
-          className={
-            feedbackTone === 'error'
-              ? 'room-governance-feedback room-governance-feedback--error'
-              : 'room-governance-feedback room-governance-feedback--success'
-          }
-          role="status"
-        >
+      {feedback && feedbackTone === 'error' ? (
+        <p className="room-governance-feedback room-governance-feedback--error" role="alert">
           {feedback}
         </p>
       ) : null}
@@ -289,6 +298,8 @@ function IncomingJoinRequestsSection({
         <div className="incoming-request-group__list">{requests.map(renderCard)}</div>
       ) : null}
     </section>
+    {confirmDialog}
+    </>
   )
 }
 

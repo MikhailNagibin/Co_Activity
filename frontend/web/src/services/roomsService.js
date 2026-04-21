@@ -80,6 +80,11 @@ export function joinRoom(roomId, options = {}) {
   return post(`/rooms/${roomId}/join`, undefined, options)
 }
 
+/** POST /api/rooms/{roomId}/invites — только OWNER; тело { userId }; письмо-приглашение на почту. */
+export function inviteUserToRoom(roomId, userId, options = {}) {
+  return post(`/rooms/${roomId}/invites`, { userId }, options)
+}
+
 /** POST /api/rooms/{roomId}/leave — требуется активная HTTP-сессия и CSRF. */
 export function leaveRoom(roomId, options = {}) {
   return post(`/rooms/${roomId}/leave`, undefined, options)
@@ -115,7 +120,7 @@ export function demoteRoomAdmin(roomId, userId, options = {}) {
   return del(`/users/rooms/${roomId}/admins/${userId}`, options)
 }
 
-/** POST /api/rooms/{roomId}/ownership/transfer — передать ownership. */
+/** POST /api/rooms/{roomId}/ownership/transfer — передать роль создателя. */
 export function transferRoomOwnership(roomId, targetUserId, options = {}) {
   return post(`/rooms/${roomId}/ownership/transfer`, { targetUserId }, options)
 }
@@ -130,7 +135,7 @@ export function createRoom(payload, options = {}) {
   return post('/rooms/createRoom', payload, options)
 }
 
-/** PUT /api/rooms/{roomId} — требуется OWNER/ADMIN и активная HTTP-сессия с CSRF. */
+/** PUT /api/rooms/{roomId} — только OWNER; активная HTTP-сессия и CSRF. */
 export function updateRoom(roomId, payload, options = {}) {
   return put(`/rooms/${roomId}`, payload, options)
 }

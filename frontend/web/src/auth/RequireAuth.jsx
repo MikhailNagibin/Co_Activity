@@ -12,7 +12,6 @@ export default function RequireAuth({ children }) {
   if (!isAuthenticated) {
     const next = `${location.pathname}${location.search || ''}`
     const params = new URLSearchParams()
-    params.set('session', 'expired')
     if (next.startsWith('/') && !next.startsWith('//')) {
       params.set('next', next)
     }

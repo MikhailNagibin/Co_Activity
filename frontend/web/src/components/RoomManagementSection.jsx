@@ -7,6 +7,7 @@ import {
   demoteRoomAdmin,
   getRoomBans,
   getRoomParticipants,
+  inviteUserToRoom,
   removeRoomParticipant,
   transferRoomOwnership,
   unbanRoomUser,
@@ -18,6 +19,7 @@ import {
 } from '../utils/sessionExpiredRedirect.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import { resolveUserAvatarUrl, resolveUserName } from '../utils/userProfile.js'
+import { useConfirmDialog } from '../hooks/useConfirmDialog.jsx'
 
 const MANAGEMENT_TABS = [
   { id: 'participants', label: 'Участники' },
@@ -146,6 +148,7 @@ function RoomManagementSection({
   onRefreshRoom,
 }) {
   const navigate = useNavigate()
+  const { requestConfirm, confirmDialog } = useConfirmDialog()
   const [activeTab, setActiveTab] = useState('participants')
   const [participants, setParticipants] = useState([])
   const [bans, setBans] = useState([])
@@ -154,27 +157,37 @@ function RoomManagementSection({
   const [feedback, setFeedback] = useState('')
   const [feedbackTone, setFeedbackTone] = useState('success')
   const [pendingActionKey, setPendingActionKey] = useState('')
+  const [inviteUserIdRaw, setInviteUserIdRaw] = useState('')
 
   const normalizedCurrentRole = normalizeMembershipRole(currentUserRole)
   const canModerate = normalizedCurrentRole === 'OWNER' || normalizedCurrentRole === 'ADMIN'
   const canManageRoles = normalizedCurrentRole === 'OWNER'
 
+  const managementTabs = useMemo(
+    () =>
+      canManageRoles
+        ? [...MANAGEMENT_TABS, { id: 'invites', label: 'Пригласить' }]
+        : MANAGEMENT_TABS,
+    [canManageRoles],
+  )
+
   const loadGovernanceData = useCallback(async (options = {}) => {
-    const { preserveFeedback = false } = options
+    const { silent = false } = options
 
     if (!canModerate) {
       setParticipants([])
       setBans([])
       setErrorMessage('')
+      setFeedback('')
       setIsLoading(false)
       return false
     }
 
-    setIsLoading(true)
-    setErrorMessage('')
-    if (!preserveFeedback) {
-      setFeedback('')
+    if (!silent) {
+      setIsLoading(true)
+      setErrorMessage('')
     }
+    setFeedback('')
 
     try {
       const [participantsPayload, bansPayload] = await Promise.all([
@@ -183,6 +196,9 @@ function RoomManagementSection({
       ])
       setParticipants(Array.isArray(participantsPayload) ? participantsPayload : [])
       setBans(Array.isArray(bansPayload) ? bansPayload : [])
+      if (silent) {
+        setErrorMessage('')
+      }
       return true
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -192,8 +208,10 @@ function RoomManagementSection({
         return false
       }
 
-      setParticipants([])
-      setBans([])
+      if (!silent) {
+        setParticipants([])
+        setBans([])
+      }
       if (isApiError(error)) {
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось загрузить управление активностью.'))
       } else {
@@ -201,13 +219,21 @@ function RoomManagementSection({
       }
       return false
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [canModerate, navigate, roomId])
 
   useEffect(() => {
     loadGovernanceData()
   }, [loadGovernanceData])
+
+  useEffect(() => {
+    if (!canManageRoles && activeTab === 'invites') {
+      setActiveTab('participants')
+    }
+  }, [activeTab, canManageRoles])
 
   const sortedParticipants = useMemo(
     () => [...participants].sort(compareUsers),
@@ -219,11 +245,18 @@ function RoomManagementSection({
     actionKey,
     confirmMessage,
     action,
-    successMessage,
     errorMessage: fallbackMessage,
   }) => {
-    if (confirmMessage && !window.confirm(confirmMessage)) {
-      return
+    if (confirmMessage) {
+      const ok = await requestConfirm({
+        title: 'Подтверждение',
+        message: confirmMessage,
+        confirmLabel: 'Продолжить',
+        variant: 'danger',
+      })
+      if (!ok) {
+        return
+      }
     }
 
     setPendingActionKey(actionKey)
@@ -234,11 +267,11 @@ function RoomManagementSection({
       await action()
 
       if (typeof onRefreshRoom === 'function') {
-        await onRefreshRoom({ preserveJoinFeedback: true })
+        await onRefreshRoom({ silent: true })
       }
-      await loadGovernanceData({ preserveFeedback: true })
+      await loadGovernanceData({ silent: true })
 
-      setFeedback(successMessage)
+      setFeedback('')
       setFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -257,7 +290,53 @@ function RoomManagementSection({
     } finally {
       setPendingActionKey('')
     }
-  }, [loadGovernanceData, navigate, onRefreshRoom, roomId])
+  }, [loadGovernanceData, navigate, onRefreshRoom, requestConfirm, roomId])
+
+  const handleInviteSubmit = useCallback(
+    async (event) => {
+      event.preventDefault()
+
+      const trimmed = inviteUserIdRaw.trim()
+      const targetUserId = Number.parseInt(trimmed, 10)
+      if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+        setFeedback('Укажите корректный числовой ID пользователя (как в адресе профиля /users/…).')
+        setFeedbackTone('error')
+        return
+      }
+      if (Number(currentUserId) === targetUserId) {
+        setFeedback('Нельзя отправить приглашение самому себе.')
+        setFeedbackTone('error')
+        return
+      }
+
+      setPendingActionKey('invite')
+      setFeedback('')
+      setFeedbackTone('success')
+
+      try {
+        await inviteUserToRoom(roomId, targetUserId)
+        setFeedback('')
+        setFeedbackTone('success')
+        setInviteUserIdRaw('')
+      } catch (error) {
+        if (isUnauthorizedApiError(error)) {
+          redirectToSignInForExpiredSession(navigate, {
+            next: `/rooms/${encodeURIComponent(String(roomId))}`,
+          })
+          return
+        }
+        if (isApiError(error)) {
+          setFeedback(getUserFacingApiMessage(error, 'Не удалось отправить приглашение.'))
+        } else {
+          setFeedback('Не удалось отправить приглашение.')
+        }
+        setFeedbackTone('error')
+      } finally {
+        setPendingActionKey('')
+      }
+    },
+    [currentUserId, inviteUserIdRaw, navigate, roomId],
+  )
 
   if (!canModerate) {
     return null
@@ -299,7 +378,6 @@ function RoomManagementSection({
                     actionKey: `remove-${userId}`,
                     confirmMessage: `Удалить пользователя «${getGovernanceUserName(participant)}» из активности «${roomName || 'Без названия'}»?`,
                     action: () => removeRoomParticipant(roomId, userId),
-                    successMessage: 'Участник удалён из активности.',
                     errorMessage: 'Не удалось удалить участника из активности.',
                   }),
                 }
@@ -315,7 +393,6 @@ function RoomManagementSection({
                     actionKey: `ban-${userId}`,
                     confirmMessage: `Забанить пользователя «${getGovernanceUserName(participant)}» в активности «${roomName || 'Без названия'}»?`,
                     action: () => banRoomUser(roomId, userId),
-                    successMessage: 'Пользователь забанен.',
                     errorMessage: 'Не удалось забанить пользователя.',
                   }),
                 }
@@ -359,7 +436,6 @@ function RoomManagementSection({
                     actionKey: `unban-${userId}`,
                     confirmMessage: `Снять бан с пользователя «${getGovernanceUserName(user)}»?`,
                     action: () => unbanRoomUser(roomId, userId),
-                    successMessage: 'Бан снят.',
                     errorMessage: 'Не удалось снять бан.',
                   }),
                 },
@@ -391,7 +467,7 @@ function RoomManagementSection({
       <>
         {!canManageRoles ? (
           <p className="gray-elem">
-            Назначение администраторов и передача ownership доступны только создателю комнаты.
+            Назначение администраторов и передача роли создателя доступны только владельцу активности.
           </p>
         ) : null}
 
@@ -412,7 +488,6 @@ function RoomManagementSection({
                       actionKey: `promote-${userId}`,
                       confirmMessage: `Назначить пользователя «${getGovernanceUserName(participant)}» администратором активности «${roomName || 'Без названия'}»?`,
                       action: () => assignRoomAdmin(roomId, userId),
-                      successMessage: 'Роль администратора назначена.',
                       errorMessage: 'Не удалось назначить администратора.',
                     }),
                   }
@@ -428,7 +503,6 @@ function RoomManagementSection({
                       actionKey: `demote-${userId}`,
                       confirmMessage: `Снять роль администратора с пользователя «${getGovernanceUserName(participant)}»?`,
                       action: () => demoteRoomAdmin(roomId, userId),
-                      successMessage: 'Роль администратора снята.',
                       errorMessage: 'Не удалось снять роль администратора.',
                     }),
                   }
@@ -436,16 +510,15 @@ function RoomManagementSection({
               canManageRoles && role !== 'OWNER' && !isSelf && Number.isFinite(userId)
                 ? {
                     key: `transfer-${userId}`,
-                    label: 'Передать ownership',
+                    label: 'Передать роль создателя',
                     pendingLabel: 'Передача...',
                     tone: 'danger',
                     isCurrent: pendingActionKey === `transfer-${userId}`,
                     onClick: () => runGovernanceAction({
                       actionKey: `transfer-${userId}`,
-                      confirmMessage: `Передать ownership активности «${roomName || 'Без названия'}» пользователю «${getGovernanceUserName(participant)}»?`,
+                      confirmMessage: `Передать роль создателя активности «${roomName || 'Без названия'}» пользователю «${getGovernanceUserName(participant)}»?`,
                       action: () => transferRoomOwnership(roomId, userId),
-                      successMessage: 'Ownership передан.',
-                      errorMessage: 'Не удалось передать ownership.',
+                      errorMessage: 'Не удалось передать роль создателя.',
                     }),
                   }
                 : null,
@@ -468,7 +541,43 @@ function RoomManagementSection({
     )
   }
 
+  const renderInvitesTab = () => (
+    <div className="room-invite-panel">
+      <p className="gray-elem">
+        Укажите ID пользователя (его можно посмотреть в профиле по ссылке «/users/…»). На почту придёт
+        письмо с названием активности и ссылкой. Для{' '}
+        <strong>приватной</strong> активности приглашённый сможет вступить сразу после входа в аккаунт;
+        для публичной письмо служит уведомлением.
+      </p>
+      <form className="room-invite-form" onSubmit={handleInviteSubmit}>
+        <div className="room-invite-form__row">
+          <label htmlFor="room-invite-user-id">ID пользователя</label>
+          <input
+            id="room-invite-user-id"
+            name="inviteUserId"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            className="room-invite-form__input"
+            value={inviteUserIdRaw}
+            onChange={(e) => setInviteUserIdRaw(e.target.value)}
+            placeholder="Например, 42"
+            disabled={pendingActionKey === 'invite'}
+          />
+        </div>
+        <button
+          type="submit"
+          className="room-governance-action"
+          disabled={Boolean(pendingActionKey)}
+        >
+          {pendingActionKey === 'invite' ? 'Отправка…' : 'Отправить приглашение'}
+        </button>
+      </form>
+    </div>
+  )
+
   return (
+    <>
     <section className="room-panel room-panel-soft room-governance-section" aria-labelledby="room-management-heading">
       <div className="room-governance-header">
         <div>
@@ -482,7 +591,7 @@ function RoomManagementSection({
       </div>
 
       <div className="room-governance-tabs" role="tablist" aria-label="Разделы управления комнатой">
-        {MANAGEMENT_TABS.map((tab) => (
+        {managementTabs.map((tab) => (
           <button
             key={tab.id}
             id={`room-management-tab-${tab.id}`}
@@ -502,15 +611,8 @@ function RoomManagementSection({
         ))}
       </div>
 
-      {feedback ? (
-        <p
-          className={
-            feedbackTone === 'error'
-              ? 'room-governance-feedback room-governance-feedback--error'
-              : 'room-governance-feedback room-governance-feedback--success'
-          }
-          role="status"
-        >
+      {feedback && feedbackTone === 'error' ? (
+        <p className="room-governance-feedback room-governance-feedback--error" role="alert">
           {feedback}
         </p>
       ) : null}
@@ -533,9 +635,12 @@ function RoomManagementSection({
           {activeTab === 'participants' ? renderParticipantsTab() : null}
           {activeTab === 'bans' ? renderBansTab() : null}
           {activeTab === 'roles' ? renderRolesTab() : null}
+          {activeTab === 'invites' ? renderInvitesTab() : null}
         </div>
       ) : null}
     </section>
+    {confirmDialog}
+    </>
   )
 }
 

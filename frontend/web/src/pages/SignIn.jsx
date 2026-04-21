@@ -52,6 +52,7 @@ function SignIn() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
 
   useLayoutEffect(() => {
     if (!authNotice) {
@@ -81,19 +82,23 @@ function SignIn() {
   const handleFieldChange = (event) => {
     const { name, value } = event.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setFieldErrors((prev) => (prev[name] ? { ...prev, [name]: '' } : prev))
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
+    setFieldErrors({})
 
     const email = formData.email.trim()
     if (!email) {
-      setErrorMessage('Укажите почту')
+      setFieldErrors({ email: 'Укажите почту' })
+      setErrorMessage('Исправьте подсвеченные поля и попробуйте снова.')
       return
     }
     if (formData.password.length < 8) {
-      setErrorMessage('Пароль: от 8 символов')
+      setFieldErrors({ password: 'Пароль: от 8 символов' })
+      setErrorMessage('Исправьте подсвеченные поля и попробуйте снова.')
       return
     }
 
@@ -167,9 +172,14 @@ function SignIn() {
       authActionLabel="Войти"
       authActionTo="/sign-in"
       footer={
-        <p className="auth-card__footer-text">
-          У вас нет аккаунта? <Link to="/sign-up">Зарегистрироваться</Link>
-        </p>
+        <div className="auth-card__footer-stack">
+          <p className="auth-card__footer-text">
+            У вас нет аккаунта? <Link to="/sign-up">Зарегистрироваться</Link>
+          </p>
+          <p className="auth-card__footer-text">
+            <Link to="/main">Продолжить без входа</Link>
+          </p>
+        </div>
       }
     >
       {authNotice === 'expired' ? (
@@ -195,6 +205,7 @@ function SignIn() {
           onChange={handleFieldChange}
           autoComplete="email"
           disabled={isSubmitting}
+          error={fieldErrors.email}
         />
         <AuthField
           label="Пароль"
@@ -205,6 +216,7 @@ function SignIn() {
           onChange={handleFieldChange}
           autoComplete="current-password"
           disabled={isSubmitting}
+          error={fieldErrors.password}
         />
         {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
         <button

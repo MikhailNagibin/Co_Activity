@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import AppHeader from '../components/AppHeader.jsx'
 import { useAuthSession } from '../auth/authSessionContext.js'
-import ProfileAuthRail from '../components/ProfileAuthRail.jsx'
+import ProfileCabinetShell from '../components/ProfileCabinetShell.jsx'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
 import {
@@ -10,6 +9,7 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import {
+  getMyProfile,
   getMyNotificationSettings,
   logout,
   updateMyNotificationSettings,
@@ -31,8 +31,8 @@ function NotificationSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [accountEmail, setAccountEmail] = useState('')
   const [notificationsForm, setNotificationsForm] = useState({
     membershipAccepted: true,
     membershipRejected: true,
@@ -48,12 +48,16 @@ function NotificationSettingsPage() {
       setIsLoading(true)
       setErrorMessage('')
       try {
-        const payload = await getMyNotificationSettings()
+        const [payload, profilePayload] = await Promise.all([
+          getMyNotificationSettings(),
+          getMyProfile(),
+        ])
         if (!isMounted) {
           return
         }
         setSettingsLoaded(true)
         setNotificationsForm(normalizeNotificationSettings(payload))
+        setAccountEmail(String(profilePayload?.email ?? '').trim())
       } catch (error) {
         if (!isMounted) {
           return
@@ -96,15 +100,35 @@ function NotificationSettingsPage() {
     [notificationsForm],
   )
 
+  const areAllNotificationsEnabled = useMemo(
+    () =>
+      notificationsForm.membershipAccepted &&
+      notificationsForm.membershipRejected &&
+      notificationsForm.activityClosed &&
+      notificationsForm.newJoinRequest &&
+      notificationsForm.importantRoomUpdates,
+    [notificationsForm],
+  )
+
   const handleNotificationToggle = (event) => {
     const { name, checked } = event.target
     setNotificationsForm((prev) => ({ ...prev, [name]: checked }))
   }
 
+  const handleToggleAllNotifications = () => {
+    const nextEnabled = notificationsDisabled
+    setNotificationsForm({
+      membershipAccepted: nextEnabled,
+      membershipRejected: nextEnabled,
+      activityClosed: nextEnabled,
+      newJoinRequest: nextEnabled,
+      importantRoomUpdates: nextEnabled,
+    })
+  }
+
   const handleSaveNotifications = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
 
     const payload = {
       membershipAccepted: notificationsForm.membershipAccepted,
@@ -119,11 +143,6 @@ function NotificationSettingsPage() {
       const savedSettings = await updateMyNotificationSettings(payload)
       setSettingsLoaded(true)
       setNotificationsForm(normalizeNotificationSettings(savedSettings))
-      setSuccessMessage(
-        notificationsDisabled
-          ? 'Все уведомления отключены. По правилам продукта это эквивалентно глобальному отключению.'
-          : 'Настройки уведомлений сохранены',
-      )
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/profile/notifications' })
@@ -141,7 +160,6 @@ function NotificationSettingsPage() {
 
   const handleLogout = async () => {
     setErrorMessage('')
-    setSuccessMessage('')
     try {
       await logout()
     } catch {
@@ -156,39 +174,54 @@ function NotificationSettingsPage() {
 
   return (
     <>
-      <AppHeader activeTab={null} />
-      <div className="profile-shell">
-        <div className="profile-shell__column">
-          <section className="main-hero">
-            <h2>Настройки уведомлений</h2>
-            <h3 className="gray-elem">
-              <Link to="/profile" className="notification-settings-back">
-                ← Личный кабинет
-              </Link>
-            </h3>
-          </section>
+      <ProfileCabinetShell
+        heroTitle="Настройки уведомлений"
+        heroSubtitle="Выберите, по каким событиям приходят письма на адрес из вашего профиля."
+        onLogout={handleLogout}
+        sessionEnded={sessionEnded}
+      >
+        <main className="profile-page">
+          {!isAuthenticated ? (
+            <p className="create-room-hint">
+              <Link to="/sign-in">Войдите</Link>, чтобы изменить уведомления.
+            </p>
+          ) : null}
 
-          <main className="profile-page">
-        {!isAuthenticated ? (
-          <p className="create-room-hint">
-            <Link to="/sign-in">Войдите</Link>, чтобы изменить уведомления.
-          </p>
-        ) : null}
+          {isAuthenticated && isLoading ? <p>Загрузка...</p> : null}
+          {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
 
-        {isAuthenticated && isLoading ? <p>Загрузка...</p> : null}
-        {errorMessage ? <p className="create-room-error">{errorMessage}</p> : null}
-        {successMessage ? <p className="profile-success">{successMessage}</p> : null}
+          {isAuthenticated && !isLoading && !settingsLoaded ? (
+            <section className="profile-panel profile-session-fallback">
+              <h3>Настройки не загрузились</h3>
+              <p className="gray-elem">Войдите снова.</p>
+            </section>
+          ) : null}
 
-        {isAuthenticated && !isLoading && !settingsLoaded ? (
-          <section className="profile-panel profile-session-fallback">
-            <h3>Настройки не загрузились</h3>
-            <p className="gray-elem">Войдите снова.</p>
-          </section>
-        ) : null}
-
-        {isAuthenticated && !isLoading && settingsLoaded ? (
-          <section className="profile-panel notification-settings-panel">
+          {isAuthenticated && !isLoading && settingsLoaded ? (
+            <section className="profile-panel notification-settings-panel">
             <form onSubmit={handleSaveNotifications} className="profile-form">
+              <div className="notification-settings-summary">
+                <p className="profile-kicker">Почта для уведомлений</p>
+                <strong>{accountEmail || 'Почта не найдена'}</strong>
+                <p className="gray-elem">
+                  Уведомления отправляются на адрес, указанный в профиле. Сценарии «отклонено» и «отклонено с
+                  баном» настраиваются одним пунктом — письма по ним не различаются.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="notification-settings-master"
+                onClick={handleToggleAllNotifications}
+                disabled={isSavingNotifications}
+              >
+                {notificationsDisabled
+                  ? 'Включить все уведомления'
+                  : areAllNotificationsEnabled
+                    ? 'Отключить все уведомления'
+                    : 'Переключить все уведомления'}
+              </button>
+
               <label className="profile-checkbox">
                 <input
                   type="checkbox"
@@ -213,9 +246,10 @@ function NotificationSettingsPage() {
                   disabled={isSavingNotifications}
                 />
                 <span className="notification-settings-option">
-                  <span>Заявка на вступление отклонена</span>
+                  <span>Заявка на вступление отклонена / отклонена с баном</span>
                   <span className="notification-settings-option__hint">
-                    Письмо сообщает, что заявка не принята организаторами.
+                    Письмо сообщает, что заявка не принята организаторами, в том числе если повторное
+                    вступление больше недоступно.
                   </span>
                 </span>
               </label>
@@ -273,12 +307,10 @@ function NotificationSettingsPage() {
                 {isSavingNotifications ? 'Сохранение...' : 'Сохранить'}
               </button>
             </form>
-          </section>
-        ) : null}
-          </main>
-        </div>
-        <ProfileAuthRail hasToken={isAuthenticated} onLogout={handleLogout} sessionEnded={sessionEnded} />
-      </div>
+            </section>
+          ) : null}
+        </main>
+      </ProfileCabinetShell>
     </>
   )
 }

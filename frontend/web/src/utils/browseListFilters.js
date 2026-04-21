@@ -1,4 +1,5 @@
 import { browseFilterToApiCategory } from '../constants/categoryOptions.js'
+import { getCategoryRelatedSearchTerms } from '../constants/browseCategorySearchHints.js'
 
 function normalizeSearch(q) {
   return String(q ?? '')
@@ -85,6 +86,8 @@ export function sortActivityCards(items, sortBy) {
  * @param {string} [criteria.ageCeiling] — 'all' | '0'|'6'|...
  * @param {string} [criteria.organizerCity]
  * @param {string} [criteria.organizerCountry]
+ * @param {boolean} [criteria.showActivitiesNotMeetingAgeRating] — если false и задан userAgeYears, скрываем комнаты с рейтингом выше возраста пользователя
+ * @param {number|null} [criteria.userAgeYears]
  */
 export function filterActivityCardsForBrowse(items, criteria) {
   const {
@@ -95,6 +98,8 @@ export function filterActivityCardsForBrowse(items, criteria) {
     ageCeiling = 'all',
     organizerCity = '',
     organizerCountry = '',
+    showActivitiesNotMeetingAgeRating = true,
+    userAgeYears = null,
   } = criteria
 
   const apiCat = browseFilterToApiCategory(categoryFilter)
@@ -122,6 +127,19 @@ export function filterActivityCardsForBrowse(items, criteria) {
     }
   }
 
+  if (showActivitiesNotMeetingAgeRating === false && userAgeYears != null) {
+    const age = Number(userAgeYears)
+    if (Number.isFinite(age) && age >= 0) {
+      list = list.filter((item) => {
+        const rating = Number(item.ageRating)
+        if (!Number.isFinite(rating) || rating <= 0) {
+          return true
+        }
+        return age >= rating
+      })
+    }
+  }
+
   const cityQ = organizerCity.trim().toLowerCase()
   if (cityQ) {
     list = list.filter((item) => String(item.creatorCity || '').toLowerCase().includes(cityQ))
@@ -131,21 +149,24 @@ export function filterActivityCardsForBrowse(items, criteria) {
     list = list.filter((item) => String(item.creatorCountry || '').toLowerCase().includes(countryQ))
   }
 
-  return list.filter((item) =>
-    matchesTokenHaystack(
+  return list.filter((item) => {
+    const related = getCategoryRelatedSearchTerms(item.categoryKey)
+    return matchesTokenHaystack(
       [
         item.title,
         item.description,
         item.author,
         item.category,
+        item.categoryKey,
         item.creatorCity,
         item.creatorCountry,
+        related,
       ]
         .filter(Boolean)
         .join(' '),
       searchQuery,
-    ),
-  )
+    )
+  })
 }
 
 /**

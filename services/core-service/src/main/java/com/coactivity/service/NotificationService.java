@@ -33,6 +33,13 @@ public class NotificationService {
   private String notificationsKafkaTopic = DEFAULT_NOTIFICATIONS_KAFKA_TOPIC;
   private long notificationsKafkaSendTimeoutMs = DEFAULT_NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS;
 
+  /**
+   * Public origin of the SPA (scheme + host + optional port), used for clickable room links in emails.
+   * Override with {@code APP_WEB_APP_BASE_URL} (see {@code app.links.web-app-base-url}).
+   */
+  @Value("${app.links.web-app-base-url:http://localhost:5173}")
+  private String webAppBaseUrl = "http://localhost:5173";
+
   public NotificationService(UserRepository userRepository, ObjectMapper objectMapper) {
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
@@ -331,7 +338,7 @@ public class NotificationService {
 
     String effectiveAuthorName = hasText(authorName) ? authorName : "Unknown user";
     String effectiveRoomName = hasText(roomName) ? roomName : "Untitled room";
-    String roomPath = roomId != null ? "/api/rooms/" + roomId : "/api/rooms";
+    String roomUrl = buildRoomWebAppUrl(roomId);
 
     String subject = "New room by " + effectiveAuthorName + ": " + effectiveRoomName;
     String message = String.format("""
@@ -342,7 +349,7 @@ public class NotificationService {
         Room link: %s
 
         The CoActivity Team
-        """, effectiveAuthorName, effectiveRoomName, roomPath);
+        """, effectiveAuthorName, effectiveRoomName, roomUrl);
 
     return publishWithLogging(email, subject, message, "followed-user room notification", null);
   }
@@ -363,7 +370,7 @@ public class NotificationService {
 
     String effectiveRoomName = hasText(roomName) ? roomName : "Untitled room";
     String effectiveOwnerUserName = hasText(ownerUserName) ? ownerUserName : "Room owner";
-    String roomPath = roomId != null ? "/api/rooms/" + roomId : "/api/rooms";
+    String roomUrl = buildRoomWebAppUrl(roomId);
 
     String subject = "Room invitation: " + effectiveRoomName;
     String message = String.format("""
@@ -374,7 +381,7 @@ public class NotificationService {
         Room link: %s
 
         The CoActivity Team
-        """, effectiveRoomName, effectiveOwnerUserName, roomPath);
+        """, effectiveRoomName, effectiveOwnerUserName, roomUrl);
 
     return publishWithLogging(invitedUser.getEmail(), subject, message, "room invitation", invitedUserId);
   }
@@ -613,6 +620,30 @@ public class NotificationService {
       String to,
       String subject,
       String body) {
+  }
+
+  private String normalizeWebAppBaseUrl(String raw) {
+    if (raw == null) {
+      return "http://localhost:5173";
+    }
+    String trimmed = raw.trim();
+    if (trimmed.isEmpty()) {
+      return "http://localhost:5173";
+    }
+    String withoutTrailingSlashes = trimmed;
+    while (withoutTrailingSlashes.endsWith("/")) {
+      withoutTrailingSlashes = withoutTrailingSlashes.substring(0, withoutTrailingSlashes.length() - 1);
+    }
+    return withoutTrailingSlashes;
+  }
+
+  /** Absolute URL to the room page in the SPA ({@code /rooms/{id}}). */
+  private String buildRoomWebAppUrl(Integer roomId) {
+    String base = normalizeWebAppBaseUrl(webAppBaseUrl);
+    if (roomId == null) {
+      return base + "/main";
+    }
+    return base + "/rooms/" + roomId;
   }
 
   private boolean hasText(String value) {

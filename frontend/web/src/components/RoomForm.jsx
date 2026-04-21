@@ -3,6 +3,7 @@ import { ROOM_CATEGORY_OPTIONS } from '../constants/categoryOptions.js'
 import { ROOM_STATUS_OPTIONS } from '../constants/roomStatusOptions.js'
 
 function RoomForm({
+  lead = null,
   title,
   subtitle = '',
   formData,
@@ -14,9 +15,16 @@ function RoomForm({
   onSubmit,
   showStatus = false,
   children = null,
+  chatLinkReadOnly = false,
+  scheduleReadOnly = false,
+  /** ФТ «Активности» п.2: поля, отмеченные «статическое» (название, категория, описание, публичность, возрастной рейтинг). */
+  staticActivityFieldsLocked = false,
 }) {
+  const rowLock = (locked) => (locked ? ' create-room-form-row--locked-visual' : '')
+
   return (
-    <>
+    <div className="room-form-page-shell">
+      {lead}
       <section className="main-hero">
         <h2>{title}</h2>
         {subtitle ? <h3 className="gray-elem">{subtitle}</h3> : null}
@@ -24,7 +32,7 @@ function RoomForm({
 
       <main className="create-room-page">
         <form className="create-room-form room-editor-form" onSubmit={onSubmit}>
-          <div className="create-room-form-row">
+          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
             <label htmlFor="name">Название</label>
             <input
               id="name"
@@ -35,12 +43,13 @@ function RoomForm({
               maxLength={100}
               value={formData.name}
               onChange={onFieldChange}
-              disabled={isSubmitting}
+              disabled={isSubmitting || staticActivityFieldsLocked}
+              readOnly={staticActivityFieldsLocked}
               required
             />
           </div>
 
-          <div className="create-room-form-row">
+          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
             <label htmlFor="category">Категория</label>
             <StyledDropdown
               variant="form"
@@ -57,7 +66,7 @@ function RoomForm({
                   },
                 })
               }
-              disabled={isSubmitting}
+              disabled={isSubmitting || staticActivityFieldsLocked}
             />
           </div>
 
@@ -84,8 +93,8 @@ function RoomForm({
             </div>
           ) : null}
 
-          <div className="create-room-form-row">
-            <label htmlFor="description">Описание</label>
+          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
+            <label htmlFor="description">Описание (необязательно)</label>
             <textarea
               id="description"
               name="description"
@@ -93,8 +102,8 @@ function RoomForm({
               maxLength={2000}
               value={formData.description}
               onChange={onFieldChange}
-              disabled={isSubmitting}
-              required
+              disabled={isSubmitting || staticActivityFieldsLocked}
+              readOnly={staticActivityFieldsLocked}
             />
           </div>
 
@@ -113,7 +122,7 @@ function RoomForm({
                 required
               />
             </div>
-            <div>
+            <div className={staticActivityFieldsLocked ? 'create-room-field-group--locked-visual' : ''}>
               <label htmlFor="ageRating">Возрастной рейтинг (0-21)</label>
               <input
                 id="ageRating"
@@ -123,7 +132,8 @@ function RoomForm({
                 max={21}
                 value={formData.ageRating}
                 onChange={onFieldChange}
-                disabled={isSubmitting}
+                disabled={isSubmitting || staticActivityFieldsLocked}
+                readOnly={staticActivityFieldsLocked}
                 required
               />
             </div>
@@ -158,7 +168,7 @@ function RoomForm({
             </div>
           </div>
 
-          <div className="create-room-form-row split-fields">
+          <div className={`create-room-form-row split-fields${rowLock(scheduleReadOnly)}`}>
             <div>
               <label htmlFor="dateOfStartEvent">Начало (необязательно)</label>
               <input
@@ -167,7 +177,8 @@ function RoomForm({
                 type="datetime-local"
                 value={formData.dateOfStartEvent}
                 onChange={onFieldChange}
-                disabled={isSubmitting}
+                disabled={isSubmitting || scheduleReadOnly}
+                readOnly={scheduleReadOnly}
               />
             </div>
             <div>
@@ -178,24 +189,26 @@ function RoomForm({
                 type="datetime-local"
                 value={formData.dateOfEndEvent}
                 onChange={onFieldChange}
-                disabled={isSubmitting}
+                disabled={isSubmitting || scheduleReadOnly}
+                readOnly={scheduleReadOnly}
               />
             </div>
           </div>
 
-          <div className="create-room-form-row">
-            <label htmlFor="frequency">Частота / следующее повторение (необязательно)</label>
+          <div className={`create-room-form-row${rowLock(scheduleReadOnly)}`}>
+            <label htmlFor="frequency">Следующая дата проведения (необязательно)</label>
             <input
               id="frequency"
               name="frequency"
               type="datetime-local"
               value={formData.frequency}
               onChange={onFieldChange}
-              disabled={isSubmitting}
+              disabled={isSubmitting || scheduleReadOnly}
+              readOnly={scheduleReadOnly}
             />
           </div>
 
-          <div className="create-room-form-row">
+          <div className={`create-room-form-row${rowLock(chatLinkReadOnly)}`}>
             <label htmlFor="chatLink">Ссылка на чат (необязательно)</label>
             <input
               id="chatLink"
@@ -205,11 +218,14 @@ function RoomForm({
               maxLength={255}
               value={formData.chatLink}
               onChange={onFieldChange}
-              disabled={isSubmitting}
+              disabled={isSubmitting || chatLinkReadOnly}
+              readOnly={chatLinkReadOnly}
             />
           </div>
 
-          <div className="create-room-form-row create-room-checkbox-row">
+          <div
+            className={`create-room-form-row create-room-checkbox-row${rowLock(staticActivityFieldsLocked)}`}
+          >
             <label htmlFor="isPublic">
               <input
                 id="isPublic"
@@ -217,9 +233,9 @@ function RoomForm({
                 type="checkbox"
                 checked={formData.isPublic}
                 onChange={onFieldChange}
-                disabled={isSubmitting}
+                disabled={isSubmitting || staticActivityFieldsLocked}
               />
-              Публичное событие (видно в общей ленте)
+              Разрешить вступление без заявки (иначе — только по заявке администраторам)
             </label>
           </div>
 
@@ -240,7 +256,7 @@ function RoomForm({
           </button>
         </form>
       </main>
-    </>
+    </div>
   )
 }
 

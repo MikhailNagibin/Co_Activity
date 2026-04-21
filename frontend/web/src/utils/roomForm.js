@@ -3,6 +3,11 @@ import { getApiBaseUrl } from '../api/config.js'
 import { normalizeRoomCategory } from '../constants/categoryOptions.js'
 import { getUserFacingApiMessage } from './userFacingApiError.js'
 
+/**
+ * ФТ: максимум участников «может отсутствовать». В OpenAPI (`RoomCreationRequest` / `RoomUpdateRequest`)
+ * поле `maximumNumberOfPeople` обязательное — без смены API фронт не может отправить «без лимита»;
+ * здесь остаётся числовой дефолт для формы.
+ */
 export const DEFAULT_ROOM_FORM_STATE = {
   name: '',
   description: '',
@@ -157,6 +162,7 @@ export function validateRoomForm(formData, options = {}) {
 
 export function buildRoomPayload(formData, options = {}) {
   const { includeStatus = false } = options
+  const chatLink = sanitizeOptionalText(formData?.chatLink, 255)
   const payload = {
     isPublic: Boolean(formData?.isPublic),
     category: normalizeRoomCategory(formData?.category),
@@ -165,7 +171,7 @@ export function buildRoomPayload(formData, options = {}) {
     city: sanitizeOptionalText(formData?.city, 100),
     country: sanitizeOptionalText(formData?.country, 100),
     maximumNumberOfPeople: Number.parseInt(String(formData?.maximumNumberOfPeople ?? ''), 10),
-    chatLink: sanitizeOptionalText(formData?.chatLink, 255),
+    chatLink,
     dateOfStartEvent: localDateTimeToInstantIso(formData?.dateOfStartEvent),
     dateOfEndEvent: localDateTimeToInstantIso(formData?.dateOfEndEvent),
     frequency: localDateTimeToInstantIso(formData?.frequency),
@@ -179,18 +185,32 @@ export function buildRoomPayload(formData, options = {}) {
   return payload
 }
 
+/**
+ * ФТ «Активности» п.2: после создания поля «статические» не меняются — в PUT подставляем их из снимка комнаты,
+ * остальное — из формы (защита и от рассинхрона состояния).
+ */
+export function buildRoomUpdatePayloadFromSnapshot(room, formData, options = {}) {
+  const base = buildRoomPayload(formData, options)
+  if (!room || typeof room !== 'object') {
+    return base
+  }
+
+  return {
+    ...base,
+    isPublic: room.isPublic !== false,
+    category: normalizeRoomCategory(room.category),
+    name: String(room.name ?? '').trim(),
+    description: String(room.description ?? '').trim(),
+    ageRating: clampAgeRating(room.ageRating),
+  }
+}
+
 export function getProblemDetailsMessage(error, fallback) {
   if (!isApiError(error)) {
     return fallback
   }
 
-  const userFacing = getUserFacingApiMessage(error, fallback)
-  const details = String(error.details ?? '').trim()
-  if (!details || userFacing.includes(details)) {
-    return userFacing
-  }
-
-  return `${userFacing} ${details}`
+  return getUserFacingApiMessage(error, fallback)
 }
 
 export function sortRoomImages(images) {

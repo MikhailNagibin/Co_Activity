@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import UserAvatar from './UserAvatar.jsx'
 
 function answersWord(n) {
   const x = Math.abs(Number(n)) % 100
@@ -15,7 +16,7 @@ function answersWord(n) {
   return 'ответов'
 }
 
-function QuestionPreview({ item }) {
+function QuestionPreview({ item, canViewProfiles = false }) {
   const answersNum = Number(item.answersCount)
   const answersCount = Number.isFinite(answersNum) ? answersNum : 0
   const authorLink =
@@ -60,8 +61,8 @@ function QuestionPreview({ item }) {
       )}
       <footer className="qa-question-card-footer">
         <div className="qa-question-card-author">
-          <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
-          {authorLink ? <Link to={authorLink}>{item.author}</Link> : <span>{item.author}</span>}
+          <UserAvatar user={item.authorUser} alt={`Аватар, ${item.author}`} size="sm" />
+          {canViewProfiles && authorLink ? <Link to={authorLink}>{item.author}</Link> : <span>{item.author}</span>}
         </div>
         {item.createdAt ? (
           <time

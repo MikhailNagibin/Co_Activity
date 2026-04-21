@@ -22,13 +22,16 @@ import {
 } from '../services/roomsService.js'
 import {
   formatDate,
+  formatDateWithWeekday,
   getRoomMembershipView,
   normalizeBulletinContent,
 } from '../services/uiMappers.js'
 import { getRoomCategoryLabel } from '../constants/categoryOptions.js'
 import { getRoomStatusLabel } from '../constants/roomStatusOptions.js'
 import { resolveRoomImageUrl, sortRoomImages } from '../utils/roomForm.js'
+import UserAvatar from '../components/UserAvatar.jsx'
 import { resolveUserName } from '../utils/userProfile.js'
+import { useConfirmDialog } from '../hooks/useConfirmDialog.jsx'
 
 function formatCategory(category) {
   return getRoomCategoryLabel(category)
@@ -60,6 +63,7 @@ function getRoleLabel(role) {
 
 function RoomActivityPage() {
   const navigate = useNavigate()
+  const { requestConfirm, confirmDialog } = useConfirmDialog()
   const { isAuthenticated, currentUser } = useAuthSession()
   const { roomId: roomIdParam } = useParams()
   const roomId = Number.parseInt(String(roomIdParam), 10)
@@ -82,7 +86,7 @@ function RoomActivityPage() {
   const [bulletinFeedbackTone, setBulletinFeedbackTone] = useState('success')
 
   const loadRoom = useCallback(async (options = {}) => {
-    const { preserveJoinFeedback = false } = options
+    const { silent = false } = options
 
     if (!Number.isFinite(roomId) || roomId < 1) {
       setErrorMessage('Некорректный идентификатор активности')
@@ -91,13 +95,13 @@ function RoomActivityPage() {
       return false
     }
 
-    setIsLoading(true)
-    setErrorMessage('')
-    setMembershipLoadError('')
-    if (!preserveJoinFeedback) {
-      setJoinFeedback('')
+    if (!silent) {
+      setIsLoading(true)
+      setErrorMessage('')
+      setMembershipLoadError('')
+      setMembership(null)
     }
-    setMembership(null)
+    setJoinFeedback('')
 
     try {
       const payload = await getRoomById(roomId)
@@ -134,10 +138,14 @@ function RoomActivityPage() {
       } else {
         setErrorMessage('Не удалось загрузить активность')
       }
-      setRoom(null)
+      if (!silent) {
+        setRoom(null)
+      }
       return false
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [isAuthenticated, navigate, roomId])
 
@@ -165,6 +173,12 @@ function RoomActivityPage() {
   const membershipUnavailable = isAuthenticated && Boolean(membershipLoadError) && !hasMembershipSnapshot
   const organizerId = room?.creator?.id
   const organizerName = resolveUserName(room?.creator, 'Не указано')
+  const roomCreatedRaw =
+    room == null ? null : room.createdAt ?? room.creationDate ?? room.created_at ?? null
+  const roomCreatedLabel =
+    roomCreatedRaw != null && String(roomCreatedRaw).trim() !== ''
+      ? formatDateWithWeekday(roomCreatedRaw)
+      : ''
   const membershipRoleLabel = getRoleLabel(membershipView.membershipRole)
   const roomStatusLabel = getRoomStatusLabel(room?.status)
   const roomImages = sortRoomImages(room?.images)
@@ -201,8 +215,13 @@ function RoomActivityPage() {
       return
     }
 
-    const confirmed = window.confirm('Вы уверены, что хотите изменить доску?')
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Доска объявлений',
+      message: 'Вы уверены, что хотите изменить доску?',
+      confirmLabel: 'Изменить',
+      variant: 'primary',
+    })
+    if (!ok) {
       return
     }
 
@@ -211,10 +230,10 @@ function RoomActivityPage() {
     setBulletinFeedbackTone('success')
     try {
       await updateRoomBulletin(roomId, trimmed)
-      await loadRoom({ preserveJoinFeedback: true })
+      await loadRoom({ silent: true })
       setBulletinEditing(false)
       setBulletinDraft('')
-      setBulletinFeedback('Доска объявлений обновлена.')
+      setBulletinFeedback('')
       setBulletinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -239,8 +258,13 @@ function RoomActivityPage() {
       return
     }
 
-    const confirmed = window.confirm('Вы уверены, что хотите очистить доску?')
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Доска объявлений',
+      message: 'Вы уверены, что хотите очистить доску?',
+      confirmLabel: 'Очистить',
+      variant: 'danger',
+    })
+    if (!ok) {
       return
     }
 
@@ -249,10 +273,10 @@ function RoomActivityPage() {
     setBulletinFeedbackTone('success')
     try {
       await deleteRoomBulletin(roomId)
-      await loadRoom({ preserveJoinFeedback: true })
+      await loadRoom({ silent: true })
       setBulletinEditing(false)
       setBulletinDraft('')
-      setBulletinFeedback('Доска объявлений очищена.')
+      setBulletinFeedback('')
       setBulletinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -289,12 +313,8 @@ function RoomActivityPage() {
     setJoinFeedbackTone('success')
     try {
       await joinRoom(roomId)
-      await loadRoom({ preserveJoinFeedback: true })
-      if (isPublic) {
-        setJoinFeedback('Вы присоединились к активности.')
-      } else {
-        setJoinFeedback('Заявка отправлена и ожидает решения организаторов.')
-      }
+      await loadRoom({ silent: true })
+      setJoinFeedback('')
       setJoinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -319,8 +339,13 @@ function RoomActivityPage() {
       return
     }
 
-    const confirmed = window.confirm(`Покинуть активность «${room.name || 'Без названия'}»?`)
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Покинуть активность',
+      message: `Покинуть активность «${room.name || 'Без названия'}»?`,
+      confirmLabel: 'Покинуть',
+      variant: 'primary',
+    })
+    if (!ok) {
       return
     }
 
@@ -329,8 +354,8 @@ function RoomActivityPage() {
     setJoinFeedbackTone('success')
     try {
       await leaveRoom(roomId)
-      await loadRoom({ preserveJoinFeedback: true })
-      setJoinFeedback('Вы покинули активность.')
+      await loadRoom({ silent: true })
+      setJoinFeedback('')
       setJoinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -355,8 +380,13 @@ function RoomActivityPage() {
       return
     }
 
-    const confirmed = window.confirm(`Отозвать заявку в «${room.name || 'Без названия'}»?`)
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Заявка',
+      message: `Отозвать заявку в «${room.name || 'Без названия'}»?`,
+      confirmLabel: 'Отозвать',
+      variant: 'danger',
+    })
+    if (!ok) {
       return
     }
 
@@ -365,8 +395,8 @@ function RoomActivityPage() {
     setJoinFeedbackTone('success')
     try {
       await cancelSentJoinRequest(membershipView.pendingRequestId)
-      await loadRoom({ preserveJoinFeedback: true })
-      setJoinFeedback('Заявка отозвана.')
+      await loadRoom({ silent: true })
+      setJoinFeedback('')
       setJoinFeedbackTone('success')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -391,10 +421,13 @@ function RoomActivityPage() {
       return
     }
 
-    const confirmed = window.confirm(
-      `Удалить активность «${room.name || 'Без названия'}» без возможности восстановления?`,
-    )
-    if (!confirmed) {
+    const ok = await requestConfirm({
+      title: 'Удаление активности',
+      message: `Удалить активность «${room.name || 'Без названия'}» без возможности восстановления?`,
+      confirmLabel: 'Удалить',
+      variant: 'danger',
+    })
+    if (!ok) {
       return
     }
 
@@ -422,42 +455,65 @@ function RoomActivityPage() {
     }
   }
 
+  const renderJoinPanel = (title, iconClassName, body, stateClassName = '') => (
+    <div className={['room-join-block', 'room-panel-soft', stateClassName].filter(Boolean).join(' ')}>
+      <div className="room-join-block__head">
+        <span className="room-join-block__icon-wrap" aria-hidden="true">
+          <i className={iconClassName} />
+        </span>
+        <h2 className="room-section-heading room-join-block__title">{title}</h2>
+      </div>
+      <div className="room-join-block__body">{body}</div>
+    </div>
+  )
+
   const renderJoinBlock = () => {
     if (!room) {
       return null
     }
 
     if (!isAuthenticated) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Присоединиться к активности</h2>
-          <p className="gray-elem">
+      return renderJoinPanel(
+        'Присоединиться к активности',
+        'fa-solid fa-right-to-bracket',
+        <>
+          <p className="room-join-lead gray-elem">
             Для гостей вступление и заявки недоступны — войдите в аккаунт.
           </p>
-          <Link className="cta-black-button-link" to={`/sign-in?next=/rooms/${roomId}`}>
+          <Link className="cta-black-button-link room-join-block__cta-link" to={`/sign-in?next=/rooms/${roomId}`}>
             Войти
           </Link>
-        </div>
+        </>,
       )
     }
 
     if (membershipUnavailable) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Присоединиться к активности</h2>
-          <p className="gray-elem">
+      return renderJoinPanel(
+        'Присоединиться к активности',
+        'fa-solid fa-triangle-exclamation',
+        (
+          <p className="room-join-lead gray-elem">
             Не удалось определить ваш статус участия. Обновите страницу или войдите заново.
           </p>
-        </div>
+        ),
+        'room-join-block--state-caution',
       )
     }
 
     if (isParticipant) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Участие</h2>
+      return renderJoinPanel(
+        'Участие',
+        'fa-solid fa-circle-check',
+        <>
           <p className="room-join-status">
-            Вы состоите в этой активности{membershipRoleLabel ? ` как ${membershipRoleLabel.toLowerCase()}` : ''}.
+            Вы состоите в этой активности
+            {membershipRoleLabel ? (
+              <>
+                {' '}как{' '}
+                <span className="room-join-role-pill">{membershipRoleLabel.toLowerCase()}</span>
+              </>
+            ) : null}
+            .
           </p>
           <div className="room-membership-actions">
             {membershipView.canLeave ? (
@@ -481,37 +537,43 @@ function RoomActivityPage() {
               </button>
             ) : null}
           </div>
-        </div>
+        </>,
+        'room-join-block--state-member',
       )
     }
 
     if (isBanned) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Присоединиться к активности</h2>
-          <p className="room-join-disabled" role="status">
-            Вы не можете вступить в активность
+      return renderJoinPanel(
+        'Присоединиться к активности',
+        'fa-solid fa-user-slash',
+        (
+          <p className="room-join-disabled room-join-lead" role="status">
+            Вы не можете вступить в эту активность.
           </p>
-        </div>
+        ),
+        'room-join-block--state-blocked',
       )
     }
 
     if (isFull) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Присоединиться к активности</h2>
-          <p className="room-join-disabled" role="status">
-            Вы не можете вступить в активность
+      return renderJoinPanel(
+        'Присоединиться к активности',
+        'fa-solid fa-users',
+        (
+          <p className="room-join-disabled room-join-lead" role="status">
+            Свободных мест нет — вступить сейчас нельзя.
           </p>
-        </div>
+        ),
+        'room-join-block--state-blocked',
       )
     }
 
     if (!isPublic && hasPendingRequest) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Заявка на вступление</h2>
-          <p className="room-join-status">Заявка на рассмотрении.</p>
+      return renderJoinPanel(
+        'Заявка на вступление',
+        'fa-regular fa-clock',
+        <>
+          <p className="room-join-status room-join-lead">Заявка отправлена и ожидает решения организаторов.</p>
           {membershipView.pendingRequestId ? (
             <button
               type="button"
@@ -522,26 +584,30 @@ function RoomActivityPage() {
               {cancelRequestSubmitting ? 'Отзыв...' : 'Отозвать заявку'}
             </button>
           ) : null}
-        </div>
+        </>,
+        'room-join-block--state-pending',
       )
     }
 
     if (!membershipView.canJoin) {
-      return (
-        <div className="room-join-block room-panel-soft">
-          <h2 className="room-section-heading">Присоединиться к активности</h2>
-          <p className="room-join-disabled" role="status">
-            Сейчас вступление недоступно
+      return renderJoinPanel(
+        'Присоединиться к активности',
+        'fa-solid fa-lock',
+        (
+          <p className="room-join-disabled room-join-lead" role="status">
+            Сейчас вступление недоступно.
           </p>
-        </div>
+        ),
+        'room-join-block--state-blocked',
       )
     }
 
     const label = isPublic ? 'Вступить' : 'Отправить заявку на вступление'
 
-    return (
-      <div className="room-join-block room-panel-soft">
-        <h2 className="room-section-heading">Присоединиться к активности</h2>
+    return renderJoinPanel(
+      'Присоединиться к активности',
+      isPublic ? 'fa-solid fa-user-plus' : 'fa-solid fa-paper-plane',
+      (
         <button
           type="button"
           className="cta-black-button room-join-primary"
@@ -550,7 +616,8 @@ function RoomActivityPage() {
         >
           {joinSubmitting ? 'Отправка...' : label}
         </button>
-      </div>
+      ),
+      'room-join-block--state-cta',
     )
   }
 
@@ -594,7 +661,7 @@ function RoomActivityPage() {
                   </div>
                 </div>
                 <div className="room-activity-hero-actions">
-                  {membershipView.canModerate ? (
+                  {membershipView.canDeleteRoom ? (
                     <Link className="room-edit-link" to={`/rooms/${roomId}/edit`}>
                       Редактировать комнату
                     </Link>
@@ -613,9 +680,6 @@ function RoomActivityPage() {
                         loading={image === roomImages[0] ? 'eager' : 'lazy'}
                         decoding="async"
                       />
-                      {image.order != null ? (
-                        <figcaption className="room-images-gallery__caption">Порядок: {image.order}</figcaption>
-                      ) : null}
                     </figure>
                   ))}
                 </section>
@@ -647,6 +711,18 @@ function RoomActivityPage() {
                     </span>
                   </div>
                 </div>
+
+                {roomCreatedLabel ? (
+                  <div className="room-meta-chip">
+                    <span className="room-meta-chip-icon" aria-hidden="true">
+                      <i className="fa-regular fa-calendar-plus"></i>
+                    </span>
+                    <div className="room-meta-chip-body">
+                      <span className="room-meta-chip-label">Создано</span>
+                      <span className="room-meta-chip-value">{roomCreatedLabel}</span>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="room-meta-chip">
                   <span className="room-meta-chip-icon" aria-hidden="true">
@@ -723,20 +799,32 @@ function RoomActivityPage() {
 
             <section className="room-activity-columns">
               <div className="room-activity-side-grid">
-                <article className="room-panel room-panel-soft">
+                <article className="room-panel room-panel-soft room-organizer-card">
                   <h2 className="room-section-heading">Организатор</h2>
-                  <div className="organizer-row">
-                    <span className="organizer-avatar" aria-hidden="true">
-                      <i className="fa-regular fa-circle-user"></i>
-                    </span>
-                    <div className="organizer-details">
-                      {organizerId ? (
+                  <div className="room-organizer-body">
+                    <div className="room-organizer-avatar-ring">
+                      <UserAvatar
+                        user={room?.creator}
+                        alt={`Аватар, ${organizerName}`}
+                        className="organizer-avatar room-organizer-avatar"
+                        size="xl"
+                      />
+                    </div>
+                    <div className="organizer-details room-organizer-details">
+                      <span className="room-organizer-badge">Автор активности</span>
+                      {isAuthenticated && organizerId ? (
                         <Link to={`/users/${organizerId}`} className="organizer-name organizer-name--link">
                           {organizerName}
                         </Link>
                       ) : (
                         <span className="organizer-name">{organizerName}</span>
                       )}
+                      {roomCreatedLabel ? (
+                        <p className="room-organizer-meta">
+                          <i className="fa-regular fa-calendar-plus" aria-hidden="true" />
+                          <span>Создано {roomCreatedLabel}</span>
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -744,15 +832,8 @@ function RoomActivityPage() {
                 {renderJoinBlock()}
               </div>
 
-              {joinFeedback ? (
-                <p
-                  className={
-                    joinFeedbackTone === 'error'
-                      ? 'room-join-feedback room-join-error'
-                      : 'room-join-feedback room-join-ok'
-                  }
-                  role="status"
-                >
+              {joinFeedback && joinFeedbackTone === 'error' ? (
+                <p className="room-join-feedback room-join-error" role="alert">
                   {joinFeedback}
                 </p>
               ) : null}
@@ -765,7 +846,7 @@ function RoomActivityPage() {
                 description="Список ожидающих заявок для этой комнаты. После решения список и страница активности обновляются."
                 emptyMessage="Для этой комнаты нет ожидающих заявок."
                 nextPath={`/rooms/${roomId}`}
-                onAfterAction={() => loadRoom({ preserveJoinFeedback: true })}
+                onAfterAction={() => loadRoom({ silent: true })}
               />
             ) : null}
 
@@ -893,15 +974,8 @@ function RoomActivityPage() {
                     ) : null}
                   </>
                 )}
-                {bulletinFeedback ? (
-                  <p
-                    className={
-                      bulletinFeedbackTone === 'error'
-                        ? 'room-bulletin-feedback room-bulletin-feedback--error'
-                        : 'room-bulletin-feedback'
-                    }
-                    role="status"
-                  >
+                {bulletinFeedback && bulletinFeedbackTone === 'error' ? (
+                  <p className="room-bulletin-feedback room-bulletin-feedback--error" role="alert">
                     {bulletinFeedback}
                   </p>
                 ) : null}
@@ -910,6 +984,7 @@ function RoomActivityPage() {
           </>
         ) : null}
       </main>
+      {confirmDialog}
     </>
   )
 }

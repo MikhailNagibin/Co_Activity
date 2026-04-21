@@ -15,9 +15,9 @@ import {
   updateRoom,
   uploadRoomImages,
 } from '../services/roomsService.js'
-import { getRoomMembershipView } from '../services/uiMappers.js'
+import { getRoomMembershipView, normalizeMembershipRole } from '../services/uiMappers.js'
 import {
-  buildRoomPayload,
+  buildRoomUpdatePayloadFromSnapshot,
   createRoomFormState,
   getProblemDetailsMessage,
   resolveRoomImageUrl,
@@ -98,7 +98,8 @@ function RoomEditPage() {
   }, [isAuthenticated, loadRoom])
 
   const membershipView = useMemo(() => getRoomMembershipView(room, membership), [membership, room])
-  const canEditRoom = membershipView.canModerate
+  /** PUT /api/rooms/{id} только для OWNER; админ не попадает на эту форму. */
+  const canEditRoom = normalizeMembershipRole(membershipView.membershipRole) === 'OWNER'
 
   const handleFieldChange = (event) => {
     const { name, value, type, checked } = event.target
@@ -120,7 +121,7 @@ function RoomEditPage() {
 
     setIsSubmitting(true)
     try {
-      await updateRoom(roomId, buildRoomPayload(formData, { includeStatus: true }))
+      await updateRoom(roomId, buildRoomUpdatePayloadFromSnapshot(room, formData, { includeStatus: true }))
       navigate(`/rooms/${roomId}`, { replace: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -154,7 +155,7 @@ function RoomEditPage() {
     try {
       const response = await uploadRoomImages(roomId, files)
       setImages(sortRoomImages(response))
-      setImageFeedback(`Загружено файлов: ${files.length}`)
+      setImageFeedback('')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -184,7 +185,7 @@ function RoomEditPage() {
     try {
       const response = await deleteRoomImage(roomId, imageId)
       setImages(sortRoomImages(response))
-      setImageFeedback('Изображение удалено.')
+      setImageFeedback('')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, {
@@ -253,14 +254,18 @@ function RoomEditPage() {
     <>
       <AppHeader activeTab="main" />
       <div className="virtual-elem"></div>
-      <div className="create-room-page room-editor-shell">
-        <Link className="back-link" to={`/rooms/${roomId}`}>
-          ← Вернуться к активности
-        </Link>
-      </div>
       <RoomForm
+        lead={
+          <div className="room-editor-backline">
+            <Link className="back-link" to={`/rooms/${roomId}`}>
+              ← Вернуться к активности
+            </Link>
+            <p className="gray-elem room-editor-static-hint">
+              Название, категория, описание, тип доступа и возрастной рейтинг после создания не меняются.
+            </p>
+          </div>
+        }
         title="Редактирование активности"
-        subtitle="Обновите данные комнаты, статус и изображения. Изменения отразятся на детальной странице после сохранения."
         formData={formData}
         errorMessage={errorMessage}
         isSubmitting={isSubmitting}
@@ -268,61 +273,62 @@ function RoomEditPage() {
         onFieldChange={handleFieldChange}
         onSubmit={handleSubmit}
         showStatus
+        staticActivityFieldsLocked
       >
-        <section className="room-editor-images" aria-labelledby="room-editor-images-title">
-          <div className="room-editor-images__header">
-            <div>
-              <h3 id="room-editor-images-title">Изображения комнаты</h3>
-              <p className="gray-elem">Можно загружать несколько файлов сразу. Порядок показывается, если он пришёл от API.</p>
+        <section className="room-editor-image-tab" aria-labelledby="room-editor-image-tab-title">
+          <h3 className="room-editor-image-tab__tab" id="room-editor-image-tab-title">
+            Изображения комнаты
+          </h3>
+          <div className="room-editor-image-tab__body">
+            <div className="room-editor-images__header room-editor-image-tab__header">
+              <p className="gray-elem room-editor-image-tab__hint">
+                Можно выбрать несколько файлов за раз.
+              </p>
+              <label className="room-editor-images__upload room-editor-image-tab__upload">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={isUploadingImages || isSubmitting}
+                  onChange={handleUploadImages}
+                />
+                {isUploadingImages ? 'Загрузка...' : 'Загрузить файлы'}
+              </label>
             </div>
-            <label className="room-editor-images__upload">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                disabled={isUploadingImages || isSubmitting}
-                onChange={handleUploadImages}
-              />
-              {isUploadingImages ? 'Загрузка...' : 'Загрузить файлы'}
-            </label>
+
+            {imageFeedback ? (
+              <p
+                className="room-editor-images__feedback room-editor-images__feedback--error room-editor-image-tab__feedback"
+                role="alert"
+              >
+                {imageFeedback}
+              </p>
+            ) : null}
+
+            {images.length > 0 ? (
+              <div className="room-editor-images__grid">
+                {images.map((image) => (
+                  <article key={image.id ?? image.url} className="room-editor-images__card">
+                    <img
+                      src={resolveRoomImageUrl(image.url)}
+                      alt={`Изображение активности ${room?.name ?? ''}`}
+                      className="room-editor-images__preview"
+                    />
+                    <button
+                      type="button"
+                      className="room-delete-button room-editor-image-tab__delete"
+                      disabled={deletingImageId === image.id || isSubmitting || isUploadingImages}
+                      onClick={() => handleDeleteImage(image.id)}
+                    >
+                      {deletingImageId === image.id ? 'Удаление...' : 'Удалить'}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="gray-elem room-editor-image-tab__empty">Изображений пока нет.</p>
+            )}
           </div>
-
-          {imageFeedback ? (
-            <p
-              className={`room-editor-images__feedback${imageFeedback.includes('Не удалось') ? ' room-editor-images__feedback--error' : ''}`}
-              role="status"
-            >
-              {imageFeedback}
-            </p>
-          ) : null}
-
-          {images.length > 0 ? (
-            <div className="room-editor-images__grid">
-              {images.map((image) => (
-                <article key={image.id ?? image.url} className="room-editor-images__card">
-                  <img
-                    src={resolveRoomImageUrl(image.url)}
-                    alt={`Изображение активности ${room?.name ?? ''}`}
-                    className="room-editor-images__preview"
-                  />
-                  <div className="room-editor-images__meta">
-                    <span>ID: {image.id ?? '—'}</span>
-                    <span>Порядок: {image.order ?? '—'}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="room-delete-button"
-                    disabled={deletingImageId === image.id || isSubmitting || isUploadingImages}
-                    onClick={() => handleDeleteImage(image.id)}
-                  >
-                    {deletingImageId === image.id ? 'Удаление...' : 'Удалить'}
-                  </button>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="gray-elem">Изображений пока нет.</p>
-          )}
         </section>
       </RoomForm>
     </>

@@ -45,7 +45,7 @@ function DefaultCard0() {
           <section className="activity-bulletin-board" aria-labelledby="bulletin-heading">
             <h2 id="bulletin-heading">Доска объявлений</h2>
             <p className="gray-elem">
-              Здесь отображаются объявления организатора и участников. Гости эту секцию не видят (ФТ).
+              Здесь отображаются объявления организатора и участников. Гости эту секцию не видят.
             </p>
           </section>
         ) : null}

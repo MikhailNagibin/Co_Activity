@@ -50,7 +50,7 @@ test('main page cycles room images and image urls respond 200', async ({ page })
   const firstSrc = await cardImage.getAttribute('src')
   expect(firstSrc).toBeTruthy()
 
-  await cardLink.hover()
+  await cardLink.locator('.activity-card-image-shell').hover()
   await expect
     .poll(async () => cardImage.getAttribute('src'), { timeout: 3000 })
     .not.toBe(firstSrc)

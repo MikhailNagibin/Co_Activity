@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import AppHeader from '../components/AppHeader.jsx'
+import { useNavigate } from 'react-router-dom'
+import ProfileCabinetShell from '../components/ProfileCabinetShell.jsx'
 import ProfileRoomCard from '../components/ProfileRoomCard.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
 import { isApiError } from '../api/httpClient.js'
@@ -81,54 +81,46 @@ function BannedRoomsPage() {
   }, [categoryFilter, rooms, searchQuery, sortBy])
 
   return (
-    <>
-      <AppHeader activeTab={null} />
-      <div className="profile-list-shell">
-        <section className="main-hero">
-          <h2>Забанен в комнатах</h2>
-          <h3 className="gray-elem">Список активностей, в которые вы больше не можете вступить</h3>
-        </section>
+    <ProfileCabinetShell
+      heroTitle="Забанен в комнатах"
+      heroSubtitle="Список активностей, в которые вы больше не можете вступить"
+    >
+      <main className="profile-list-page">
+        <div className="main-toolbar-shell">
+            <div className="main-toolbar profile-list-toolbar profile-list-toolbar--rich">
+              <div className="search-wrapper">
+                <button className="search-button" type="button" aria-label="Поиск">
+                  <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                </button>
+                <input
+                  placeholder="Название, описание, организатор…"
+                  type="search"
+                  name="q"
+                  autoComplete="off"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label="Поиск по забаненным комнатам"
+                />
+              </div>
 
-        <main className="profile-list-page">
-          <div className="profile-list-backline">
-            <Link className="back-link" to="/profile">
-              ← Назад в профиль
-            </Link>
-          </div>
+              <StyledDropdown
+                variant="toolbar"
+                id="banned-rooms-category-filter"
+                ariaLabel="Категория"
+                options={BROWSE_CATEGORY_OPTIONS}
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+              />
 
-          <div className="profile-list-toolbar">
-            <div className="search-wrapper">
-              <button className="search-button" type="button" aria-label="Поиск">
-                <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-              </button>
-              <input
-                placeholder="Название, описание, организатор…"
-                type="search"
-                name="q"
-                autoComplete="off"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                aria-label="Поиск по забаненным комнатам"
+              <StyledDropdown
+                variant="toolbar"
+                id="banned-rooms-sort"
+                ariaLabel="Сортировка"
+                options={MAIN_ACTIVITY_SORT_OPTIONS}
+                value={sortBy}
+                onChange={setSortBy}
               />
             </div>
-
-            <StyledDropdown
-              variant="toolbar"
-              id="banned-rooms-category-filter"
-              ariaLabel="Категория"
-              options={BROWSE_CATEGORY_OPTIONS}
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-            />
-
-            <StyledDropdown
-              variant="toolbar"
-              id="banned-rooms-sort"
-              ariaLabel="Сортировка"
-              options={MAIN_ACTIVITY_SORT_OPTIONS}
-              value={sortBy}
-              onChange={setSortBy}
-            />
           </div>
 
           {errorMessage ? (
@@ -157,9 +149,8 @@ function BannedRoomsPage() {
                 ))
               : null}
           </section>
-        </main>
-      </div>
-    </>
+      </main>
+    </ProfileCabinetShell>
   )
 }
 

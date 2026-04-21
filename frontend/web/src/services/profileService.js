@@ -13,6 +13,22 @@ export function getPublicUserProfile(userId, options = {}) {
   return get(`/users/${encodeURIComponent(String(userId))}`, options)
 }
 
+export function followUser(userId, options = {}) {
+  return post(`/users/${encodeURIComponent(String(userId))}/follow`, undefined, options)
+}
+
+export function unfollowUser(userId, options = {}) {
+  return del(`/users/${encodeURIComponent(String(userId))}/follow`, options)
+}
+
+export function getMyFollowing(options = {}) {
+  return get('/users/me/following', options)
+}
+
+export function getMyFollowers(options = {}) {
+  return get('/users/me/followers', options)
+}
+
 export function getMyNotificationSettings(options = {}) {
   return get('/users/me/notifications', options)
 }

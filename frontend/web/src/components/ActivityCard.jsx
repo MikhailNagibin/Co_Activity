@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import UserAvatar from './UserAvatar.jsx'
 import { resolveRoomImageUrl } from '../utils/roomForm.js'
 
 function ActivityCard({ item }) {
@@ -36,16 +37,52 @@ function ActivityCard({ item }) {
 
   const safeActiveImageIndex = images.length > 0 ? activeImageIndex % images.length : 0
   const activeImageUrl = images[safeActiveImageIndex] ?? ''
-  const interactionProps = {
+  const imageInteractionProps = {
     onMouseEnter: handleImageCycleStart,
     onMouseLeave: handleImageCycleStop,
     onFocus: handleImageCycleStart,
     onBlur: handleImageCycleStop,
   }
 
+  const scheduleBlock = (() => {
+    const start = item?.scheduleStartLabel
+    const end = item?.scheduleEndLabel
+    const fallback = item?.scheduleFallbackLabel
+    if (start || end) {
+      return (
+        <div className="activity-card-schedule" aria-label="Даты проведения">
+          {start ? (
+            <p className="activity-card-schedule-line">
+              <span className="activity-card-schedule-label">Начало:</span> {start}
+            </p>
+          ) : null}
+          {end ? (
+            <p className="activity-card-schedule-line">
+              <span className="activity-card-schedule-label">Окончание:</span> {end}
+            </p>
+          ) : null}
+        </div>
+      )
+    }
+    if (fallback) {
+      return (
+        <p className="activity-card-schedule-line activity-card-schedule-line--fallback" aria-label="Дата">
+          {fallback}
+        </p>
+      )
+    }
+    return item?.date ? <p>{item.date}</p> : null
+  })()
+
   const body = (
     <>
-      <div className="activity-card-image-shell">
+      <div
+        className="activity-card-image-shell"
+        tabIndex={hasMultipleImages ? 0 : undefined}
+        role={hasMultipleImages ? 'group' : undefined}
+        aria-label={hasMultipleImages ? 'Фотографии активности, наведите для просмотра' : undefined}
+        {...imageInteractionProps}
+      >
         {activeImageUrl ? (
           <img
             src={activeImageUrl}
@@ -64,10 +101,10 @@ function ActivityCard({ item }) {
       <p>{item.description}</p>
       <hr />
       <p>{item.category}</p>
-      <p>{item.date}</p>
+      {scheduleBlock}
       <p>{item.capacity}</p>
       <div className="activity-card-author">
-        <i className="fa-regular fa-circle-user" aria-hidden="true"></i>
+        <UserAvatar user={item.creatorUser} alt={`Аватар, ${item.author}`} size="sm" />
         <h5>{item.author}</h5>
       </div>
     </>
@@ -75,13 +112,13 @@ function ActivityCard({ item }) {
 
   if (item.linkTo) {
     return (
-      <Link className="activity-card-outer-link" to={item.linkTo} {...interactionProps}>
+      <Link className="activity-card-outer-link" to={item.linkTo}>
         <article className="activity-card">{body}</article>
       </Link>
     )
   }
 
-  return <article className="activity-card" {...interactionProps}>{body}</article>
+  return <article className="activity-card">{body}</article>
 }
 
 export default ActivityCard

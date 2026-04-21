@@ -13,7 +13,7 @@ import {
   sortActivityCards,
 } from '../utils/browseListFilters.js'
 import { buildRoomsListQueryParams } from '../utils/roomsBrowseQuery.js'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
 import { getUserFacingApiMessage } from '../utils/userFacingApiError.js'
@@ -22,6 +22,11 @@ import {
   redirectToSignInForExpiredSession,
 } from '../utils/sessionExpiredRedirect.js'
 import { useAuthSession } from '../auth/authSessionContext.js'
+import { computeUserAgeYears } from '../utils/userAge.js'
+import {
+  BROWSE_AGE_PREFERENCE_CHANGED,
+  getShowActivitiesNotMeetingAgeRatingFromStorage,
+} from '../utils/browseAgePreference.js'
 import { getRooms } from '../services/roomsService.js'
 import { mapRoomsToActivityCards } from '../services/uiMappers.js'
 
@@ -30,7 +35,27 @@ const DEFAULT_SORT = 'created-desc'
 function MainPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthSession()
+  const { isAuthenticated, currentUser } = useAuthSession()
+  const userAgeYears = useMemo(
+    () => (isAuthenticated ? computeUserAgeYears(currentUser?.dateOfBirth) : null),
+    [currentUser?.dateOfBirth, isAuthenticated],
+  )
+  const [browseAgePrefRevision, setBrowseAgePrefRevision] = useState(0)
+  const bumpBrowseAgePref = useCallback(() => {
+    setBrowseAgePrefRevision((n) => n + 1)
+  }, [])
+  useEffect(() => {
+    window.addEventListener(BROWSE_AGE_PREFERENCE_CHANGED, bumpBrowseAgePref)
+    window.addEventListener('storage', bumpBrowseAgePref)
+    return () => {
+      window.removeEventListener(BROWSE_AGE_PREFERENCE_CHANGED, bumpBrowseAgePref)
+      window.removeEventListener('storage', bumpBrowseAgePref)
+    }
+  }, [bumpBrowseAgePref])
+  const showActivitiesNotMeetingAgeRating = useMemo(
+    () => getShowActivitiesNotMeetingAgeRatingFromStorage(),
+    [browseAgePrefRevision],
+  )
   const [activities, setActivities] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -40,9 +65,9 @@ function MainPage() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [visibilityFilter, setVisibilityFilter] = useState('all')
   const [availabilityFilter, setAvailabilityFilter] = useState('all')
-  const [ageCeiling, setAgeCeiling] = useState('all')
   const [organizerCity, setOrganizerCity] = useState('')
   const [organizerCountry, setOrganizerCountry] = useState('')
+  const [ageCeiling, setAgeCeiling] = useState('all')
   const serverQuery = useMemo(
     () => buildRoomsListQueryParams({ categoryFilter, searchQuery, visibilityFilter, sortBy }),
     [categoryFilter, searchQuery, visibilityFilter, sortBy],
@@ -100,6 +125,8 @@ function MainPage() {
       ageCeiling,
       organizerCity,
       organizerCountry,
+      showActivitiesNotMeetingAgeRating,
+      userAgeYears,
     })
     return sortActivityCards(filtered, sortBy)
   }, [
@@ -108,10 +135,12 @@ function MainPage() {
     searchQuery,
     visibilityFilter,
     availabilityFilter,
-    ageCeiling,
     organizerCity,
     organizerCountry,
+    ageCeiling,
     sortBy,
+    showActivitiesNotMeetingAgeRating,
+    userAgeYears,
   ])
 
   const resetBrowseFilters = () => {
@@ -120,9 +149,9 @@ function MainPage() {
     setSortBy(DEFAULT_SORT)
     setVisibilityFilter('all')
     setAvailabilityFilter('all')
-    setAgeCeiling('all')
     setOrganizerCity('')
     setOrganizerCountry('')
+    setAgeCeiling('all')
   }
 
   return (
@@ -217,16 +246,11 @@ function MainPage() {
                     />
                   </div>
                   <div className="main-browse-filters-field">
-                    <span className="main-browse-filters-label">Возрастной рейтинг активности</span>
-                    <p className="main-browse-filters-hint-inline" id="main-age-ceiling-hint">
-                      Как в карточке активности: в списке остаются только те, у кого этот рейтинг{' '}
-                      <strong>не больше</strong> выбранного значения (например, «Не выше 12+» скрывает 16+ и 18+).
-                    </p>
+                    <span className="main-browse-filters-label">Возрастной рейтинг</span>
                     <StyledDropdown
                       variant="toolbar"
                       id="main-age-ceiling-filter"
-                      ariaLabel="Фильтр по возрастному рейтингу активности"
-                      ariaDescribedBy="main-age-ceiling-hint"
+                      ariaLabel="Фильтр по возрастному рейтингу комнаты"
                       options={AGE_CEILING_FILTER_OPTIONS}
                       value={ageCeiling}
                       onChange={setAgeCeiling}
@@ -256,9 +280,9 @@ function MainPage() {
                   </label>
                 </div>
                 <div className="main-browse-filters-actions">
-                  <p className="main-browse-filters-server-note">
-                    Категория, доступ и часть сортировок применяются на сервере; текстовый поиск, фильтры по
-                    заполненности, возрастному потолку и по городу/стране организатора остаются клиентскими.
+                  <p className="main-browse-filters-hint-note">
+                    Категория, тип доступа и сортировка учитываются при загрузке списка. Остальные фильтры,
+                    возрастной рейтинг и поиск уточняют уже показанные карточки.
                   </p>
                   <button type="button" className="main-browse-filters-reset" onClick={resetBrowseFilters}>
                     Сбросить поиск и фильтры

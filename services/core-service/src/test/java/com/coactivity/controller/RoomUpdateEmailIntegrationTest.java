@@ -230,7 +230,7 @@ class RoomUpdateEmailIntegrationTest extends AbstractSessionWebIntegrationTest {
     assertTrue(containsAll(payloadCaptor.getValue(),
         "followOwner",
         "Followed Author Room",
-        "/api/rooms/" + roomId));
+        "http://localhost:5173/rooms/" + roomId));
   }
 
   private void enableImportantRoomUpdates(Cookie session, CsrfContext csrf) throws Exception {

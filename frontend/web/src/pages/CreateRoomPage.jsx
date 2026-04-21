@@ -30,7 +30,6 @@ function CreateRoomPage() {
   const [imagePreviewUrls, setImagePreviewUrls] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [imageFeedback, setImageFeedback] = useState('')
 
   useEffect(() => {
     return () => {
@@ -57,7 +56,6 @@ function CreateRoomPage() {
     event.target.value = ''
 
     setErrorMessage('')
-    setImageFeedback('')
 
     if (files.length === 0) {
       resetSelectedImages()
@@ -74,15 +72,11 @@ function CreateRoomPage() {
     imagePreviewUrls.forEach(revokeObjectUrl)
     setSelectedImages(files)
     setImagePreviewUrls(files.map((file) => URL.createObjectURL(file)))
-    setImageFeedback(
-      files.length === 1 ? `Выбран файл: ${files[0].name}` : `Выбрано файлов: ${files.length}`,
-    )
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setImageFeedback('')
 
     if (!isAuthenticated) {
       setErrorMessage('Войдите в аккаунт, чтобы создать событие')
@@ -175,12 +169,6 @@ function CreateRoomPage() {
               Выбрать изображения
             </label>
           </div>
-
-          {imageFeedback ? (
-            <p className="room-create-images__feedback" role="status">
-              {imageFeedback}
-            </p>
-          ) : null}
 
           {imagePreviewUrls.length > 0 ? (
             <div className="room-create-images__grid">

@@ -32,6 +32,42 @@ function appendSafeNextParam(searchParams, params) {
   }
 }
 
+function isEmailLike(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value ?? '').trim())
+}
+
+function mapRegisterApiErrorToFields(error) {
+  if (!isApiError(error)) {
+    return {}
+  }
+
+  if (error.code === 'EMAIL_ALREADY_REGISTERED') {
+    return { email: 'Эта почта уже занята' }
+  }
+
+  if (error.code === 'USERNAME_ALREADY_TAKEN') {
+    return { nickname: 'Это имя пользователя уже занято' }
+  }
+
+  const message = String(error.message ?? '').toLowerCase()
+  const nextErrors = {}
+
+  if (message.includes('email')) {
+    nextErrors.email = 'Проверьте почту'
+  }
+  if (message.includes('username') || message.includes('user name') || message.includes('nickname')) {
+    nextErrors.nickname = 'Проверьте имя пользователя'
+  }
+  if (message.includes('password')) {
+    nextErrors.password = 'Проверьте пароль'
+  }
+  if (message.includes('date') || message.includes('birth')) {
+    nextErrors.birthDate = 'Проверьте дату рождения'
+  }
+
+  return nextErrors
+}
+
 function SignUp() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -48,7 +84,7 @@ function SignUp() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [pendingEmail, setPendingEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [step, setStep] = useState('register')
@@ -82,7 +118,6 @@ function SignUp() {
       setPendingEmail(emailFromUrl)
       setStep('verify')
       setErrorMessage('')
-      setSuccessMessage('Аккаунт ещё не подтверждён. Введите код из письма, чтобы завершить регистрацию.')
       setResendCooldownSeconds(0)
     }
   }, [searchParams])
@@ -97,7 +132,7 @@ function SignUp() {
     return () => window.clearTimeout(timerId)
   }, [resendCooldownSeconds])
 
-  const openVerifyStep = (email, message, cooldownSeconds = 0) => {
+  const openVerifyStep = (email, cooldownSeconds = 0) => {
     const params = new URLSearchParams()
     params.set('step', 'verify')
     params.set('email', email)
@@ -107,7 +142,6 @@ function SignUp() {
     setVerificationCode('')
     setStep('verify')
     setErrorMessage('')
-    setSuccessMessage(message)
     setResendCooldownSeconds(cooldownSeconds)
     navigate({ pathname: '/sign-up', search: `?${params.toString()}` }, { replace: true })
   }
@@ -115,12 +149,28 @@ function SignUp() {
   const handleFieldChange = (event) => {
     const { name, value } = event.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setFieldErrors((prev) => {
+      if (!prev[name] && !((name === 'password' || name === 'passwordAgain') && (prev.password || prev.passwordAgain))) {
+        return prev
+      }
+      const nextErrors = { ...prev, [name]: '' }
+      if (name === 'password' || name === 'passwordAgain') {
+        nextErrors.password = ''
+        nextErrors.passwordAgain = ''
+      }
+      if (name === 'country' || name === 'city') {
+        nextErrors.country = ''
+        nextErrors.city = ''
+      }
+      return nextErrors
+    })
   }
 
   const resetSelectedAvatar = () => {
     revokeObjectUrl(avatarPreviewUrl)
     setSelectedAvatarFile(null)
     setAvatarPreviewUrl('')
+    setFieldErrors((prev) => ({ ...prev, avatar: '' }))
   }
 
   const handleAvatarChange = (event) => {
@@ -128,7 +178,7 @@ function SignUp() {
     event.target.value = ''
 
     setErrorMessage('')
-    setSuccessMessage('')
+    setFieldErrors((prev) => ({ ...prev, avatar: '' }))
 
     if (!file) {
       resetSelectedAvatar()
@@ -137,7 +187,10 @@ function SignUp() {
 
     if (getUnsupportedImageFiles([file]).length > 0) {
       resetSelectedAvatar()
-      setErrorMessage('Аватар должен быть в формате PNG, JPEG или WEBP')
+      setFieldErrors((prev) => ({
+        ...prev,
+        avatar: 'Аватар должен быть в формате PNG, JPEG или WEBP',
+      }))
       return
     }
 
@@ -149,32 +202,54 @@ function SignUp() {
   const handleRegister = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
+    setFieldErrors({})
 
-    if (formData.password !== formData.passwordAgain) {
-      setErrorMessage('Пароли не совпадают')
-      return
-    }
-
+    const nextFieldErrors = {}
     const email = formData.email.trim()
     const userName = formData.nickname.trim()
 
-    if (!email) {
-      setErrorMessage('Укажите почту')
-      return
+    if (formData.password !== formData.passwordAgain) {
+      nextFieldErrors.passwordAgain = 'Пароли не совпадают'
     }
+
+    if (!email) {
+      nextFieldErrors.email = 'Укажите почту'
+    } else if (!isEmailLike(email)) {
+      nextFieldErrors.email = 'Введите корректную почту'
+    }
+
     if (userName.length < 2 || userName.length > 20) {
-      setErrorMessage('Имя пользователя: от 2 до 20 символов')
-      return
+      nextFieldErrors.nickname = 'Имя пользователя: от 2 до 20 символов'
     }
     if (formData.password.length < 8 || formData.password.length > 128) {
-      setErrorMessage('Пароль: от 8 до 128 символов')
-      return
+      nextFieldErrors.password = 'Пароль: от 8 до 128 символов'
     }
 
     const dateOfBirth = birthDateInputToInstant(formData.birthDate)
     if (!dateOfBirth) {
-      setErrorMessage('Укажите дату рождения')
+      nextFieldErrors.birthDate = 'Укажите дату рождения'
+    }
+
+    if (formData.country.trim().length > 100) {
+      nextFieldErrors.country = 'Страна: до 100 символов'
+    }
+
+    if (formData.city.trim().length > 100) {
+      nextFieldErrors.city = 'Город: до 100 символов'
+    }
+
+    if (formData.country.trim() === '' && formData.city.trim() !== '') {
+      nextFieldErrors.country = 'Сначала укажите страну'
+      nextFieldErrors.city = 'Город можно указать только после страны'
+    }
+
+    if (formData.about.trim().length > 500) {
+      nextFieldErrors.about = 'О себе: до 500 символов'
+    }
+
+    if (Object.values(nextFieldErrors).some(Boolean)) {
+      setFieldErrors(nextFieldErrors)
+      setErrorMessage('Исправьте подсвеченные поля и попробуйте снова.')
       return
     }
 
@@ -191,13 +266,17 @@ function SignUp() {
     setIsSubmitting(true)
     try {
       await register(payload)
-      openVerifyStep(email, 'Аккаунт создан. Введите код из письма, чтобы активировать его.', 60)
+      openVerifyStep(email, 60)
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
         redirectToSignInForExpiredSession(navigate, { next: '/sign-up' })
         return
       }
       if (isApiError(error)) {
+        const mappedFieldErrors = mapRegisterApiErrorToFields(error)
+        if (Object.keys(mappedFieldErrors).length > 0) {
+          setFieldErrors((prev) => ({ ...prev, ...mappedFieldErrors }))
+        }
         setErrorMessage(getUserFacingApiMessage(error, 'Не удалось создать аккаунт. Попробуйте снова.'))
       } else {
         setErrorMessage('Не удалось создать аккаунт. Попробуйте снова.')
@@ -210,7 +289,6 @@ function SignUp() {
   const handleVerify = async (event) => {
     event.preventDefault()
     setErrorMessage('')
-    setSuccessMessage('')
 
     const code = verificationCode.trim()
     if (!code) {
@@ -291,11 +369,9 @@ function SignUp() {
 
     setIsResendingCode(true)
     setErrorMessage('')
-    setSuccessMessage('')
     try {
       await resendRegistrationVerificationCode({ email: pendingEmail })
       setVerificationCode('')
-      setSuccessMessage('Новый код отправлен на почту. Проверьте входящие и спам.')
       setResendCooldownSeconds(60)
     } catch (error) {
       if (isApiError(error)) {
@@ -325,9 +401,16 @@ function SignUp() {
       authActionLabel="Регистрация"
       authActionTo="/sign-in"
       footer={
-        <p className="auth-card__footer-text">
-          Уже есть аккаунт? <Link to="/sign-in">Войти</Link>
-        </p>
+        <div className="auth-card__footer-stack">
+          <p className="auth-card__footer-text">
+            Уже есть аккаунт? <Link to="/sign-in">Войти</Link>
+          </p>
+          {step === 'register' ? (
+            <p className="auth-card__footer-text">
+              <Link to="/main">Продолжить без регистрации</Link>
+            </p>
+          ) : null}
+        </div>
       }
     >
       {step === 'register' ? (
@@ -340,6 +423,7 @@ function SignUp() {
             onChange={handleFieldChange}
             autoComplete="email"
             disabled={isSubmitting}
+            error={fieldErrors.email}
           />
           <AuthField
             label="Имя пользователя"
@@ -349,6 +433,8 @@ function SignUp() {
             onChange={handleFieldChange}
             autoComplete="username"
             disabled={isSubmitting}
+            error={fieldErrors.nickname}
+            hint="Публичное имя от 2 до 20 символов."
           />
           <AuthField
             label="Пароль"
@@ -359,6 +445,8 @@ function SignUp() {
             onChange={handleFieldChange}
             autoComplete="new-password"
             disabled={isSubmitting}
+            error={fieldErrors.password}
+            hint="От 8 до 128 символов."
           />
           <AuthField
             label="Повтор пароля"
@@ -369,6 +457,7 @@ function SignUp() {
             onChange={handleFieldChange}
             autoComplete="new-password"
             disabled={isSubmitting}
+            error={fieldErrors.passwordAgain}
           />
           <AuthField
             label="Дата рождения"
@@ -377,6 +466,7 @@ function SignUp() {
             value={formData.birthDate}
             onChange={handleFieldChange}
             disabled={isSubmitting}
+            error={fieldErrors.birthDate}
           />
 
           <div className="auth-grid auth-grid--two">
@@ -387,6 +477,7 @@ function SignUp() {
               value={formData.country}
               onChange={handleFieldChange}
               disabled={isSubmitting}
+              error={fieldErrors.country}
             />
             <AuthField
               label="Город"
@@ -395,6 +486,7 @@ function SignUp() {
               value={formData.city}
               onChange={handleFieldChange}
               disabled={isSubmitting}
+              error={fieldErrors.city}
             />
           </div>
 
@@ -411,10 +503,23 @@ function SignUp() {
               onChange={handleFieldChange}
               disabled={isSubmitting}
               placeholder="Расскажите коротко о своих интересах"
+              aria-invalid={fieldErrors.about ? 'true' : 'false'}
+              aria-describedby={fieldErrors.about ? 'about-error' : undefined}
             />
+            {fieldErrors.about ? (
+              <p id="about-error" className="auth-field__error" role="alert">
+                {fieldErrors.about}
+              </p>
+            ) : null}
           </div>
 
-          <div className="auth-avatar-card">
+          <div
+            className={
+              fieldErrors.avatar
+                ? 'auth-avatar-card auth-avatar-card--error'
+                : 'auth-avatar-card'
+            }
+          >
             <div className="auth-avatar-card__preview">
               {avatarPreviewUrl ? (
                 <img src={avatarPreviewUrl} alt="Предпросмотр аватара" />
@@ -436,6 +541,11 @@ function SignUp() {
                 Аватар необязателен. Если выберете файл сейчас, он загрузится сразу после
                 подтверждения почты.
               </p>
+              {fieldErrors.avatar ? (
+                <p className="auth-field__error" role="alert">
+                  {fieldErrors.avatar}
+                </p>
+              ) : null}
               {selectedAvatarFile ? (
                 <p className="auth-avatar-card__file">Файл: {selectedAvatarFile.name}</p>
               ) : null}
@@ -453,7 +563,6 @@ function SignUp() {
           </div>
 
           {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
-          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
           <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
             {isSubmitting ? 'Создание...' : 'Создать аккаунт'}
@@ -476,7 +585,6 @@ function SignUp() {
           />
 
           {errorMessage ? <p className="auth-banner auth-banner--error">{errorMessage}</p> : null}
-          {successMessage ? <p className="auth-banner auth-banner--success">{successMessage}</p> : null}
 
           <div className="auth-verify-help">
             <p className="auth-field__meta">
@@ -516,7 +624,6 @@ function SignUp() {
                 setVerificationCode('')
                 setStep('register')
                 setErrorMessage('')
-                setSuccessMessage('')
                 setResendCooldownSeconds(0)
               }}
             >
