@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -57,6 +58,7 @@ class BaselineSchemaMigrationTest {
   private org.flywaydb.core.api.configuration.FluentConfiguration flyway() {
     return Flyway.configure()
         .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+        .target(MigrationVersion.fromVersion("1"))
         .locations("classpath:db/migration");
   }
 
