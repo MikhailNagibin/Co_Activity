@@ -135,10 +135,13 @@ test('role assignment keeps scroll position near management section', async ({ p
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' }))
   const beforeClickY = await page.evaluate(() => window.scrollY)
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Назначить админом' }).click()
+  const confirmDialog = page.getByRole('dialog', { name: 'Подтверждение' })
+  await expect(confirmDialog).toBeVisible()
+  await confirmDialog.getByRole('button', { name: 'Продолжить', exact: true }).click()
+  await expect(confirmDialog).toHaveCount(0)
 
-  await expect(page.getByText('Роль администратора назначена.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Снять админа' })).toBeVisible()
   await expect(page.getByText('Админ', { exact: true })).toBeVisible()
 
   await expect

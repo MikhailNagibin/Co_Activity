@@ -117,6 +117,6 @@ test.describe('Guest FR 9–16 (unauthenticated)', () => {
     await expect(page.getByRole('heading', { name: 'Доска объявлений' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'RoomOwnerFr' })).toHaveCount(0)
     await expect(page.getByText('RoomOwnerFr')).toBeVisible()
-    await expect(page.getByText(/^Создано:/)).toBeVisible()
+    await expect(page.getByText('Создано', { exact: true }).first()).toBeVisible()
   })
 })

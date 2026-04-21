@@ -65,7 +65,7 @@ test.describe('Sign-in error messages', () => {
     await page.getByRole('button', { name: 'Войти' }).click()
 
     await expect(
-      page.getByText('Аккаунт временно недоступен. Обратитесь в поддержку.'),
+      page.getByText('Аккаунт отключён или заблокирован. Обратитесь в поддержку.'),
     ).toBeVisible()
   })
 })

@@ -94,12 +94,14 @@ test('pending list accepts request and refreshes groups', async ({ page }) => {
     afterProcessRequests: [],
   })
 
-  page.once('dialog', (dialog) => dialog.accept())
-
   await page.goto('/profile/incoming-requests')
   await page.getByRole('button', { name: 'Принять' }).click()
+  const confirmDialog = page.getByRole('dialog', { name: 'Подтверждение' })
+  await expect(confirmDialog).toBeVisible()
+  await confirmDialog.getByRole('button', { name: 'Принять', exact: true }).click()
+  await expect(confirmDialog).toHaveCount(0)
 
-  await expect(page.getByText('pending-user')).not.toBeVisible()
+  await expect(page.getByRole('link', { name: 'pending-user' })).toHaveCount(0)
   await expect(page.getByText('Сейчас у вас нет ожидающих заявок на вступление.')).toBeVisible()
   expect(mockedApi.getProcessedAction()).toBe('ACCEPTED')
 })
@@ -116,8 +118,11 @@ test.describe('real stand moderation', () => {
     const acceptButton = page.getByRole('button', { name: 'Принять' }).first()
     await expect(acceptButton).toBeEnabled()
 
-    page.once('dialog', (dialog) => dialog.accept())
     await acceptButton.click()
+    const confirmDialog = page.getByRole('dialog', { name: 'Подтверждение' })
+    await expect(confirmDialog).toBeVisible()
+    await confirmDialog.getByRole('button', { name: 'Принять', exact: true }).click()
+    await expect(confirmDialog).toHaveCount(0)
 
     await expect(page.getByText('Принятие...')).toHaveCount(0, { timeout: 15000 })
   })
