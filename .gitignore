@@ -44,3 +44,4 @@ services/core-service/src/main/resources/config.json
 .serena
 qodana.yaml
 .DS_Store
+/docs/architecture/.structurizr

@@ -1,0 +1,123 @@
+// Presentation-oriented schema for services/core-service
+// Source of truth used here:
+// 1. Flyway migrations V1__baseline_schema.sql, V2__user_follows.sql, V3__room_invitations.sql
+// 2. JPA entities in services/core-service/src/main/java/com/coactivity/persistence/entity
+//
+// Intentionally omitted from diagram:
+// - non-relational columns
+// - indexes/check constraints
+// - users.avatar_id, because it is not modeled as a foreign key in the current schema
+
+Table user_avatars {
+  id int [pk]
+}
+
+Table users {
+  id int [pk]
+  avatar_file_id int
+}
+
+Table categories {
+  id int [pk]
+}
+
+Table rooms {
+  id int [pk]
+  category_id int
+}
+
+Table pictures {
+  picture_id int [pk]
+  room_id int
+}
+
+Table roles {
+  id int [pk]
+}
+
+Table room_members {
+  room_id int [pk]
+  user_id int [pk]
+  role_id int
+}
+
+Table request_statuses {
+  id int [pk]
+}
+
+Table room_requests {
+  id int [pk]
+  user_id int
+  room_id int
+  status_id int
+}
+
+Table bans {
+  user_id int [pk]
+  room_id int [pk]
+}
+
+Table questions {
+  id int [pk]
+  owner int
+  category_id int
+}
+
+Table answers {
+  id int [pk]
+  question_id int
+  prev_ans_id int
+  owner int
+}
+
+Table notifications {
+  id int [pk]
+}
+
+Table user_notifications {
+  user_id int [pk]
+  notification_id int [pk]
+}
+
+Table bulletin_board {
+  id int [pk]
+  room_id int
+  author_id int
+}
+
+Table user_follows {
+  follower_id int [pk]
+  followed_id int [pk]
+}
+
+Table room_invitations {
+  room_id int [pk]
+  invited_user_id int [pk]
+  invited_by_user_id int
+}
+
+Ref: users.avatar_file_id > user_avatars.id
+Ref: rooms.category_id > categories.id
+Ref: pictures.room_id > rooms.id
+Ref: room_members.room_id > rooms.id
+Ref: room_members.user_id > users.id
+Ref: room_members.role_id > roles.id
+Ref: room_requests.user_id > users.id
+Ref: room_requests.room_id > rooms.id
+Ref: room_requests.status_id > request_statuses.id
+Ref: bans.user_id > users.id
+Ref: bans.room_id > rooms.id
+Ref: questions.owner > users.id
+Ref: questions.category_id > categories.id
+Ref: answers.question_id > questions.id
+Ref: answers.prev_ans_id > answers.id
+Ref: answers.owner > users.id
+Ref: user_notifications.user_id > users.id
+Ref: user_notifications.notification_id > notifications.id
+Ref: bulletin_board.room_id > rooms.id
+Ref: bulletin_board.author_id > users.id
+Ref: user_follows.follower_id > users.id
+Ref: user_follows.followed_id > users.id
+Ref: room_invitations.room_id > rooms.id
+Ref: room_invitations.invited_user_id > users.id
+Ref: room_invitations.invited_by_user_id > users.id
