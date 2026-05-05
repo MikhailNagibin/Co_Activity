@@ -224,10 +224,11 @@ function ProfilePage() {
     setErrorMessage('')
     setSelectedAvatarFile(file)
     setAvatarPreviewUrl(URL.createObjectURL(file))
+    handleUploadAvatar(file)
   }
 
-  const handleUploadAvatar = async () => {
-    if (!selectedAvatarFile) {
+  const handleUploadAvatar = async (fileToUpload = selectedAvatarFile) => {
+    if (!fileToUpload) {
       setErrorMessage('Сначала выберите файл аватара')
       return
     }
@@ -235,7 +236,7 @@ function ProfilePage() {
     setErrorMessage('')
     setIsUploadingAvatar(true)
     try {
-      const updated = await uploadMyAvatar(selectedAvatarFile)
+      const updated = await uploadMyAvatar(fileToUpload)
       applyProfilePayload(updated)
       resetSelectedAvatar()
       setAvatarVersion((prev) => prev + 1)
@@ -565,15 +566,15 @@ function ProfilePage() {
                       <p className="profile-kicker">Профиль</p>
                       <h3>{profileDisplayName}</h3>
                       <p className="gray-elem">{profile.email}</p>
-                      <div className="profile-avatar-meta">
-                        {selectedAvatarFile ? (
-                          <span>Выбран файл: {selectedAvatarFile.name}</span>
-                        ) : hasSavedAvatar ? (
-                          <span>Текущий аватар активен</span>
-                        ) : (
-                          <span>Аватар не загружен</span>
-                        )}
-                      </div>
+                      {selectedAvatarFile || !hasSavedAvatar ? (
+                        <div className="profile-avatar-meta">
+                          {selectedAvatarFile ? (
+                            <span>Выбран файл: {selectedAvatarFile.name}</span>
+                          ) : (
+                            <span>Аватар не загружен</span>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="profile-summary-grid">
@@ -602,14 +603,6 @@ function ProfilePage() {
                         disabled={isUploadingAvatar || isDeletingAvatar}
                       />
                     </label>
-                    <button
-                      type="button"
-                      className="create-room-submit profile-avatar-submit"
-                      onClick={handleUploadAvatar}
-                      disabled={!selectedAvatarFile || isUploadingAvatar || isDeletingAvatar}
-                    >
-                      {isUploadingAvatar ? 'Загрузка...' : 'Загрузить аватар'}
-                    </button>
                     {selectedAvatarFile ? (
                       <button
                         type="button"
@@ -623,7 +616,7 @@ function ProfilePage() {
                     {hasSavedAvatar ? (
                       <button
                         type="button"
-                        className="profile-delete-account-link"
+                        className="profile-avatar-delete"
                         onClick={handleDeleteAvatar}
                         disabled={isUploadingAvatar || isDeletingAvatar}
                       >
@@ -636,7 +629,6 @@ function ProfilePage() {
                 <section className="profile-panel">
                   <p className="profile-kicker">Редактирование</p>
                   <h3>Персональные данные</h3>
-                  <p className="gray-elem">Управляйте публичной информацией и описанием аккаунта.</p>
                   <form onSubmit={handleSaveProfile} className="profile-form">
                     <div className="profile-form-row">
                       <label htmlFor="username">Имя пользователя</label>

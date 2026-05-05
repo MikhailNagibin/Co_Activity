@@ -23,7 +23,7 @@ function DefaultQuestion0() {
   return (
     <>
       <AppHeader activeTab="qa" />
-      <div className="main-page-shell qa-thread-shell qa-thread-shell--legacy">
+      <div className="main-page-shell qa-thread-shell">
         <Link className="back-link qa-thread-back" to="/qa">
           ← Назад к вопросам
         </Link>
@@ -48,6 +48,20 @@ function DefaultQuestion0() {
               стать топ-джавистом здесь и сейчас. Посоветуйте что-нибудь таким нетерпеливым и заряженным
               типам, как я. Спасибо
             </p>
+            <div className="qa-thread-meta-chips" aria-label="Информация о вопросе">
+              <div className="qa-thread-meta-chip">
+                <span className="qa-thread-meta-label">Категория</span>
+                <span className="qa-thread-meta-value">Программирование</span>
+              </div>
+              <div className="qa-thread-meta-chip">
+                <span className="qa-thread-meta-label">Создан</span>
+                <span className="qa-thread-meta-value">02.03.2026 18:24</span>
+              </div>
+              <div className="qa-thread-meta-chip qa-thread-meta-chip--accent">
+                <span className="qa-thread-meta-label">Обсуждение</span>
+                <span className="qa-thread-meta-value">3 ответа</span>
+              </div>
+            </div>
             <div className="qa-thread-op-tags">
               <span className="qa-tag">java</span>
               <span className="qa-tag">программирование</span>

@@ -75,7 +75,7 @@ test('room edit: admin cannot open owner-only edit form', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('Недостаточно прав для редактирования этой комнаты.')
 })
 
-test('room edit: owner can change schedule, chat, and non-static fields; static fields locked', async ({
+test('room edit: owner can change schedule, chat, and non-static fields; static fields hidden', async ({
   page,
 }) => {
   const roomId = 89
@@ -147,15 +147,11 @@ test('room edit: owner can change schedule, chat, and non-static fields; static 
 
   await page.goto(`/rooms/${roomId}/edit`)
 
-  await expect(page.getByText(/после создания не меняются/i)).toBeVisible()
-
-  await expect(page.locator('#name')).toBeDisabled()
-  await expect(page.locator('#description')).toBeDisabled()
-  await expect(page.locator('#ageRating')).toBeDisabled()
-  await expect(page.locator('#isPublic')).toBeDisabled()
-
-  const categoryControl = page.getByRole('button', { name: /категория активности/i })
-  await expect(categoryControl).toBeDisabled()
+  await expect(page.locator('#name')).toHaveCount(0)
+  await expect(page.locator('#description')).toHaveCount(0)
+  await expect(page.locator('#ageRating')).toHaveCount(0)
+  await expect(page.locator('#isPublic')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /категория активности/i })).toHaveCount(0)
 
   await expect(page.locator('#chatLink')).toBeEnabled()
   await expect(page.locator('#maximumNumberOfPeople')).toBeEnabled()

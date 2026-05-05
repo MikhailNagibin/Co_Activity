@@ -249,6 +249,22 @@ a.profile-room-card__body:hover .profile-room-card__title {
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.07);
   color: #64748b;
+  gap: 0;
+  align-items: center;
+}
+
+.profile-room-card__meta > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.profile-room-card__meta > span + span::before {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin: 0 14px;
+  background: rgba(15, 23, 42, 0.22);
 }
 
 .sent-request-card__meta {
@@ -375,6 +391,10 @@ a.profile-room-card__body:hover .profile-room-card__title {
   margin: 0 auto;
   padding: 8px clamp(16px, 4vw, 28px) 40px;
   box-sizing: border-box;
+}
+
+.room-form-page-shell--no-hero {
+  padding-top: 28px;
 }
 
 .room-form-page-shell .main-hero {
@@ -885,12 +905,6 @@ a.profile-room-card__body:hover .profile-room-card__title {
   min-width: 0;
 }
 
-.profile-room-card__organizer {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .incoming-request-card {
   padding: 16px;
   border-radius: 16px;
@@ -944,36 +958,33 @@ a.profile-room-card__body:hover .profile-room-card__title {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-/* Тёмная «вкладка» — изображения на странице редактирования комнаты */
 .room-editor-image-tab {
   margin-top: 8px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.72);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 16px;
 }
 
 .room-editor-image-tab__tab {
-  display: inline-block;
   margin: 0;
-  padding: 12px 22px 14px;
-  max-width: 100%;
+  padding: 0;
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: #f8fafc;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid rgba(51, 65, 85, 0.95);
-  border-bottom: none;
-  border-radius: 14px 14px 0 0;
-  box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.18);
+  color: #111827;
 }
 
 .room-editor-image-tab__body {
-  margin-top: -1px;
-  padding: 20px;
-  border-radius: 0 16px 16px 16px;
-  background: linear-gradient(165deg, #1e293b 0%, #0f172a 55%, #020617 100%);
-  border: 1px solid rgba(71, 85, 105, 0.55);
-  box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 rgba(148, 163, 184, 0.12);
+  margin-top: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   display: grid;
   gap: 16px;
 }
@@ -984,23 +995,23 @@ a.profile-room-card__body:hover .profile-room-card__title {
 
 .room-editor-image-tab__header .room-editor-image-tab__hint {
   margin: 0;
-  color: rgba(226, 232, 240, 0.78);
+  color: #6b7280;
 }
 
 .room-editor-image-tab__empty {
   margin: 0;
-  color: rgba(226, 232, 240, 0.65);
+  color: #6b7280;
 }
 
 .room-editor-image-tab__body .room-editor-images__upload {
-  background: #f1f5f9;
-  color: #0f172a;
-  border: 1px solid rgba(241, 245, 249, 0.95);
+  background: #111827;
+  color: #fff;
+  border: 1px solid rgba(17, 24, 39, 0.9);
   font-weight: 700;
 }
 
 .room-editor-image-tab__body .room-editor-images__upload:hover {
-  background: #fff;
+  background: #1f2937;
 }
 
 .room-editor-image-tab__body .room-editor-images__upload:has(input:disabled) {
@@ -1009,29 +1020,31 @@ a.profile-room-card__body:hover .profile-room-card__title {
 }
 
 .room-editor-image-tab__feedback {
-  background: rgba(127, 29, 29, 0.35);
-  color: #fecaca;
-  border: 1px solid rgba(248, 113, 113, 0.35);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(153, 27, 27, 0.08);
+  color: #991b1b;
+  border: 1px solid rgba(153, 27, 27, 0.18);
 }
 
 .room-editor-image-tab__feedback.room-editor-images__feedback--error {
-  color: #fecaca;
+  color: #991b1b;
 }
 
 .room-editor-image-tab__delete {
-  background: rgba(15, 23, 42, 0.65);
-  border-color: rgba(248, 250, 252, 0.2);
-  color: #fecaca;
+  background: rgba(153, 27, 27, 0.06);
+  border-color: rgba(153, 27, 27, 0.22);
+  color: #991b1b;
 }
 
 .room-editor-image-tab__delete:hover:not(:disabled) {
-  background: rgba(127, 29, 29, 0.55);
-  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(153, 27, 27, 0.12);
+  border-color: rgba(153, 27, 27, 0.34);
 }
 
 .room-editor-image-tab__body .room-editor-images__preview {
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 960px) {

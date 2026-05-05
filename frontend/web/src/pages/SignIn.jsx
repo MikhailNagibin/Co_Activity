@@ -34,13 +34,6 @@ function isEmailNotVerifiedError(error) {
   )
 }
 
-function appendSafeNextParam(searchParams, params) {
-  const next = searchParams.get('next')
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
-    params.set('next', next)
-  }
-}
-
 function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -139,20 +132,6 @@ function SignIn() {
     }
   }
 
-  const handleOpenVerification = () => {
-    const email = formData.email.trim()
-    if (!email) {
-      setErrorMessage('Укажите почту, чтобы запросить код подтверждения')
-      return
-    }
-
-    const params = new URLSearchParams()
-    params.set('step', 'verify')
-    params.set('email', email)
-    appendSafeNextParam(searchParams, params)
-    navigate({ pathname: '/sign-up', search: `?${params.toString()}` })
-  }
-
   const handleOpenPasswordReset = () => {
     const params = new URLSearchParams()
     const email = formData.email.trim()
@@ -167,10 +146,11 @@ function SignIn() {
 
   return (
     <AuthLayout
-      title="Войти в CoActivity"
-      subtitle="Продолжите работу с активностями, вопросами и личным кабинетом"
+      title="Вход"
+      subtitle=""
       authActionLabel="Войти"
       authActionTo="/sign-in"
+      simpleTitle="Вход"
       footer={
         <div className="auth-card__footer-stack">
           <p className="auth-card__footer-text">
@@ -192,10 +172,6 @@ function SignIn() {
           Пароль изменён. Для безопасности войдите снова с новым паролем.
         </div>
       ) : null}
-      <div className="auth-banner auth-banner--neutral" role="status">
-        Вход сейчас работает только по почте и паролю. Дополнительный код нужен для подтверждения
-        почты и восстановления пароля, но не для обычного входа.
-      </div>
       <form onSubmit={handleSubmit} className="auth-form">
         <AuthField
           label="Почта"
@@ -226,14 +202,6 @@ function SignIn() {
           onClick={handleOpenPasswordReset}
         >
           Забыли пароль?
-        </button>
-        <button
-          type="button"
-          className="auth-text-button"
-          disabled={isSubmitting}
-          onClick={handleOpenVerification}
-        >
-          Почта не подтверждена? Ввести код подтверждения
         </button>
         <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
           {isSubmitting ? 'Вход...' : 'Войти'}

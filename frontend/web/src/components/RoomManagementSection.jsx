@@ -543,12 +543,6 @@ function RoomManagementSection({
 
   const renderInvitesTab = () => (
     <div className="room-invite-panel">
-      <p className="gray-elem">
-        Укажите ID пользователя (его можно посмотреть в профиле по ссылке «/users/…»). На почту придёт
-        письмо с названием активности и ссылкой. Для{' '}
-        <strong>приватной</strong> активности приглашённый сможет вступить сразу после входа в аккаунт;
-        для публичной письмо служит уведомлением.
-      </p>
       <form className="room-invite-form" onSubmit={handleInviteSubmit}>
         <div className="room-invite-form__row">
           <label htmlFor="room-invite-user-id">ID пользователя</label>
@@ -584,9 +578,6 @@ function RoomManagementSection({
           <h2 id="room-management-heading" className="room-section-heading">
             Управление
           </h2>
-          <p className="room-governance-copy">
-            Списки и роли обновляются после каждого действия. Доступ зависит от вашей роли в комнате.
-          </p>
         </div>
       </div>
 

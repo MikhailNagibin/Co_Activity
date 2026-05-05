@@ -276,6 +276,10 @@
     color: rgba(232, 232, 236, 0.45);
   }
 
+  .auth-simple-header h1 {
+    color: #f2f2f4;
+  }
+
   .auth-card {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.1);
@@ -323,6 +327,29 @@
     }
   }
 
+  .auth-field__input[type='date'],
+  .profile-form input[type='date'],
+  .create-room-form-row input[type='date'],
+  .create-room-form-row input[type='datetime-local'] {
+    color-scheme: dark;
+  }
+
+  .auth-field__input[type='date']::-webkit-calendar-picker-indicator,
+  .profile-form input[type='date']::-webkit-calendar-picker-indicator,
+  .create-room-form-row input[type='date']::-webkit-calendar-picker-indicator,
+  .create-room-form-row input[type='datetime-local']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+  }
+
+  .auth-field__input[type='date']::-webkit-calendar-picker-indicator:hover,
+  .profile-form input[type='date']::-webkit-calendar-picker-indicator:hover,
+  .create-room-form-row input[type='date']::-webkit-calendar-picker-indicator:hover,
+  .create-room-form-row input[type='datetime-local']::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    opacity: 1;
+  }
+
   .auth-banner--neutral {
     border-color: rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
@@ -356,6 +383,18 @@
   .auth-avatar-card {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.1);
+    color: #e8e8ea;
+  }
+
+  .auth-avatar-card .profile-avatar-upload {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f2f2f4;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.34);
+      background: rgba(255, 255, 255, 0.11);
+    }
   }
 
   .auth-avatar-card__preview {
@@ -368,7 +407,7 @@
   }
 
   .auth-avatar-card__file {
-    color: rgba(232, 232, 236, 0.68);
+    color: rgba(242, 242, 244, 0.84);
   }
 
   .activity-card {
@@ -500,9 +539,9 @@
   }
 
   .qa-tag {
-    color: rgba(180, 210, 255, 0.9);
-    background: rgba(88, 166, 255, 0.12);
-    border-color: rgba(88, 166, 255, 0.22);
+    color: rgba(232, 232, 236, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .qa-question-card-footer {
@@ -539,11 +578,17 @@
   }
 
   .qa-thread-op {
-    background: #1c1c1e;
+    background: linear-gradient(165deg, #23242c 0%, #18181c 48%, #151518 100%);
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.035) inset,
       0 1px 2px rgba(0, 0, 0, 0.4),
-      0 8px 28px rgba(0, 0, 0, 0.45);
+      0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .qa-thread-op-sidebar {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .qa-thread-avatar-slot .user-avatar--placeholder .user-avatar__icon {
@@ -566,6 +611,24 @@
     color: rgba(232, 232, 236, 0.78);
   }
 
+  .qa-thread-meta-chip {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.09);
+  }
+
+  .qa-thread-meta-chip--accent {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .qa-thread-meta-label {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .qa-thread-meta-value {
+    color: #f2f2f4;
+  }
+
   .qa-thread-answers-heading {
     color: #f2f2f4;
   }
@@ -578,6 +641,25 @@
       0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
+  .qa-answer-card:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 10px 28px rgba(0, 0, 0, 0.42);
+  }
+
+  .qa-answer-branch[style*='--qa-answer-depth: 1'],
+  .qa-answer-branch[style*='--qa-answer-depth: 2'],
+  .qa-answer-branch[style*='--qa-answer-depth: 3'],
+  .qa-answer-branch[style*='--qa-answer-depth: 4'],
+  .qa-answer-branch[style*='--qa-answer-depth: 5'] {
+    border-left-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .qa-thread-author-link:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+
   .qa-answer-author {
     color: #e8e8ea;
   }
@@ -586,22 +668,9 @@
     color: rgba(232, 232, 236, 0.82);
   }
 
-  .qa-thread-shell--legacy {
-    .qa-thread-op,
-    .qa-answer-card {
-      background: #2a2d32;
-      border-color: rgba(255, 255, 255, 0.12);
-    }
-  }
-
   .qa-thread-reply-form {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .qa-thread-shell--legacy .qa-thread-reply-form {
-    background: #2a2d32;
-    border-color: rgba(255, 255, 255, 0.12);
   }
 
   .qa-thread-reply-textarea {
@@ -610,8 +679,42 @@
     color: #e8e8ea;
   }
 
+  .qa-thread-edit-input {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: #242428;
+    color: #e8e8ea;
+
+    &:focus {
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+    }
+  }
+
   .qa-thread-reply-counter {
     color: rgba(232, 232, 236, 0.45);
+  }
+
+  .qa-thread-reply-submit {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: linear-gradient(180deg, #f2f2f4 0%, #d9dde5 100%);
+    color: #111;
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.28),
+      0 12px 28px rgba(0, 0, 0, 0.28);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(180deg, #fff 0%, #eceff4 100%);
+      border-color: rgba(255, 255, 255, 0.34);
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.3),
+        0 16px 34px rgba(0, 0, 0, 0.34);
+    }
+
+    &:focus-visible {
+      box-shadow:
+        0 0 0 3px rgba(242, 242, 244, 0.16),
+        0 12px 28px rgba(0, 0, 0, 0.28);
+    }
   }
 
   .qa-thread-action-btn {
@@ -704,9 +807,27 @@
   }
 
   .room-activity-status {
-    border-color: rgba(130, 170, 255, 0.22);
-    background: rgba(88, 140, 255, 0.1);
-    color: rgba(220, 230, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(232, 232, 236, 0.82);
+  }
+
+  .room-activity-organizer-inline {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(232, 232, 236, 0.72);
+  }
+
+  .room-activity-organizer-inline__label {
+    color: rgba(232, 232, 236, 0.5);
+  }
+
+  .room-activity-organizer-inline__name {
+    color: #f2f2f4;
+  }
+
+  a.room-activity-organizer-inline__name:hover {
+    color: #fff;
   }
 
   .room-activity-status--full {
@@ -935,9 +1056,7 @@
   }
 
   .room-join-role-pill {
-    background: rgba(34, 197, 94, 0.18);
     color: #86efac;
-    border-color: rgba(34, 197, 94, 0.32);
   }
 
   .room-activity-page .room-join-block--state-member.room-panel-soft {
@@ -987,6 +1106,20 @@
     .room-join-block__icon-wrap {
       background: rgba(248, 113, 113, 0.16);
       color: #fca5a5;
+    }
+  }
+
+  .room-activity-page .room-join-block--state-member.room-panel-soft,
+  .room-activity-page .room-join-block--state-pending.room-panel-soft,
+  .room-activity-page .room-join-block--state-cta.room-panel-soft,
+  .room-activity-page .room-join-block--state-caution.room-panel-soft,
+  .room-activity-page .room-join-block--state-blocked.room-panel-soft {
+    background: linear-gradient(180deg, #202128 0%, #1a1b20 100%);
+    border-color: rgba(255, 255, 255, 0.09);
+
+    .room-join-block__icon-wrap {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e8e8ea;
     }
   }
 
@@ -1133,6 +1266,10 @@
   .profile-room-card__meta,
   .sent-request-card__meta {
     color: rgba(232, 232, 236, 0.55);
+  }
+
+  .profile-room-card__meta > span + span::before {
+    background: rgba(232, 232, 236, 0.22);
   }
 
   .profile-room-card__badge,
@@ -1497,28 +1634,41 @@
     border-color: rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.04);
     color: #f2f2f4;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .room-editor-image-tab {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
   }
 
   .room-editor-image-tab__tab {
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 -4px 22px rgba(0, 0, 0, 0.45);
+    color: #f2f2f4;
   }
 
-  .room-editor-image-tab__body {
+  .room-editor-image-tab__header .room-editor-image-tab__hint,
+  .room-editor-image-tab__empty {
+    color: rgba(232, 232, 236, 0.68);
+  }
+
+  .room-editor-image-tab__feedback {
+    background: rgba(127, 29, 29, 0.22);
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.28);
+  }
+
+  .room-editor-image-tab__feedback.room-editor-images__feedback--error {
+    color: #fecaca;
+  }
+
+  .room-editor-image-tab__body .room-editor-images__preview {
     border-color: rgba(255, 255, 255, 0.1);
-    box-shadow:
-      0 18px 44px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  }
-
-  .room-editor-image-tab__body .room-editor-images__upload {
-    background: #f2f2f4;
-    color: #111;
-    border-color: rgba(255, 255, 255, 0.9);
-
-    &:hover {
-      background: #fff;
-    }
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   }
 
   .room-create-images__meta {
@@ -1591,6 +1741,22 @@
     border-color: rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.04);
     color: #f2f2f4;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .profile-panel .profile-avatar-delete {
+    border-color: rgba(255, 120, 140, 0.34);
+    background: rgba(176, 0, 32, 0.14);
+    color: #ffb8c5;
+
+    &:hover:not(:disabled) {
+      border-color: rgba(255, 120, 140, 0.5);
+      background: rgba(176, 0, 32, 0.2);
+    }
   }
 
   .profile-panel .profile-summary-card {
@@ -1683,6 +1849,39 @@
     &:hover {
       background-color: #fff;
     }
+  }
+
+  button:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
+
+  .search-button:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  .room-governance-tab:hover:not(:disabled),
+  .room-governance-action:hover:not(:disabled),
+  .profile-room-card__action:hover:not(:disabled),
+  .room-delete-button:hover:not(:disabled),
+  .main-browse-filters-reset:hover:not(:disabled),
+  .room-bulletin-edit-btn:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.26);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f2f2f4;
+  }
+
+  .room-governance-tab--active:hover:not(:disabled) {
+    background-color: #fff;
+    color: #111827;
+  }
+
+  .room-governance-action--danger:hover:not(:disabled),
+  .profile-room-card__action--danger:hover:not(:disabled),
+  .room-delete-button:hover:not(:disabled) {
+    border-color: rgba(255, 120, 120, 0.45);
+    background-color: rgba(176, 0, 32, 0.18);
+    color: #ffc8c8;
   }
 
   .two-top-fields article {

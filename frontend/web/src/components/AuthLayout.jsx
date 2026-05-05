@@ -7,16 +7,28 @@ function AuthLayout({
   authActionTo,
   children,
   footer = null,
+  hideHeader = false,
+  simpleTitle = '',
 }) {
+  const shellClassName = hideHeader
+    ? 'main-page-shell auth-page-shell auth-page-shell--simple'
+    : 'main-page-shell auth-page-shell'
+
   return (
     <>
-      <AppHeader authActionLabel={authActionLabel} authActionTo={authActionTo} />
-      <div className="main-page-shell auth-page-shell">
-        <section className="main-hero auth-page-hero">
-          <p className="auth-page-hero__eyebrow">CoActivity</p>
-          <h2>{title}</h2>
-          <h3>{subtitle}</h3>
-        </section>
+      {hideHeader ? null : <AppHeader authActionLabel={authActionLabel} authActionTo={authActionTo} />}
+      <div className={shellClassName}>
+        {hideHeader ? (
+          <header className="auth-simple-header">
+            <h1>{simpleTitle || title}</h1>
+          </header>
+        ) : (
+          <section className="main-hero auth-page-hero">
+            <p className="auth-page-hero__eyebrow">CoActivity</p>
+            <h2>{title}</h2>
+            <h3>{subtitle}</h3>
+          </section>
+        )}
 
         <main className="auth-layout" aria-label={title}>
           <section className="auth-card">

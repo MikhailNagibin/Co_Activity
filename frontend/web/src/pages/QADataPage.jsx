@@ -1,9 +1,12 @@
 import AppHeader from '../components/AppHeader.jsx'
 import QuestionPreview from '../components/QuestionPreview.jsx'
 import StyledDropdown from '../components/StyledDropdown.jsx'
-import { BROWSE_CATEGORY_OPTIONS, browseFilterToQaCategoryId } from '../constants/categoryOptions.js'
+import {
+  BROWSE_CATEGORY_OPTIONS,
+  browseFilterToQaCategoryId,
+} from '../constants/categoryOptions.js'
 import { QA_SORT_OPTIONS } from '../constants/browseFilterOptions.js'
-import { sortQuestionPreviews } from '../utils/browseListFilters.js'
+import { filterQuestionPreviewsForBrowse, sortQuestionPreviews } from '../utils/browseListFilters.js'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { isApiError } from '../api/httpClient.js'
@@ -30,7 +33,6 @@ function QADataPage() {
   const [sortBy, setSortBy] = useState('created-desc')
 
   const deferredSearch = useDeferredValue(debouncedSearchQuery)
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery.trim())
@@ -42,7 +44,6 @@ function QADataPage() {
     let isMounted = true
     const controller = new AbortController()
     const categoryId = browseFilterToQaCategoryId(categoryFilter)
-    const queryForApi = deferredSearch.trim() === '' ? undefined : deferredSearch.trim()
 
     const loadQuestions = async () => {
       setIsLoading(true)
@@ -50,7 +51,6 @@ function QADataPage() {
 
       try {
         const payload = await getQuestions({
-          query: queryForApi,
           categoryId,
           signal: controller.signal,
         })
@@ -87,7 +87,7 @@ function QADataPage() {
       isMounted = false
       controller.abort()
     }
-  }, [navigate, categoryFilter, deferredSearch])
+  }, [navigate, categoryFilter])
 
   const keywordTags = useMemo(
     () =>
@@ -97,10 +97,13 @@ function QADataPage() {
     [questions],
   )
 
-  const sortedQuestions = useMemo(
-    () => sortQuestionPreviews(questions, sortBy),
-    [questions, sortBy],
-  )
+  const sortedQuestions = useMemo(() => {
+    const filteredQuestions = filterQuestionPreviewsForBrowse(questions, {
+      categoryFilter,
+      searchQuery: deferredSearch,
+    })
+    return sortQuestionPreviews(filteredQuestions, sortBy)
+  }, [categoryFilter, deferredSearch, questions, sortBy])
 
   const hasActiveRefinement =
     categoryFilter !== 'all-categories' ||

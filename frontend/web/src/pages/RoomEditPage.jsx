@@ -260,9 +260,6 @@ function RoomEditPage() {
             <Link className="back-link" to={`/rooms/${roomId}`}>
               ← Вернуться к активности
             </Link>
-            <p className="gray-elem room-editor-static-hint">
-              Название, категория, описание, тип доступа и возрастной рейтинг после создания не меняются.
-            </p>
           </div>
         }
         title="Редактирование активности"
@@ -273,7 +270,7 @@ function RoomEditPage() {
         onFieldChange={handleFieldChange}
         onSubmit={handleSubmit}
         showStatus
-        staticActivityFieldsLocked
+        hideStaticActivityFields
       >
         <section className="room-editor-image-tab" aria-labelledby="room-editor-image-tab-title">
           <h3 className="room-editor-image-tab__tab" id="room-editor-image-tab-title">

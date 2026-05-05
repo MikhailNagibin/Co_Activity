@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import UserAvatar from './UserAvatar.jsx'
 
 function ProfileRoomCard({
   item,
@@ -32,10 +31,6 @@ function ProfileRoomCard({
         <span>{item.category}</span>
         <span>{item.date}</span>
         <span>{item.capacity}</span>
-        <span className="profile-room-card__organizer">
-          <UserAvatar user={item.creatorUser} alt={`Аватар, ${item.author}`} size="sm" />
-          <span>Организатор: {item.author}</span>
-        </span>
       </div>
 
       <div className="profile-room-card__badges">

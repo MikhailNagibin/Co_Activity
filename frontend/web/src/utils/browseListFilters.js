@@ -183,19 +183,23 @@ export function filterQuestionPreviewsForBrowse(items, criteria) {
     list = list.filter((item) => item.categoryKey === apiCat)
   }
 
-  return list.filter((item) =>
-    matchesTokenHaystack(
+  return list.filter((item) => {
+    const related = getCategoryRelatedSearchTerms(item.categoryKey)
+    return matchesTokenHaystack(
       [
         item.title,
         item.description,
+        item.author,
         item.categoryLabel,
+        item.categoryKey,
+        related,
         ...(item.tags || []),
       ]
         .filter(Boolean)
         .join(' '),
       searchQuery,
-    ),
-  )
+    )
+  })
 }
 
 export function sortQuestionPreviews(items, sortBy) {

@@ -129,6 +129,7 @@ function CreateRoomPage() {
   return (
     <>
       <AppHeader activeTab="main" authActionLabel="Войти" authActionTo="/sign-in" />
+      <div className="virtual-elem" aria-hidden="true"></div>
       {!isAuthenticated ? (
         <main className="create-room-page">
           <p className="create-room-hint">
@@ -140,11 +141,13 @@ function CreateRoomPage() {
 
       <RoomForm
         title="Новое событие"
-        subtitle="Настройте комнату и появитесь в ленте активностей (если событие публичное)"
+        subtitle=""
+        showHero={false}
         formData={formData}
         errorMessage={errorMessage}
         isSubmitting={isSubmitting}
         isSubmitDisabled={!isAuthenticated}
+        shellExtraClassName="create-room-form-shell"
         submitLabel="Создать событие"
         onFieldChange={handleFieldChange}
         onSubmit={handleSubmit}
@@ -153,10 +156,6 @@ function CreateRoomPage() {
           <div className="room-create-images__header">
             <div>
               <h3 id="room-create-images-title">Изображения комнаты</h3>
-              <p className="gray-elem">
-                Это необязательный шаг. Можно выбрать сразу несколько файлов в формате PNG, JPEG
-                или WEBP.
-              </p>
             </div>
             <label className="room-editor-images__upload">
               <input

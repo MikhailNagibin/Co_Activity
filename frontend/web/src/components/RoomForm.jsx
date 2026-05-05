@@ -6,6 +6,7 @@ function RoomForm({
   lead = null,
   title,
   subtitle = '',
+  showHero = true,
   formData,
   errorMessage = '',
   isSubmitting = false,
@@ -19,56 +20,72 @@ function RoomForm({
   scheduleReadOnly = false,
   /** ФТ «Активности» п.2: поля, отмеченные «статическое» (название, категория, описание, публичность, возрастной рейтинг). */
   staticActivityFieldsLocked = false,
+  hideStaticActivityFields = false,
+  shellExtraClassName = '',
 }) {
   const rowLock = (locked) => (locked ? ' create-room-form-row--locked-visual' : '')
+  const showStaticActivityFields = !hideStaticActivityFields
+  const shellClassName = [
+    'room-form-page-shell',
+    showHero ? '' : 'room-form-page-shell--no-hero',
+    shellExtraClassName,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <div className="room-form-page-shell">
+    <div className={shellClassName}>
       {lead}
-      <section className="main-hero">
-        <h2>{title}</h2>
-        {subtitle ? <h3 className="gray-elem">{subtitle}</h3> : null}
-      </section>
+      {showHero ? (
+        <section className="main-hero">
+          <h2>{title}</h2>
+          {subtitle ? <h3 className="gray-elem">{subtitle}</h3> : null}
+        </section>
+      ) : null}
 
       <main className="create-room-page">
         <form className="create-room-form room-editor-form" onSubmit={onSubmit}>
-          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
-            <label htmlFor="name">Название</label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              autoComplete="off"
-              minLength={3}
-              maxLength={100}
-              value={formData.name}
-              onChange={onFieldChange}
-              disabled={isSubmitting || staticActivityFieldsLocked}
-              readOnly={staticActivityFieldsLocked}
-              required
-            />
-          </div>
+          {showStaticActivityFields ? (
+            <>
+              <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
+                <label htmlFor="name">Название</label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="off"
+                  minLength={3}
+                  maxLength={100}
+                  value={formData.name}
+                  onChange={onFieldChange}
+                  disabled={isSubmitting || staticActivityFieldsLocked}
+                  readOnly={staticActivityFieldsLocked}
+                  required
+                />
+              </div>
 
-          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
-            <label htmlFor="category">Категория</label>
-            <StyledDropdown
-              variant="form"
-              id="category"
-              ariaLabel="Категория активности"
-              options={ROOM_CATEGORY_OPTIONS}
-              value={formData.category}
-              onChange={(next) =>
-                onFieldChange({
-                  target: {
-                    name: 'category',
-                    value: next,
-                    type: 'text',
-                  },
-                })
-              }
-              disabled={isSubmitting || staticActivityFieldsLocked}
-            />
-          </div>
+              <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
+                <label htmlFor="category">Категория</label>
+                <StyledDropdown
+                  variant="form"
+                  id="category"
+                  ariaLabel="Категория активности"
+                  options={ROOM_CATEGORY_OPTIONS}
+                  value={formData.category}
+                  onChange={(next) =>
+                    onFieldChange({
+                      target: {
+                        name: 'category',
+                        value: next,
+                        type: 'text',
+                      },
+                    })
+                  }
+                  disabled={isSubmitting || staticActivityFieldsLocked}
+                />
+              </div>
+            </>
+          ) : null}
 
           {showStatus ? (
             <div className="create-room-form-row">
@@ -93,21 +110,23 @@ function RoomForm({
             </div>
           ) : null}
 
-          <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
-            <label htmlFor="description">Описание (необязательно)</label>
-            <textarea
-              id="description"
-              name="description"
-              rows={6}
-              maxLength={2000}
-              value={formData.description}
-              onChange={onFieldChange}
-              disabled={isSubmitting || staticActivityFieldsLocked}
-              readOnly={staticActivityFieldsLocked}
-            />
-          </div>
+          {showStaticActivityFields ? (
+            <div className={`create-room-form-row${rowLock(staticActivityFieldsLocked)}`}>
+              <label htmlFor="description">Описание (необязательно)</label>
+              <textarea
+                id="description"
+                name="description"
+                rows={6}
+                maxLength={2000}
+                value={formData.description}
+                onChange={onFieldChange}
+                disabled={isSubmitting || staticActivityFieldsLocked}
+                readOnly={staticActivityFieldsLocked}
+              />
+            </div>
+          ) : null}
 
-          <div className="create-room-form-row split-fields">
+          <div className={`create-room-form-row${showStaticActivityFields ? ' split-fields' : ''}`}>
             <div>
               <label htmlFor="maximumNumberOfPeople">Максимум участников</label>
               <input
@@ -122,21 +141,23 @@ function RoomForm({
                 required
               />
             </div>
-            <div className={staticActivityFieldsLocked ? 'create-room-field-group--locked-visual' : ''}>
-              <label htmlFor="ageRating">Возрастной рейтинг (0-21)</label>
-              <input
-                id="ageRating"
-                name="ageRating"
-                type="number"
-                min={0}
-                max={21}
-                value={formData.ageRating}
-                onChange={onFieldChange}
-                disabled={isSubmitting || staticActivityFieldsLocked}
-                readOnly={staticActivityFieldsLocked}
-                required
-              />
-            </div>
+            {showStaticActivityFields ? (
+              <div className={staticActivityFieldsLocked ? 'create-room-field-group--locked-visual' : ''}>
+                <label htmlFor="ageRating">Возрастной рейтинг (0-21)</label>
+                <input
+                  id="ageRating"
+                  name="ageRating"
+                  type="number"
+                  min={0}
+                  max={21}
+                  value={formData.ageRating}
+                  onChange={onFieldChange}
+                  disabled={isSubmitting || staticActivityFieldsLocked}
+                  readOnly={staticActivityFieldsLocked}
+                  required
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="create-room-form-row split-fields">
@@ -223,21 +244,23 @@ function RoomForm({
             />
           </div>
 
-          <div
-            className={`create-room-form-row create-room-checkbox-row${rowLock(staticActivityFieldsLocked)}`}
-          >
-            <label htmlFor="isPublic">
-              <input
-                id="isPublic"
-                name="isPublic"
-                type="checkbox"
-                checked={formData.isPublic}
-                onChange={onFieldChange}
-                disabled={isSubmitting || staticActivityFieldsLocked}
-              />
-              Разрешить вступление без заявки (иначе — только по заявке администраторам)
-            </label>
-          </div>
+          {showStaticActivityFields ? (
+            <div
+              className={`create-room-form-row create-room-checkbox-row${rowLock(staticActivityFieldsLocked)}`}
+            >
+              <label htmlFor="isPublic">
+                <input
+                  id="isPublic"
+                  name="isPublic"
+                  type="checkbox"
+                  checked={formData.isPublic}
+                  onChange={onFieldChange}
+                  disabled={isSubmitting || staticActivityFieldsLocked}
+                />
+                Разрешить вступление без заявки (иначе — только по заявке администраторам)
+              </label>
+            </div>
+          ) : null}
 
           {children}
 

@@ -41,11 +41,11 @@ workspace "CoActivity - C4" "C4 context and component diagrams" {
           }
         }
       }
-      notifications = container "Notification Service" "" "notification-service" {
+      notifications = container "Mail Service" "" "notification-service" {
         tags "MailService"
       }
 
-      postgres = container "PostgreSQL" "" "PostgreSQL 16" {
+      postgres = container "Database" "" "PostgreSQL 16" {
         tags "Database"
       }
       redis = container "Redis" "" "Session Store" {
@@ -54,7 +54,7 @@ workspace "CoActivity - C4" "C4 context and component diagrams" {
       kafka = container "Kafka" "" "Message Broker" {
         tags "MessageBroker"
       }
-      storage = container "MinIO" "" "S3/MinIO" {
+      storage = container "Object Storage" "" "S3/MinIO" {
         tags "ObjectStorage"
       }
 
@@ -72,8 +72,8 @@ workspace "CoActivity - C4" "C4 context and component diagrams" {
     }
 
     coactivity.web -> coactivity.core "REST API" "HTTPS"
-    coactivity.core -> coactivity.postgres "Data" "JPA"
-    coactivity.core -> coactivity.redis "Sessions, auth codes" "Redis"
+    coactivity.core -> coactivity.postgres "Data" "JDBC"
+    coactivity.core -> coactivity.redis "Sessions" "Redis"
     coactivity.core -> coactivity.storage "Files" "S3 API"
     coactivity.core -> coactivity.kafka "Events" "Kafka"
     coactivity.kafka -> coactivity.notifications "Email events" "Kafka"
@@ -180,7 +180,7 @@ workspace "CoActivity - C4" "C4 context and component diagrams" {
         shape cylinder
         background #B22222
         color #ffffff
-        width 350
+        width 320
         fontSize 40
       }
 

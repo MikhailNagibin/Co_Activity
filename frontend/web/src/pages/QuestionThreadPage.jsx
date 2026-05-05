@@ -19,10 +19,16 @@ import {
   updateQuestion,
 } from '../services/qaService.js'
 import { formatDateTimeRu, splitQuestionTitleBody } from '../services/uiMappers.js'
-import { ROOM_CATEGORY_OPTIONS, normalizeRoomCategory } from '../constants/categoryOptions.js'
+import {
+  ROOM_CATEGORY_OPTIONS,
+  getRoomCategoryLabel,
+  normalizeRoomCategory,
+} from '../constants/categoryOptions.js'
 
 const ANSWER_MAX_LENGTH = 2000
 const QUESTION_MAX_LENGTH = 2000
+const QUESTION_TITLE_MAX_LENGTH = 120
+const QUESTION_BODY_MAX_LENGTH = 1800
 
 function pickFirst(...candidates) {
   for (const candidate of candidates) {
@@ -65,7 +71,7 @@ function parseUserId(user) {
 }
 
 function parseAuthorId(author) {
-  const raw = author?.id
+  const raw = pickFirst(author?.id, author?.userId, null)
   if (raw === null || raw === undefined || String(raw).trim() === '') {
     return null
   }
@@ -112,10 +118,12 @@ function QuestionThreadPage() {
   const [postError, setPostError] = useState('')
   const [threadActionError, setThreadActionError] = useState('')
   const [answerText, setAnswerText] = useState('')
+  const [replyParent, setReplyParent] = useState(null)
   const [isPostingAnswer, setIsPostingAnswer] = useState(false)
 
   const [isEditingQuestion, setIsEditingQuestion] = useState(false)
-  const [editQuestionText, setEditQuestionText] = useState('')
+  const [editQuestionTitle, setEditQuestionTitle] = useState('')
+  const [editQuestionBody, setEditQuestionBody] = useState('')
   const [editQuestionCategory, setEditQuestionCategory] = useState('NOT_SPECIFIED')
   const [isSavingQuestion, setIsSavingQuestion] = useState(false)
 
@@ -185,6 +193,8 @@ function QuestionThreadPage() {
     questionBlock?.category != null && String(questionBlock.category).trim() !== ''
       ? [String(questionBlock.category)]
       : []
+  const categoryLabel =
+    categoryTag.length > 0 ? getRoomCategoryLabel(categoryValueForRequest(categoryTag[0])) : ''
   const questionAuthorName = String(
     pickFirst(questionBlock?.author?.userName, 'Неизвестный автор'),
   )
@@ -192,10 +202,11 @@ function QuestionThreadPage() {
   const questionCreatedRaw = pickFirst(questionBlock?.createdAt, '')
   const questionCreatedLabel = formatDateTimeRu(questionCreatedRaw)
 
-  const answers = useMemo(
-    () => flattenAnswers(Array.isArray(payload?.answers) ? payload.answers : []),
+  const answerTree = useMemo(
+    () => (Array.isArray(payload?.answers) ? payload.answers : []),
     [payload?.answers],
   )
+  const answers = useMemo(() => flattenAnswers(answerTree), [answerTree])
 
   const isQuestionOwner =
     isAuthenticated && isSameAuthor(questionBlock?.author, currentUserId)
@@ -205,7 +216,8 @@ function QuestionThreadPage() {
       return
     }
     setThreadActionError('')
-    setEditQuestionText(String(rawQuestionText ?? ''))
+    setEditQuestionTitle(displayTitle)
+    setEditQuestionBody(displayBody)
     setEditQuestionCategory(categoryValueForRequest(questionBlock?.category))
     setIsEditingQuestion(true)
   }
@@ -220,13 +232,27 @@ function QuestionThreadPage() {
       return
     }
     setThreadActionError('')
-    const trimmed = editQuestionText.trim()
-    if (!trimmed) {
-      setThreadActionError('Введите текст вопроса')
+    const trimmedTitle = editQuestionTitle.trim()
+    const trimmedBody = editQuestionBody.trim()
+    if (!trimmedTitle) {
+      setThreadActionError('Введите заголовок вопроса')
       return
     }
+    if (trimmedTitle.length > QUESTION_TITLE_MAX_LENGTH) {
+      setThreadActionError(`Заголовок не длиннее ${QUESTION_TITLE_MAX_LENGTH} символов`)
+      return
+    }
+    if (!trimmedBody) {
+      setThreadActionError('Опишите вопрос подробнее')
+      return
+    }
+    if (trimmedBody.length > QUESTION_BODY_MAX_LENGTH) {
+      setThreadActionError(`Подробное описание не длиннее ${QUESTION_BODY_MAX_LENGTH} символов`)
+      return
+    }
+    const trimmed = `${trimmedTitle}\n\n${trimmedBody}`
     if (trimmed.length > QUESTION_MAX_LENGTH) {
-      setThreadActionError(`Текст вопроса не длиннее ${QUESTION_MAX_LENGTH} символов`)
+      setThreadActionError(`Вопрос целиком не длиннее ${QUESTION_MAX_LENGTH} символов`)
       return
     }
     setIsSavingQuestion(true)
@@ -296,6 +322,7 @@ function QuestionThreadPage() {
       return
     }
     setThreadActionError('')
+    setReplyParent(null)
     setEditingAnswerId(Number(answer.id))
     setEditAnswerText(String(answer.answer ?? ''))
   }
@@ -407,9 +434,10 @@ function QuestionThreadPage() {
       await postAnswer({
         questionId,
         answer: trimmed,
-        previousAnswerId: null,
+        previousAnswerId: replyParent?.id ?? null,
       })
       setAnswerText('')
+      setReplyParent(null)
       await loadThread({ silent: true })
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -428,6 +456,25 @@ function QuestionThreadPage() {
     }
   }
 
+  const handleStartReply = (answer) => {
+    if (!isAuthenticated || !answer?.id) {
+      return
+    }
+    setPostError('')
+    setThreadActionError('')
+    setEditingAnswerId(null)
+    setEditAnswerText('')
+    setReplyParent({
+      id: answer.id,
+      authorName: String(pickFirst(answer.author?.userName, 'участника')),
+    })
+  }
+
+  const handleCancelReply = () => {
+    setReplyParent(null)
+    setPostError('')
+  }
+
   const handleCloseConfirm = () => {
     if (isDestructivePending) {
       return
@@ -439,7 +486,7 @@ function QuestionThreadPage() {
     return (
       <>
         <AppHeader activeTab="qa" />
-        <div className="main-page-shell qa-thread-shell qa-thread-shell--legacy">
+        <div className="main-page-shell qa-thread-shell">
           <p className="qa-list-message qa-list-message--error" role="alert">
             {loadError || 'Некорректная ссылка на вопрос'}
           </p>
@@ -465,10 +512,131 @@ function QuestionThreadPage() {
         ? 'Ответ будет удалён без возможности восстановления.'
         : ''
 
+  const renderAnswerNode = (answer, depth = 0) => {
+    const authorName = String(pickFirst(answer.author?.userName, 'Участник'))
+    const authorId = parseAuthorId(answer.author)
+    const when = formatDateTimeRu(answer.createdAt)
+    const isAnswerOwner = isSameAuthor(answer.author, currentUserId)
+    const isEditingThis = editingAnswerId != null && Number(editingAnswerId) === Number(answer.id)
+    const childAnswers = Array.isArray(answer?.replies) ? answer.replies : []
+
+    return (
+      <article className="qa-answer-branch" key={answer.id} style={{ '--qa-answer-depth': depth }}>
+        <div className="qa-answer-card">
+          <aside className="qa-answer-sidebar" aria-label="Автор ответа">
+            {isAuthenticated && authorId != null ? (
+              <Link to={`/users/${authorId}`} className="qa-thread-author-link" aria-label={`Профиль ${authorName}`}>
+                <UserAvatar
+                  user={answer.author}
+                  alt={`Аватар, ${authorName}`}
+                  className="qa-thread-avatar-slot qa-thread-avatar-slot--answer"
+                  size="lg"
+                />
+              </Link>
+            ) : (
+              <UserAvatar
+                user={answer.author}
+                alt={`Аватар, ${authorName}`}
+                className="qa-thread-avatar-slot qa-thread-avatar-slot--answer"
+                size="lg"
+              />
+            )}
+            <h4 className="qa-answer-author">
+              {isAuthenticated && authorId != null ? (
+                <Link to={`/users/${authorId}`}>{authorName}</Link>
+              ) : (
+                authorName
+              )}
+            </h4>
+            {when ? <time className="qa-thread-date">{when}</time> : null}
+          </aside>
+          <div className="qa-answer-body">
+            <div className="qa-thread-owner-actions qa-thread-owner-actions--answer">
+              {isAuthenticated && !isEditingThis ? (
+                <button
+                  type="button"
+                  className="qa-thread-action-btn"
+                  data-testid={`qa-thread-reply-answer-${answer.id}`}
+                  onClick={() => handleStartReply(answer)}
+                >
+                  Ответить
+                </button>
+              ) : null}
+              {isAuthenticated && isAnswerOwner && !isEditingThis ? (
+                <>
+                  <button
+                    type="button"
+                    className="qa-thread-action-btn"
+                    data-testid={`qa-thread-edit-answer-${answer.id}`}
+                    onClick={() => handleStartEditAnswer(answer)}
+                  >
+                    Редактировать
+                  </button>
+                  <button
+                    type="button"
+                    className="qa-thread-action-btn qa-thread-action-btn--danger"
+                    data-testid={`qa-thread-delete-answer-${answer.id}`}
+                    onClick={() => handleRequestDeleteAnswer(answer.id)}
+                  >
+                    Удалить
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {isEditingThis ? (
+              <div className="qa-thread-edit-panel" data-testid={`qa-thread-answer-editor-${answer.id}`}>
+                <textarea
+                  className="qa-thread-reply-textarea"
+                  rows={4}
+                  maxLength={ANSWER_MAX_LENGTH}
+                  value={editAnswerText}
+                  onChange={(e) => setEditAnswerText(e.target.value)}
+                  disabled={isSavingAnswer}
+                  aria-label="Редактирование ответа"
+                />
+                <div className="qa-thread-edit-footer">
+                  <span className="qa-thread-reply-counter">
+                    {editAnswerText.length} / {ANSWER_MAX_LENGTH}
+                  </span>
+                  <div className="qa-thread-edit-buttons">
+                    <button
+                      type="button"
+                      className="qa-thread-action-btn"
+                      onClick={handleCancelEditAnswer}
+                      disabled={isSavingAnswer}
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="button"
+                      className="main-create-activity-btn qa-thread-reply-submit"
+                      data-testid={`qa-thread-save-answer-${answer.id}`}
+                      onClick={handleSaveAnswer}
+                      disabled={isSavingAnswer}
+                    >
+                      {isSavingAnswer ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p>{answer.answer}</p>
+            )}
+          </div>
+        </div>
+        {childAnswers.length > 0 ? (
+          <div className="qa-answer-children">
+            {childAnswers.map((child) => renderAnswerNode(child, depth + 1))}
+          </div>
+        ) : null}
+      </article>
+    )
+  }
+
   return (
     <>
       <AppHeader activeTab="qa" />
-      <div className="main-page-shell qa-thread-shell qa-thread-shell--legacy">
+      <div className="main-page-shell qa-thread-shell">
         <Link className="back-link qa-thread-back" to="/qa">
           ← Назад к вопросам
         </Link>
@@ -491,12 +659,23 @@ function QuestionThreadPage() {
           <>
             <article className="qa-thread-op">
               <aside className="qa-thread-op-sidebar" aria-label="Автор вопроса">
-                <UserAvatar
-                  user={questionBlock?.author}
-                  alt={`Аватар, ${questionAuthorName}`}
-                  className="qa-thread-avatar-slot qa-thread-avatar-slot--question"
-                  size="xl"
-                />
+                {isAuthenticated && questionAuthorId != null ? (
+                  <Link to={`/users/${questionAuthorId}`} className="qa-thread-author-link" aria-label={`Профиль ${questionAuthorName}`}>
+                    <UserAvatar
+                      user={questionBlock?.author}
+                      alt={`Аватар, ${questionAuthorName}`}
+                      className="qa-thread-avatar-slot qa-thread-avatar-slot--question"
+                      size="xl"
+                    />
+                  </Link>
+                ) : (
+                  <UserAvatar
+                    user={questionBlock?.author}
+                    alt={`Аватар, ${questionAuthorName}`}
+                    className="qa-thread-avatar-slot qa-thread-avatar-slot--question"
+                    size="xl"
+                  />
+                )}
                 <h3 className="qa-thread-author-name">
                   {isAuthenticated && questionAuthorId != null ? (
                     <Link to={`/users/${questionAuthorId}`}>{questionAuthorName}</Link>
@@ -551,20 +730,38 @@ function QuestionThreadPage() {
                         disabled={isSavingQuestion}
                       />
                     </div>
-                    <label htmlFor="qa-edit-question-text">Текст вопроса</label>
-                    <textarea
-                      id="qa-edit-question-text"
-                      className="qa-thread-reply-textarea"
-                      rows={6}
-                      maxLength={QUESTION_MAX_LENGTH}
-                      value={editQuestionText}
-                      onChange={(e) => setEditQuestionText(e.target.value)}
-                      disabled={isSavingQuestion}
-                      aria-label="Редактирование текста вопроса"
-                    />
+                    <div className="qa-thread-edit-row">
+                      <label htmlFor="qa-edit-question-title">Заголовок вопроса</label>
+                      <input
+                        id="qa-edit-question-title"
+                        className="qa-thread-edit-input"
+                        type="text"
+                        maxLength={QUESTION_TITLE_MAX_LENGTH}
+                        value={editQuestionTitle}
+                        onChange={(e) => setEditQuestionTitle(e.target.value)}
+                        disabled={isSavingQuestion}
+                        aria-label="Редактирование заголовка вопроса"
+                      />
+                      <span className="qa-thread-reply-counter">
+                        {editQuestionTitle.length} / {QUESTION_TITLE_MAX_LENGTH}
+                      </span>
+                    </div>
+                    <div className="qa-thread-edit-row">
+                      <label htmlFor="qa-edit-question-text">Подробное описание</label>
+                      <textarea
+                        id="qa-edit-question-text"
+                        className="qa-thread-reply-textarea"
+                        rows={6}
+                        maxLength={QUESTION_BODY_MAX_LENGTH}
+                        value={editQuestionBody}
+                        onChange={(e) => setEditQuestionBody(e.target.value)}
+                        disabled={isSavingQuestion}
+                        aria-label="Редактирование подробного описания вопроса"
+                      />
+                    </div>
                     <div className="qa-thread-edit-footer">
                       <span className="qa-thread-reply-counter">
-                        {editQuestionText.length} / {QUESTION_MAX_LENGTH}
+                        {editQuestionBody.length} / {QUESTION_BODY_MAX_LENGTH}
                       </span>
                       <div className="qa-thread-edit-buttons">
                         <button
@@ -591,15 +788,26 @@ function QuestionThreadPage() {
                   <>
                     <h1 className="qa-thread-title">{displayTitle}</h1>
                     <p className="qa-thread-body">{displayBody}</p>
-                    {categoryTag.length > 0 ? (
-                      <div className="qa-thread-op-tags">
-                        {categoryTag.map((tag) => (
-                          <span key={tag} className="qa-tag">
-                            {tag}
-                          </span>
-                        ))}
+                    <div className="qa-thread-meta-chips" aria-label="Информация о вопросе">
+                      {categoryLabel ? (
+                        <div className="qa-thread-meta-chip">
+                          <span className="qa-thread-meta-label">Категория</span>
+                          <span className="qa-thread-meta-value">{categoryLabel}</span>
+                        </div>
+                      ) : null}
+                      {questionCreatedLabel ? (
+                        <div className="qa-thread-meta-chip">
+                          <span className="qa-thread-meta-label">Создан</span>
+                          <span className="qa-thread-meta-value">{questionCreatedLabel}</span>
+                        </div>
+                      ) : null}
+                      <div className="qa-thread-meta-chip qa-thread-meta-chip--accent">
+                        <span className="qa-thread-meta-label">Обсуждение</span>
+                        <span className="qa-thread-meta-value">
+                          {answers.length} {answersWord(answers.length)}
+                        </span>
                       </div>
-                    ) : null}
+                    </div>
                   </>
                 )}
               </div>
@@ -610,100 +818,23 @@ function QuestionThreadPage() {
                 {answers.length} {answersWord(answers.length)}
               </h2>
 
-              {answers.map((answer) => {
-                const authorName = String(pickFirst(answer.author?.userName, 'Участник'))
-                const authorId = parseAuthorId(answer.author)
-                const when = formatDateTimeRu(answer.createdAt)
-                const isAnswerOwner = isSameAuthor(answer.author, currentUserId)
-                const isEditingThis = editingAnswerId != null && Number(editingAnswerId) === Number(answer.id)
-
-                return (
-                  <article className="qa-answer-card" key={answer.id}>
-                    <aside className="qa-answer-sidebar" aria-label="Автор ответа">
-                      <UserAvatar
-                        user={answer.author}
-                        alt={`Аватар, ${authorName}`}
-                        className="qa-thread-avatar-slot qa-thread-avatar-slot--answer"
-                        size="lg"
-                      />
-                      <h4 className="qa-answer-author">
-                        {isAuthenticated && authorId != null ? (
-                          <Link to={`/users/${authorId}`}>{authorName}</Link>
-                        ) : (
-                          authorName
-                        )}
-                      </h4>
-                      {when ? <time className="qa-thread-date">{when}</time> : null}
-                    </aside>
-                    <div className="qa-answer-body">
-                      {isAuthenticated && isAnswerOwner && !isEditingThis ? (
-                        <div className="qa-thread-owner-actions qa-thread-owner-actions--answer">
-                          <button
-                            type="button"
-                            className="qa-thread-action-btn"
-                            data-testid={`qa-thread-edit-answer-${answer.id}`}
-                            onClick={() => handleStartEditAnswer(answer)}
-                          >
-                            Редактировать
-                          </button>
-                          <button
-                            type="button"
-                            className="qa-thread-action-btn qa-thread-action-btn--danger"
-                            data-testid={`qa-thread-delete-answer-${answer.id}`}
-                            onClick={() => handleRequestDeleteAnswer(answer.id)}
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      ) : null}
-                      {isEditingThis ? (
-                        <div className="qa-thread-edit-panel" data-testid={`qa-thread-answer-editor-${answer.id}`}>
-                          <textarea
-                            className="qa-thread-reply-textarea"
-                            rows={4}
-                            maxLength={ANSWER_MAX_LENGTH}
-                            value={editAnswerText}
-                            onChange={(e) => setEditAnswerText(e.target.value)}
-                            disabled={isSavingAnswer}
-                            aria-label="Редактирование ответа"
-                          />
-                          <div className="qa-thread-edit-footer">
-                            <span className="qa-thread-reply-counter">
-                              {editAnswerText.length} / {ANSWER_MAX_LENGTH}
-                            </span>
-                            <div className="qa-thread-edit-buttons">
-                              <button
-                                type="button"
-                                className="qa-thread-action-btn"
-                                onClick={handleCancelEditAnswer}
-                                disabled={isSavingAnswer}
-                              >
-                                Отмена
-                              </button>
-                              <button
-                                type="button"
-                                className="main-create-activity-btn qa-thread-reply-submit"
-                                data-testid={`qa-thread-save-answer-${answer.id}`}
-                                onClick={handleSaveAnswer}
-                                disabled={isSavingAnswer}
-                              >
-                                {isSavingAnswer ? 'Сохранение...' : 'Сохранить'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <p>{answer.answer}</p>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
+              <div className="qa-answer-tree">
+                {answerTree.map((answer) => renderAnswerNode(answer))}
+              </div>
             </section>
 
             {isAuthenticated ? (
               <section className="qa-thread-reply" aria-label="Ваш ответ">
-                <h2 className="qa-thread-answers-heading">Добавить ответ</h2>
+                <div className="qa-thread-reply-heading-row">
+                  <h2 className="qa-thread-answers-heading">
+                    {replyParent ? `Ответить ${replyParent.authorName}` : 'Добавить ответ'}
+                  </h2>
+                  {replyParent ? (
+                    <button type="button" className="auth-text-button" onClick={handleCancelReply}>
+                      Отменить ответ
+                    </button>
+                  ) : null}
+                </div>
                 <form className="qa-thread-reply-form" onSubmit={handlePostAnswer}>
                   <textarea
                     className="qa-thread-reply-textarea"
@@ -712,7 +843,7 @@ function QuestionThreadPage() {
                     value={answerText}
                     onChange={(e) => setAnswerText(e.target.value)}
                     disabled={isPostingAnswer}
-                    placeholder="Напишите ответ сообществу..."
+                    placeholder={replyParent ? 'Напишите ответ на сообщение...' : 'Напишите ответ сообществу...'}
                     aria-label="Текст ответа"
                   />
                   <div className="qa-thread-reply-footer">

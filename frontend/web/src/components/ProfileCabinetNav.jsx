@@ -2,9 +2,8 @@ import { NavLink } from 'react-router-dom'
 
 const NAV_ITEMS = [
   { to: '/profile', end: true, label: 'Профиль' },
-  { to: '/agreements', label: 'Пользовательские соглашения' },
   { to: '/profile/notifications', label: 'Настройка уведомлений' },
-  { to: '/profile/site-settings', label: 'Настройка сайта' },
+  { to: '/profile/site-settings', label: 'Настройки сайта' },
   { to: '/profile/my-rooms', label: 'Мои активности' },
   { to: '/profile/incoming-requests', label: 'Входящие заявки' },
   { to: '/profile/sent-requests', label: 'Отправленные заявки' },

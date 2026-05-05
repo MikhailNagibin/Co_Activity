@@ -203,10 +203,6 @@ function NotificationSettingsPage() {
               <div className="notification-settings-summary">
                 <p className="profile-kicker">Почта для уведомлений</p>
                 <strong>{accountEmail || 'Почта не найдена'}</strong>
-                <p className="gray-elem">
-                  Уведомления отправляются на адрес, указанный в профиле. Сценарии «отклонено» и «отклонено с
-                  баном» настраиваются одним пунктом — письма по ним не различаются.
-                </p>
               </div>
 
               <button
@@ -232,9 +228,6 @@ function NotificationSettingsPage() {
                 />
                 <span className="notification-settings-option">
                   <span>Заявка на вступление принята</span>
-                  <span className="notification-settings-option__hint">
-                    Приходит подтверждение, что вас добавили в активность.
-                  </span>
                 </span>
               </label>
               <label className="profile-checkbox">
@@ -246,11 +239,7 @@ function NotificationSettingsPage() {
                   disabled={isSavingNotifications}
                 />
                 <span className="notification-settings-option">
-                  <span>Заявка на вступление отклонена / отклонена с баном</span>
-                  <span className="notification-settings-option__hint">
-                    Письмо сообщает, что заявка не принята организаторами, в том числе если повторное
-                    вступление больше недоступно.
-                  </span>
+                  <span>Заявка на вступление отклонена</span>
                 </span>
               </label>
               <label className="profile-checkbox">
@@ -263,9 +252,6 @@ function NotificationSettingsPage() {
                 />
                 <span className="notification-settings-option">
                   <span>Активность, в которой я состою, закрылась</span>
-                  <span className="notification-settings-option__hint">
-                    Уведомление о закрытии активности и прекращении участия.
-                  </span>
                 </span>
               </label>
               <label className="profile-checkbox">
@@ -278,9 +264,6 @@ function NotificationSettingsPage() {
                 />
                 <span className="notification-settings-option">
                   <span>Новая заявка на вступление в мою активность</span>
-                  <span className="notification-settings-option__hint">
-                    Вы получите письмо, когда кто-то попросится в вашу комнату.
-                  </span>
                 </span>
               </label>
               <label className="profile-checkbox">
@@ -293,15 +276,8 @@ function NotificationSettingsPage() {
                 />
                 <span className="notification-settings-option">
                   <span>Важные обновления по активностям</span>
-                  <span className="notification-settings-option__hint">
-                    Письма о значимых изменениях в ваших активностях.
-                  </span>
                 </span>
               </label>
-
-              <p className="gray-elem notification-settings-hint">
-                Если выключить все пункты, это будет считаться полным отключением уведомлений.
-              </p>
 
               <button type="submit" className="create-room-submit" disabled={isSavingNotifications}>
                 {isSavingNotifications ? 'Сохранение...' : 'Сохранить'}

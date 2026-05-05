@@ -58,7 +58,7 @@ test.describe('Q&A thread', () => {
   })
 
   test('authenticated author can edit own question', async ({ page }) => {
-    let questionBody = 'Мой вопрос до правки'
+    let questionBody = 'Мой вопрос до правки\n\nОписание до правки'
 
     await page.route('**/api/auth/me', async (route) => {
       await route.fulfill({
@@ -142,11 +142,125 @@ test.describe('Q&A thread', () => {
     await page.getByTestId('qa-thread-edit-question').click()
 
     await expect(page.getByTestId('qa-thread-question-editor')).toBeVisible()
-    const editor = page.locator('#qa-edit-question-text')
-    await editor.fill('Мой вопрос после правки')
+    await page.locator('#qa-edit-question-title').fill('Мой вопрос после правки')
+    await page.locator('#qa-edit-question-text').fill('Описание после правки')
 
     await page.getByTestId('qa-thread-save-question').click()
 
     await expect(page.getByRole('heading', { name: 'Мой вопрос после правки' })).toBeVisible()
+    await expect(page.getByText('Описание после правки')).toBeVisible()
+  })
+
+  test('authenticated user can reply to an answer', async ({ page }) => {
+    let postedPayload = null
+    const thread = buildThreadJson({
+      id: 888,
+      question: 'Вопрос с деревом ответов',
+    })
+    thread.answers = [
+      {
+        id: 10,
+        answer: 'Родительский ответ',
+        author: {
+          id: 99,
+          userName: 'parent-user',
+          avatarId: null,
+          avatarUrl: null,
+        },
+        createdAt: '2026-04-14T11:00:00Z',
+        replies: [
+          {
+            id: 11,
+            answer: 'Уже вложенный ответ',
+            author: {
+              id: 98,
+              userName: 'child-user',
+              avatarId: null,
+              avatarUrl: null,
+            },
+            createdAt: '2026-04-14T11:10:00Z',
+            replies: [],
+          },
+        ],
+      },
+    ]
+
+    await page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 7,
+          username: 'reply-user',
+          email: 'reply@example.com',
+        }),
+      })
+    })
+
+    await page.route('**/api/auth/csrf', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: {
+          'Set-Cookie': 'XSRF-TOKEN=playwright-csrf-token; Path=/',
+        },
+        body: JSON.stringify({ token: 'playwright-csrf-token' }),
+      })
+    })
+
+    await page.route('**/api/qa/questions/888', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback()
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(thread),
+      })
+    })
+
+    await page.route('**/api/qa/answers', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fallback()
+        return
+      }
+      postedPayload = route.request().postDataJSON()
+      thread.answers[0].replies.push({
+        id: 12,
+        answer: postedPayload.answer,
+        author: {
+          id: 7,
+          userName: 'reply-user',
+          avatarId: null,
+          avatarUrl: null,
+        },
+        createdAt: '2026-04-14T11:20:00Z',
+        replies: [],
+      })
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 12 }),
+      })
+    })
+
+    await page.goto('/questions/888')
+    await expect(page.getByText('Уже вложенный ответ')).toBeVisible()
+
+    await page.getByTestId('qa-thread-reply-answer-10').click()
+    await page.getByLabel('Текст ответа').fill('Новый вложенный ответ')
+    const postAnswerRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/api/qa/answers'),
+    )
+    await page.getByRole('button', { name: 'Отправить ответ' }).click()
+    await postAnswerRequest
+
+    expect(postedPayload).toMatchObject({
+      questionId: 888,
+      answer: 'Новый вложенный ответ',
+      previousAnswerId: 10,
+    })
+    await expect(page.getByText('Новый вложенный ответ')).toBeVisible()
   })
 })

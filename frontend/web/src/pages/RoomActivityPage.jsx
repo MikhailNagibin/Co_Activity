@@ -1,6 +1,6 @@
-import AppHeader from '../components/AppHeader.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuthSession } from '../auth/authSessionContext.js'
+import AppHeader from '../components/AppHeader.jsx'
 import IncomingJoinRequestsSection from '../components/IncomingJoinRequestsSection.jsx'
 import RoomManagementSection from '../components/RoomManagementSection.jsx'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -623,9 +623,7 @@ function RoomActivityPage() {
 
   return (
     <>
-      <AppHeader activeTab="main" />
-      <div className="virtual-elem"></div>
-
+      <AppHeader activeTab="main" authActionLabel="Войти" authActionTo="/sign-in" />
       <main className="room-activity-page">
         <Link className="back-link" to="/main">
           ← Назад к активностям
@@ -648,16 +646,18 @@ function RoomActivityPage() {
           <>
             <header className="room-activity-hero">
               <div className="room-activity-title-row">
-                <div>
+                <div className="room-activity-title-main">
                   <h1 className="room-activity-title">{room.name || 'Без названия'}</h1>
-                  <div className="room-activity-statuses">
-                    <span className="room-activity-status">{roomStatusLabel}</span>
-                    {membershipRoleLabel ? (
-                      <span className="room-activity-status">{membershipRoleLabel}</span>
-                    ) : null}
-                    {isFull ? (
-                      <span className="room-activity-status room-activity-status--full">Мест нет</span>
-                    ) : null}
+                  <div className="room-activity-status-row">
+                    <div className="room-activity-statuses">
+                      <span className="room-activity-status">{roomStatusLabel}</span>
+                      {membershipRoleLabel ? (
+                        <span className="room-activity-status">{membershipRoleLabel}</span>
+                      ) : null}
+                      {isFull ? (
+                        <span className="room-activity-status room-activity-status--full">Мест нет</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <div className="room-activity-hero-actions">
@@ -666,6 +666,22 @@ function RoomActivityPage() {
                       Редактировать комнату
                     </Link>
                   ) : null}
+                  <span className="room-activity-organizer-inline">
+                    <UserAvatar
+                      user={room?.creator}
+                      alt={`Аватар, ${organizerName}`}
+                      className="room-activity-organizer-inline__avatar"
+                      size="sm"
+                    />
+                    <span className="room-activity-organizer-inline__label">Организатор</span>
+                    {isAuthenticated && organizerId ? (
+                      <Link to={`/users/${organizerId}`} className="room-activity-organizer-inline__name">
+                        {organizerName}
+                      </Link>
+                    ) : (
+                      <span className="room-activity-organizer-inline__name">{organizerName}</span>
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -785,6 +801,15 @@ function RoomActivityPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="room-activity-hero-join">
+                {renderJoinBlock()}
+                {joinFeedback && joinFeedbackTone === 'error' ? (
+                  <p className="room-join-feedback room-join-error" role="alert">
+                    {joinFeedback}
+                  </p>
+                ) : null}
+              </div>
             </header>
 
             <section className="room-description-section room-panel-soft">
@@ -793,48 +818,6 @@ function RoomActivityPage() {
               {room.frequency ? (
                 <p className="room-description-meta">
                   Следующее повторение: <strong>{formatDateTime(room.frequency)}</strong>
-                </p>
-              ) : null}
-            </section>
-
-            <section className="room-activity-columns">
-              <div className="room-activity-side-grid">
-                <article className="room-panel room-panel-soft room-organizer-card">
-                  <h2 className="room-section-heading">Организатор</h2>
-                  <div className="room-organizer-body">
-                    <div className="room-organizer-avatar-ring">
-                      <UserAvatar
-                        user={room?.creator}
-                        alt={`Аватар, ${organizerName}`}
-                        className="organizer-avatar room-organizer-avatar"
-                        size="xl"
-                      />
-                    </div>
-                    <div className="organizer-details room-organizer-details">
-                      <span className="room-organizer-badge">Автор активности</span>
-                      {isAuthenticated && organizerId ? (
-                        <Link to={`/users/${organizerId}`} className="organizer-name organizer-name--link">
-                          {organizerName}
-                        </Link>
-                      ) : (
-                        <span className="organizer-name">{organizerName}</span>
-                      )}
-                      {roomCreatedLabel ? (
-                        <p className="room-organizer-meta">
-                          <i className="fa-regular fa-calendar-plus" aria-hidden="true" />
-                          <span>Создано {roomCreatedLabel}</span>
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-
-                {renderJoinBlock()}
-              </div>
-
-              {joinFeedback && joinFeedbackTone === 'error' ? (
-                <p className="room-join-feedback room-join-error" role="alert">
-                  {joinFeedback}
                 </p>
               ) : null}
             </section>

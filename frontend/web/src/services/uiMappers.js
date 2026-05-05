@@ -1,4 +1,4 @@
-import { getRoomCategoryLabel } from '../constants/categoryOptions.js'
+import { getRoomCategoryLabel, normalizeRoomCategory } from '../constants/categoryOptions.js'
 import { sortRoomImages } from '../utils/roomForm.js'
 
 function toArray(payload) {
@@ -227,7 +227,7 @@ export function mapRoomsToActivityCards(payload) {
 
     const categoryRaw = pickFirst(room.category, room.categoryName)
     const categoryKey =
-      categoryRaw != null && String(categoryRaw).trim() !== '' ? String(categoryRaw).trim() : ''
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? normalizeRoomCategory(categoryRaw) : ''
 
     const rawPublic = room.isPublic
     const isPublic = rawPublic === false ? false : true
@@ -465,6 +465,13 @@ export function splitQuestionTitleBody(text) {
     return { title: 'Без названия', body: 'Описание отсутствует' }
   }
   const trimmed = text.trim()
+  const parts = trimmed.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      title: parts[0],
+      body: parts.slice(1).join('\n\n'),
+    }
+  }
   const maxTitle = 120
   if (trimmed.length <= maxTitle) {
     return { title: trimmed, body: trimmed }
@@ -482,10 +489,13 @@ export function mapQuestionsToPreview(payload) {
     const { title, body } = splitQuestionTitleBody(rawText)
     const categoryRaw = pickFirst(question.category, question.categoryName)
     const categoryKey =
-      categoryRaw != null && String(categoryRaw).trim() !== '' ? String(categoryRaw).trim() : ''
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? normalizeRoomCategory(categoryRaw) : ''
+    const categoryLabel = getRoomCategoryLabel(categoryRaw)
     const categoryTag =
-      categoryRaw != null && String(categoryRaw).trim() !== '' ? [String(categoryRaw)] : []
-    const extraTags = Array.isArray(question.tags) ? question.tags.map((tag) => String(tag)) : []
+      categoryRaw != null && String(categoryRaw).trim() !== '' ? [categoryLabel] : []
+    const extraTags = Array.isArray(question.tags)
+      ? question.tags.map((tag) => getRoomCategoryLabel(tag))
+      : []
 
     const rawId = pickFirst(question.id, question.questionId, question.uuid)
     const numericId =
@@ -515,10 +525,10 @@ export function mapQuestionsToPreview(payload) {
       createdAt: formatDateTimeRu(createdIso),
       createdAtIso: createdIso,
       categoryKey,
-      categoryLabel: getRoomCategoryLabel(categoryRaw),
+      categoryLabel,
       title: String(title),
       description: String(body),
-      tags: [...categoryTag, ...extraTags],
+      tags: Array.from(new Set([...categoryTag, ...extraTags])),
       answersCount,
       linkTo: numericId != null ? `/questions/${numericId}` : null,
     }

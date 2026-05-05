@@ -86,7 +86,7 @@ export function getRoomCategoryLabel(category) {
   if (category == null || String(category).trim() === '') {
     return 'Категория не указана'
   }
-  const key = String(category).trim()
+  const key = normalizeRoomCategory(category)
   return ROOM_CATEGORY_LABELS[key] ?? key
 }
 

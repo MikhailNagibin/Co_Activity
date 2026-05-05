@@ -173,6 +173,7 @@ function IncomingJoinRequestsSection({
   }, [loadRequests])
 
   const groupedRequests = useMemo(() => groupIncomingJoinRequestsByRoom(requests), [requests])
+  const shouldShowDescription = Boolean(description) && (isLoading || requests.length > 0)
 
   const handleAction = async (request, action) => {
     if (!request?.requestId || !action?.key || !canManageActions) {
@@ -247,7 +248,7 @@ function IncomingJoinRequestsSection({
           <h2 id="incoming-requests-heading" className="room-section-heading">
             {title}
           </h2>
-          <p className="room-governance-copy">{description}</p>
+          {shouldShowDescription ? <p className="room-governance-copy">{description}</p> : null}
         </div>
       </div>
 

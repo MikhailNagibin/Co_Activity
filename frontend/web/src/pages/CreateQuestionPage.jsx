@@ -13,11 +13,14 @@ import {
 import { createQuestion } from '../services/qaService.js'
 
 const QUESTION_MAX_LENGTH = 2000
+const QUESTION_TITLE_MAX_LENGTH = 120
+const QUESTION_BODY_MAX_LENGTH = 1800
 
 function CreateQuestionPage() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthSession()
-  const [category, setCategory] = useState('Education')
+  const [category, setCategory] = useState('EDUCATION')
+  const [questionTitle, setQuestionTitle] = useState('')
   const [question, setQuestion] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -31,20 +34,37 @@ function CreateQuestionPage() {
       return
     }
 
+    const trimmedTitle = questionTitle.trim()
     const trimmedQuestion = question.trim()
-    if (!trimmedQuestion) {
-      setErrorMessage('Введите текст вопроса')
+    if (!trimmedTitle) {
+      setErrorMessage('Введите заголовок вопроса')
       return
     }
 
-    if (trimmedQuestion.length > QUESTION_MAX_LENGTH) {
-      setErrorMessage(`Текст вопроса не должен превышать ${QUESTION_MAX_LENGTH} символов`)
+    if (trimmedTitle.length > QUESTION_TITLE_MAX_LENGTH) {
+      setErrorMessage(`Заголовок не должен превышать ${QUESTION_TITLE_MAX_LENGTH} символов`)
+      return
+    }
+
+    if (!trimmedQuestion) {
+      setErrorMessage('Опишите вопрос подробнее')
+      return
+    }
+
+    if (trimmedQuestion.length > QUESTION_BODY_MAX_LENGTH) {
+      setErrorMessage(`Подробное описание не должно превышать ${QUESTION_BODY_MAX_LENGTH} символов`)
+      return
+    }
+
+    const questionPayload = `${trimmedTitle}\n\n${trimmedQuestion}`
+    if (questionPayload.length > QUESTION_MAX_LENGTH) {
+      setErrorMessage(`Вопрос целиком не должен превышать ${QUESTION_MAX_LENGTH} символов`)
       return
     }
 
     setIsSubmitting(true)
     try {
-      await createQuestion({ category, question: trimmedQuestion })
+      await createQuestion({ category, question: questionPayload })
       navigate('/qa')
     } catch (error) {
       if (isUnauthorizedApiError(error)) {
@@ -93,18 +113,36 @@ function CreateQuestionPage() {
           </div>
 
           <div className="create-room-form-row">
-            <label htmlFor="question-text">Текст вопроса</label>
-            <textarea
-              id="question-text"
-              rows={8}
-              maxLength={QUESTION_MAX_LENGTH}
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
+            <label htmlFor="question-title">Заголовок вопроса</label>
+            <input
+              id="question-title"
+              type="text"
+              maxLength={QUESTION_TITLE_MAX_LENGTH}
+              value={questionTitle}
+              onChange={(event) => setQuestionTitle(event.target.value)}
               disabled={isSubmitting}
+              placeholder="Коротко сформулируйте суть вопроса"
               required
             />
             <p className="create-question-counter">
-              {question.length} / {QUESTION_MAX_LENGTH}
+              {questionTitle.length} / {QUESTION_TITLE_MAX_LENGTH}
+            </p>
+          </div>
+
+          <div className="create-room-form-row">
+            <label htmlFor="question-text">Подробное описание</label>
+            <textarea
+              id="question-text"
+              rows={8}
+              maxLength={QUESTION_BODY_MAX_LENGTH}
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              disabled={isSubmitting}
+              placeholder="Добавьте контекст, что уже пробовали и какого ответа ждёте"
+              required
+            />
+            <p className="create-question-counter">
+              {question.length} / {QUESTION_BODY_MAX_LENGTH}
             </p>
           </div>
 

@@ -12,17 +12,15 @@ function SiteSettingsPage() {
   const [showActivitiesNotMeetingAgeRating, setShowActivitiesNotMeetingAgeRating] = useState(
     () => getShowActivitiesNotMeetingAgeRatingFromStorage(),
   )
-  const [savedNotice, setSavedNotice] = useState('')
 
   const handleSubmit = (event) => {
     event.preventDefault()
     setShowActivitiesNotMeetingAgeRatingInStorage(showActivitiesNotMeetingAgeRating)
-    setSavedNotice('Настройка сайта сохранена.')
   }
 
   return (
     <ProfileCabinetShell
-      heroTitle="Настройка сайта"
+      heroTitle="Настройки сайта"
       heroSubtitle="Выберите, показывать ли активности с возрастным рейтингом выше вашего возраста."
     >
       <main className="profile-page">
@@ -36,10 +34,6 @@ function SiteSettingsPage() {
           <section className="profile-panel">
             <p className="profile-kicker">Фильтр по возрастному рейтингу</p>
             <h3>Показывать комнаты с более высоким рейтингом</h3>
-            <p className="gray-elem">
-              Если опция выключена, на главной скрываются комнаты, где возрастной рейтинг выше вашего.
-              Для корректной фильтрации должна быть заполнена дата рождения в профиле.
-            </p>
             <form onSubmit={handleSubmit} className="profile-form">
               <div className="profile-form-row profile-form-row--checkbox">
                 <label className="profile-checkbox-label" htmlFor="showActivitiesNotMeetingAgeRating">
@@ -48,10 +42,7 @@ function SiteSettingsPage() {
                     name="showActivitiesNotMeetingAgeRating"
                     type="checkbox"
                     checked={showActivitiesNotMeetingAgeRating}
-                    onChange={(event) => {
-                      setShowActivitiesNotMeetingAgeRating(event.target.checked)
-                      setSavedNotice('')
-                    }}
+                    onChange={(event) => setShowActivitiesNotMeetingAgeRating(event.target.checked)}
                   />
                   <span>Согласен показывать комнаты, где возрастной рейтинг выше моего возраста</span>
                 </label>
@@ -60,7 +51,6 @@ function SiteSettingsPage() {
                 Сохранить
               </button>
             </form>
-            {savedNotice ? <p className="profile-network-banner profile-network-banner--ok">{savedNotice}</p> : null}
           </section>
         ) : null}
       </main>

@@ -392,14 +392,11 @@ function SignUp() {
 
   return (
     <AuthLayout
-      title="Создать аккаунт в CoActivity"
-      subtitle={
-        step === 'register'
-          ? 'Заполните профиль и начните искать активности в едином пространстве'
-          : 'Подтвердите почту кодом из письма'
-      }
-      authActionLabel="Регистрация"
+      title="Регистрация"
+      subtitle=""
+      authActionLabel="Войти"
       authActionTo="/sign-in"
+      simpleTitle="Регистрация"
       footer={
         <div className="auth-card__footer-stack">
           <p className="auth-card__footer-text">
@@ -537,10 +534,6 @@ function SignUp() {
                   onChange={handleAvatarChange}
                 />
               </label>
-              <p className="auth-field__meta">
-                Аватар необязателен. Если выберете файл сейчас, он загрузится сразу после
-                подтверждения почты.
-              </p>
               {fieldErrors.avatar ? (
                 <p className="auth-field__error" role="alert">
                   {fieldErrors.avatar}
@@ -570,10 +563,6 @@ function SignUp() {
         </form>
       ) : (
         <form onSubmit={handleVerify} className="auth-form">
-          <p className="auth-banner auth-banner--neutral">
-            Код отправлен на <strong>{pendingEmail}</strong>. Без подтверждения почты вход запрещён.
-          </p>
-
           <AuthField
             label="Код подтверждения"
             name="verificationCode"
