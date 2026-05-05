@@ -254,9 +254,9 @@ test.describe('Q&A thread', () => {
       request.method() === 'POST' && request.url().includes('/api/qa/answers'),
     )
     await page.getByRole('button', { name: 'Отправить ответ' }).click()
-    await postAnswerRequest
+    const request = await postAnswerRequest
 
-    expect(postedPayload).toMatchObject({
+    expect(request.postDataJSON()).toMatchObject({
       questionId: 888,
       answer: 'Новый вложенный ответ',
       previousAnswerId: 10,
