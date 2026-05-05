@@ -396,6 +396,7 @@ function SignUp() {
       subtitle=""
       authActionLabel="Войти"
       authActionTo="/sign-in"
+      hideHero
       simpleTitle="Регистрация"
       footer={
         <div className="auth-card__footer-stack">

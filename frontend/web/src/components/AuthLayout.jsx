@@ -8,11 +8,18 @@ function AuthLayout({
   children,
   footer = null,
   hideHeader = false,
+  hideHero = false,
   simpleTitle = '',
 }) {
-  const shellClassName = hideHeader
-    ? 'main-page-shell auth-page-shell auth-page-shell--simple'
-    : 'main-page-shell auth-page-shell'
+  const shellClassName = [
+    'main-page-shell',
+    'auth-page-shell',
+    hideHeader ? 'auth-page-shell--simple' : '',
+    !hideHeader && hideHero ? 'auth-page-shell--center-card' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const shouldShowHero = !hideHeader && !hideHero
 
   return (
     <>
@@ -22,13 +29,13 @@ function AuthLayout({
           <header className="auth-simple-header">
             <h1>{simpleTitle || title}</h1>
           </header>
-        ) : (
+        ) : shouldShowHero ? (
           <section className="main-hero auth-page-hero">
             <p className="auth-page-hero__eyebrow">CoActivity</p>
             <h2>{title}</h2>
             <h3>{subtitle}</h3>
           </section>
-        )}
+        ) : null}
 
         <main className="auth-layout" aria-label={title}>
           <section className="auth-card">

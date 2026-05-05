@@ -150,6 +150,7 @@ function SignIn() {
       subtitle=""
       authActionLabel="Войти"
       authActionTo="/sign-in"
+      hideHero
       simpleTitle="Вход"
       footer={
         <div className="auth-card__footer-stack">

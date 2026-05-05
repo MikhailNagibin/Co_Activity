@@ -666,6 +666,19 @@ button:not(:disabled):hover {
   max-width: 1040px;
 }
 
+.auth-page-shell--center-card {
+  min-height: calc(100vh - 64px);
+  padding-top: 88px;
+  padding-bottom: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-page-shell--center-card .auth-layout {
+  width: 100%;
+}
+
 .auth-page-shell--simple {
   min-height: 100vh;
   max-width: 760px;
@@ -1737,10 +1750,7 @@ button:not(:disabled):hover {
 }
 
 .qa-answer-branch[style*='--qa-answer-depth: 1'],
-.qa-answer-branch[style*='--qa-answer-depth: 2'],
-.qa-answer-branch[style*='--qa-answer-depth: 3'],
-.qa-answer-branch[style*='--qa-answer-depth: 4'],
-.qa-answer-branch[style*='--qa-answer-depth: 5'] {
+.qa-answer-branch[style*='--qa-answer-depth: 2'] {
   padding-left: 14px;
   border-left: 2px solid rgba(0, 0, 0, 0.08);
 }
@@ -1937,7 +1947,29 @@ button:not(:disabled):hover {
 }
 
 .qa-thread-cta-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background-color: #000;
+  color: #fff !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
   text-decoration: none;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgb(36, 36, 36);
+    color: #fff !important;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.14);
+  }
 }
 
 .qa-thread-owner-actions {
@@ -2811,8 +2843,42 @@ a.room-activity-organizer-inline__name:hover {
   margin-top: 0;
   width: 100%;
   border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.95);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
   font-weight: 600;
   padding: 14px 18px;
+  box-shadow:
+    0 1px 1px rgba(30, 64, 175, 0.16),
+    0 10px 22px rgba(37, 99, 235, 0.2);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+    border-color: rgba(30, 64, 175, 0.98);
+    box-shadow:
+      0 1px 2px rgba(30, 64, 175, 0.18),
+      0 14px 28px rgba(37, 99, 235, 0.24);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 3px rgba(37, 99, 235, 0.16),
+      0 10px 22px rgba(37, 99, 235, 0.2);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 .room-join-feedback {

@@ -29,6 +29,7 @@ const ANSWER_MAX_LENGTH = 2000
 const QUESTION_MAX_LENGTH = 2000
 const QUESTION_TITLE_MAX_LENGTH = 120
 const QUESTION_BODY_MAX_LENGTH = 1800
+const MAX_ANSWER_TREE_LEVEL = 3
 
 function pickFirst(...candidates) {
   for (const candidate of candidates) {
@@ -456,8 +457,8 @@ function QuestionThreadPage() {
     }
   }
 
-  const handleStartReply = (answer) => {
-    if (!isAuthenticated || !answer?.id) {
+  const handleStartReply = (answer, depth = 0) => {
+    if (!isAuthenticated || !answer?.id || depth + 1 >= MAX_ANSWER_TREE_LEVEL) {
       return
     }
     setPostError('')
@@ -519,9 +520,11 @@ function QuestionThreadPage() {
     const isAnswerOwner = isSameAuthor(answer.author, currentUserId)
     const isEditingThis = editingAnswerId != null && Number(editingAnswerId) === Number(answer.id)
     const childAnswers = Array.isArray(answer?.replies) ? answer.replies : []
+    const canReplyToAnswer = depth + 1 < MAX_ANSWER_TREE_LEVEL
+    const visualDepth = Math.min(depth, MAX_ANSWER_TREE_LEVEL - 1)
 
     return (
-      <article className="qa-answer-branch" key={answer.id} style={{ '--qa-answer-depth': depth }}>
+      <article className="qa-answer-branch" key={answer.id} style={{ '--qa-answer-depth': visualDepth }}>
         <div className="qa-answer-card">
           <aside className="qa-answer-sidebar" aria-label="Автор ответа">
             {isAuthenticated && authorId != null ? (
@@ -552,12 +555,12 @@ function QuestionThreadPage() {
           </aside>
           <div className="qa-answer-body">
             <div className="qa-thread-owner-actions qa-thread-owner-actions--answer">
-              {isAuthenticated && !isEditingThis ? (
+              {isAuthenticated && !isEditingThis && canReplyToAnswer ? (
                 <button
                   type="button"
                   className="qa-thread-action-btn"
                   data-testid={`qa-thread-reply-answer-${answer.id}`}
-                  onClick={() => handleStartReply(answer)}
+                  onClick={() => handleStartReply(answer, depth)}
                 >
                   Ответить
                 </button>
@@ -867,7 +870,7 @@ function QuestionThreadPage() {
               </section>
             ) : (
               <div className="qa-thread-cta">
-                <Link className="main-create-activity-btn qa-thread-cta-link" to={signInHref}>
+                <Link className="qa-thread-cta-link" to={signInHref}>
                   Войти, чтобы ответить на вопрос
                 </Link>
               </div>

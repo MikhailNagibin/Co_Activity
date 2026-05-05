@@ -697,10 +697,6 @@ function ProfilePage() {
                 <section className="profile-panel profile-panel--danger">
                   <p className="profile-kicker">Безопасность</p>
                   <h3>Пароль и удаление аккаунта</h3>
-                  <p className="gray-elem">
-                    Смените пароль в текущей сессии или удалите аккаунт с планом для ваших
-                    активностей.
-                  </p>
 
                   <section className="profile-security-section">
                     <h4>Смена пароля</h4>
