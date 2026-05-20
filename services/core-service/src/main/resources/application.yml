@@ -1,0 +1,101 @@
+spring:
+  application:
+    name: core-service
+  profiles:
+    default: local
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5430/postgres_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_MULTIPART_MAX_FILE_SIZE:6MB}
+      max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:30MB}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+  session:
+    store-type: redis
+    timeout: ${SPRING_SESSION_TIMEOUT:12h}
+    redis:
+      namespace: ${SPRING_SESSION_REDIS_NAMESPACE:coactivity:sessions}
+      repository-type: indexed
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+      thread-name-prefix: notification-
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  servlet:
+    session:
+      cookie:
+        name: ${SESSION_COOKIE_NAME:COACTIVITY_SESSION}
+        http-only: true
+        same-site: Lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+notifications:
+  kafka:
+    topic: ${NOTIFICATIONS_KAFKA_TOPIC:notifications.email.v1}
+    send-timeout-ms: ${NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS:5000}
+
+app:
+  # Absolute base URL of the web SPA (for clickable links in emails). Override in prod via APP_WEB_APP_BASE_URL.
+  links:
+    web-app-base-url: ${APP_WEB_APP_BASE_URL:http://localhost:5173}
+  auth:
+    redis:
+      key-secret: ${APP_AUTH_REDIS_KEY_SECRET:}
+    challenge:
+      ttl: ${APP_AUTH_CHALLENGE_TTL:10m}
+      max-attempts: ${APP_AUTH_CHALLENGE_MAX_ATTEMPTS:5}
+      resend-cooldown: ${APP_AUTH_CHALLENGE_RESEND_COOLDOWN:60s}
+    password-reset:
+      ttl: ${APP_AUTH_PASSWORD_RESET_TTL:10m}
+      max-attempts: ${APP_AUTH_PASSWORD_RESET_MAX_ATTEMPTS:5}
+      request-cooldown: ${APP_AUTH_PASSWORD_RESET_REQUEST_COOLDOWN:60s}
+  session:
+    cookie:
+      secure: ${SESSION_COOKIE_SECURE:false}
+  storage:
+    avatar:
+      max-size-bytes: ${APP_STORAGE_AVATAR_MAX_SIZE_BYTES:5242880}
+    room-image:
+      max-size-bytes: ${APP_STORAGE_ROOM_IMAGE_MAX_SIZE_BYTES:5242880}

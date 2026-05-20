@@ -1,0 +1,4074 @@
+openapi: 3.1.0
+info:
+  title: CoActivity API (core-service)
+  version: 1.0.0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+tags:
+- name: Auth
+  description: "Аутентификация, регистрация, сессии и password reset."
+- name: Q&A
+  description: "Вопросы и ответы: публичное чтение и CRUD для авторизованных польз\
+    ователей."
+- name: Rooms
+  description: "Комнаты: поиск/просмотр, участие, управление комнатой и governance\
+    \ (участники/баны/ownership), изображения комнаты."
+- name: Users
+  description: "Профиль пользователя, аватар, настройки уведомлений, заявки на вст\
+    упление, роли в комнатах, удаление аккаунта."
+paths:
+  /api/users/me:
+    get:
+      tags:
+      - Users
+      summary: Профиль текущего пользователя
+      operationId: getUserProfile
+      responses:
+        "200":
+          description: Профиль пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    put:
+      tags:
+      - Users
+      summary: Обновить профиль текущего пользователя
+      description: Обновляет поля профиля. Требуются session cookie и CSRF.
+      operationId: updateUserProfile
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Обновлённый профиль.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Users
+      summary: Удалить аккаунт (если нет комнат-владений)
+      description: "Удаляет аккаунт текущего пользователя, только если у него нет\
+        \ комнат, где он OWNER. Требуются session cookie и CSRF. Выполняет logout\
+        \ и инвалидирует сессии."
+      operationId: deleteAccount
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Аккаунт удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: "Удаление запрещено (например, есть owned rooms)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: Конфликт состояния.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/me/notifications:
+    get:
+      tags:
+      - Users
+      summary: Настройки уведомлений (текущий пользователь)
+      operationId: getNotificationSettings
+      responses:
+        "200":
+          description: Настройки уведомлений.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettingsResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    put:
+      tags:
+      - Users
+      summary: Обновить настройки уведомлений
+      description: Сохраняет настройки уведомлений для текущего пользователя. Требуются
+        session cookie и CSRF.
+      operationId: configureNotificationSettings
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSettingsRequest"
+        required: true
+      responses:
+        "200":
+          description: Сохранённые настройки.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettingsResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/me/avatar:
+    put:
+      tags:
+      - Users
+      summary: Загрузить/заменить аватар
+      description: Загружает изображение аватара. Требуются session cookie и CSRF.
+      operationId: uploadAvatar
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Файл-изображение (jpeg/png/webp).
+              required:
+              - file
+            encoding:
+              file:
+                contentType: '*/*'
+      responses:
+        "200":
+          description: Профиль с обновлённым avatarUrl.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          description: Ошибка валидации/multipart/размер/тип файла.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "503":
+          description: Хранилище недоступно.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Users
+      summary: Удалить аватар
+      description: Удаляет текущий аватар пользователя. Требуются session cookie и
+        CSRF.
+      operationId: deleteAvatar
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Аватар удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}:
+    get:
+      tags:
+      - Rooms
+      summary: Комната по ID
+      description: "Публичный endpoint. Можно вызывать анонимно. Если передана сес\
+        сия, ответ может содержать дополнительные поля/флаги."
+      operationId: getRoomById
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Комната.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomDetailedResponse"
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+    put:
+      tags:
+      - Rooms
+      summary: Обновить комнату
+      description: "Governance endpoint: обновляет параметры комнаты. Доступ: room\
+        \ OWNER. Требуются session cookie и CSRF."
+      operationId: updateRoom
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Обновлённая комната.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomDetailedResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Rooms
+      summary: Удалить комнату
+      description: "Governance endpoint: удаляет комнату. Доступ: room OWNER. Треб\
+        уются session cookie и CSRF."
+      operationId: deleteRoom
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Комната удалена.
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/bulletin:
+    put:
+      tags:
+      - Rooms
+      summary: Обновить bulletin board
+      description: "Governance endpoint: обновляет содержимое bulletin board. Дост\
+        уп: room OWNER/ADMIN. Требуются session cookie и CSRF. Рекомендуемый Content-Type:\
+        \ text/plain."
+      operationId: updateBulletinBoard
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: Bulletin board обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulletinBoardResponse"
+        "400":
+          description: Ошибка валидации/пустой контент.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Rooms
+      summary: Удалить bulletin board
+      description: "Governance endpoint: удаляет bulletin board. Доступ: room OWNER/ADMIN.\
+        \ Требуются session cookie и CSRF."
+      operationId: deleteBulletinBoard
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Bulletin board удалён.
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/board не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/qa/questions/{questionId}:
+    get:
+      tags:
+      - Q&A
+      summary: Вопрос с ответами
+      description: Публичный endpoint.
+      operationId: getQuestionWithAnswers
+      parameters:
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Вопрос и ответы.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionWithAnswersResponse"
+        "400":
+          description: Некорректный questionId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Вопрос не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+    put:
+      tags:
+      - Q&A
+      summary: Обновить вопрос
+      description: "Обновляет вопрос. Требуются session cookie и CSRF. Доступ: вла\
+        делец вопроса."
+      operationId: updateQuestion
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionRequest"
+        required: true
+      responses:
+        "200":
+          description: Обновлённый вопрос.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не владелец).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Вопрос не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Q&A
+      summary: Удалить вопрос
+      description: "Удаляет вопрос. Требуются session cookie и CSRF. Доступ: владе\
+        лец вопроса."
+      operationId: deleteQuestion
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Вопрос удалён.
+        "400":
+          description: Некорректный questionId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не владелец).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Вопрос не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/qa/answers/{answerId}:
+    put:
+      tags:
+      - Q&A
+      summary: Обновить ответ
+      description: "Обновляет ответ. Требуются session cookie и CSRF. Доступ: влад\
+        елец ответа."
+      operationId: updateAnswer
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: answerId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Обновлённый ответ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не владелец).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Ответ не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Q&A
+      summary: Удалить ответ
+      description: "Удаляет ответ. Требуются session cookie и CSRF. Доступ: владел\
+        ец ответа."
+      operationId: deleteAnswer
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: answerId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Ответ удалён.
+        "400":
+          description: Некорректный answerId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не владелец).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Ответ не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/rooms/{roomId}/admins/{userId}:
+    post:
+      tags:
+      - Users
+      summary: Назначить ADMIN в комнате
+      description: "Governance endpoint: назначает пользователю роль ADMIN в комна\
+        те. Требуются session cookie и CSRF. Доступ: room OWNER."
+      operationId: assignAdminRole
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Роль назначена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Users
+      summary: Снять роль ADMIN в комнате
+      description: "Governance endpoint: понижает ADMIN до PARTICIPANT. Требуются\
+        \ session cookie и CSRF. Доступ: room OWNER."
+      operationId: demoteAdminRole
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Роль изменена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignmentResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/requests/{requestId}:
+    post:
+      tags:
+      - Users
+      summary: Обработать заявку на вступление
+      description: "Governance endpoint: принять/отклонить заявку на вступление. Т\
+        ребуются session cookie и CSRF. Query param action обязателен."
+      operationId: processJoinRequest
+      parameters:
+      - name: action
+        in: query
+        description: Действие над заявкой.
+        required: true
+        schema:
+          type: string
+          enum:
+          - CONSIDERATION
+          - ACCEPTED
+          - REFUSED
+          - REFUSED_WITH_BAN
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Заявка обработана.
+        "400":
+          description: Некорректные параметры/значение action.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Заявка/комната не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Users
+      summary: Отменить отправленную заявку
+      description: "Отменяет заявку, отправленную текущим пользователем. Требуются\
+        \ session cookie и CSRF."
+      operationId: cancelRequest
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Заявка отменена.
+        "400":
+          description: Некорректный requestId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не владелец заявки).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Заявка не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/me/deletion:
+    post:
+      tags:
+      - Users
+      summary: Удалить аккаунт (с owned rooms)
+      description: "Удаляет аккаунт текущего пользователя, включая сценарий с комн\
+        атами, где он OWNER (зависит от тела запроса). Требуются session cookie и\
+        \ CSRF. Выполняет logout и инвалидирует сессии."
+      operationId: deleteAccountWithOwnedRooms
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountDeletionRequest"
+        required: true
+      responses:
+        "204":
+          description: Аккаунт удалён.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Удаление запрещено.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: Конфликт состояния.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/ownership/transfer:
+    post:
+      tags:
+      - Rooms
+      summary: Передать ownership комнаты
+      description: "Governance endpoint: передаёт роль OWNER пользователю targetUserId.\
+        \ Доступ: текущий OWNER. Требуются session cookie и CSRF."
+      operationId: transferOwnership
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnershipTransferRequest"
+        required: true
+      responses:
+        "200":
+          description: Ownership передан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnershipTransferResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: Конфликт состояния.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/leave:
+    post:
+      tags:
+      - Rooms
+      summary: Покинуть комнату
+      description: Удаляет текущего пользователя из комнаты. Требуются session cookie
+        и CSRF.
+      operationId: leaveRoom
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Пользователь покинул комнату.
+        "400":
+          description: Некорректный roomId/состояние.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: "Операция запрещена (например, OWNER не может выйти)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/join:
+    post:
+      tags:
+      - Rooms
+      summary: Вступить в комнату
+      description: Добавляет текущего пользователя в комнату (если это разрешено правилами
+        комнаты). Требуются session cookie и CSRF.
+      operationId: joinRoom
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Пользователь вступил в комнату.
+        "400":
+          description: Некорректный roomId/состояние.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: "Вступление запрещено (например, пользователь забанен)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/images:
+    post:
+      tags:
+      - Rooms
+      summary: Загрузить изображения комнаты
+      description: "Governance endpoint: загружает до нескольких изображений комна\
+        ты (multipart). Доступ: room OWNER. Требуются session cookie и CSRF."
+      operationId: uploadRoomImages
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: files
+        in: query
+        description: Массив файлов-изображений (jpeg/png/webp).
+        required: true
+        content:
+          '*/*':
+            schema:
+              type: array
+              items:
+                type: string
+                format: binary
+      responses:
+        "200":
+          description: Текущий список изображений комнаты.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomImageResponse"
+        "400":
+          description: Ошибка multipart/размер/тип/количество файлов.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "503":
+          description: Хранилище недоступно.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/bans/{userId}:
+    post:
+      tags:
+      - Rooms
+      summary: Забанить пользователя в комнате
+      description: "Governance endpoint: банит пользователя userId в комнате. Дост\
+        уп: room OWNER/ADMIN. Требуются session cookie и CSRF."
+      operationId: banUser
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Пользователь забанен.
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав/нельзя забанить указанную роль.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Rooms
+      summary: Разбанить пользователя в комнате
+      description: "Governance endpoint: убирает бан пользователя userId. Доступ:\
+        \ room OWNER/ADMIN. Требуются session cookie и CSRF."
+      operationId: unbanUser
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Пользователь разбанен.
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/createRoom:
+    post:
+      tags:
+      - Rooms
+      summary: Создать комнату
+      description: Создаёт новую комнату. Требуются session cookie и CSRF.
+      operationId: createRoom
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomCreationRequest"
+        required: true
+      responses:
+        "201":
+          description: Комната создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomCreationResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/qa/questions:
+    get:
+      tags:
+      - Q&A
+      summary: Список вопросов
+      description: Публичный endpoint. Поддерживает фильтрацию по categoryId и поиск
+        по query.
+      operationId: getAllQuestions
+      parameters:
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Список вопросов.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+    post:
+      tags:
+      - Q&A
+      summary: Задать вопрос
+      description: Создаёт вопрос от имени текущего пользователя. Требуются session
+        cookie и CSRF.
+      operationId: askQuestion
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionRequest"
+        required: true
+      responses:
+        "201":
+          description: Вопрос создан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Категория не найдена (если используется).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/qa/answers:
+    post:
+      tags:
+      - Q&A
+      summary: Ответить на вопрос
+      description: Создаёт ответ от имени текущего пользователя. Требуются session
+        cookie и CSRF.
+      operationId: answerQuestion
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerRequest"
+        required: true
+      responses:
+        "201":
+          description: Ответ создан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Вопрос не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Регистрация пользователя
+      description: "Создаёт пользователя и инициирует подтверждение регистрации. Д\
+        ля POST требуется CSRF: сначала вызови GET /api/auth/csrf и передай заголо\
+        вок X-XSRF-TOKEN."
+      operationId: register
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: Пользователь создан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationResponse"
+        "400":
+          description: Ошибка валидации входных данных.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: "Конфликт (например, email уже зарегистрирован)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/register/verify:
+    post:
+      tags:
+      - Auth
+      summary: Подтвердить регистрацию
+      description: "Подтверждает регистрацию по коду. Для POST требуется CSRF: сна\
+        чала вызови GET /api/auth/csrf и передай заголовок X-XSRF-TOKEN."
+      operationId: verifyRegistration
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterVerificationRequest"
+        required: true
+      responses:
+        "204":
+          description: Регистрация подтверждена.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Код/пользователь не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: "Конфликт (например, уже подтверждено)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/register/resend:
+    post:
+      tags:
+      - Auth
+      summary: Переотправить код подтверждения регистрации
+      description: "Переотправляет код подтверждения. Для POST требуется CSRF: сна\
+        чала вызови GET /api/auth/csrf и передай заголовок X-XSRF-TOKEN."
+      operationId: resendRegistrationCode
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendRegistrationVerificationRequest"
+        required: true
+      responses:
+        "204":
+          description: Код переотправлен.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Пользователь/регистрация не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/password/reset/verify:
+    post:
+      tags:
+      - Auth
+      summary: "Password reset: проверить код"
+      description: "Проверяет корректность кода сброса пароля. Для POST требуется\
+        \ CSRF: сначала вызови GET /api/auth/csrf и передай заголовок X-XSRF-TOKEN."
+      operationId: verifyPasswordResetCode
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetVerifyRequest"
+        required: true
+      responses:
+        "204":
+          description: Код корректен.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Код/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: Конфликт/истёкший код.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/password/reset/request:
+    post:
+      tags:
+      - Auth
+      summary: "Password reset: запросить код"
+      description: "Инициирует сброс пароля и отправляет код/ссылку пользователю.\
+        \ Для POST требуется CSRF: сначала вызови GET /api/auth/csrf и передай заг\
+        оловок X-XSRF-TOKEN."
+      operationId: requestPasswordReset
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+        required: true
+      responses:
+        "204":
+          description: Запрос принят.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/password/reset/confirm:
+    post:
+      tags:
+      - Auth
+      summary: "Password reset: подтвердить новый пароль"
+      description: "Устанавливает новый пароль по подтверждённому коду. Для POST т\
+        ребуется CSRF: сначала вызови GET /api/auth/csrf и передай заголовок X-XSRF-TOKEN."
+      operationId: confirmPasswordReset
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetConfirmRequest"
+        required: true
+      responses:
+        "204":
+          description: Пароль обновлён.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Код/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "409":
+          description: Конфликт/истёкший код.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/password/change:
+    post:
+      tags:
+      - Auth
+      summary: Смена пароля
+      description: Меняет пароль текущего пользователя.
+      operationId: changePassword
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeRequest"
+        required: true
+      responses:
+        "204":
+          description: Пароль изменён.
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Доступ запрещён/неверный текущий пароль.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/auth/logout:
+    post:
+      tags:
+      - Auth
+      summary: Выход (logout)
+      description: Инвалидирует текущую сессию и очищает session cookie.
+      operationId: logout
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "204":
+          description: Сессия завершена.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Логин
+      description: "Создаёт HTTP-сессию и устанавливает session cookie. Для POST т\
+        ребуется CSRF: сначала вызови GET /api/auth/csrf и передай заголовок X-XSRF-TOKEN."
+      operationId: login
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Успешный логин.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          description: Ошибка валидации.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: "Ошибка авторизации/доступа (например, INVALID_CREDENTIALS,\
+            \ ACCOUNT_DISABLED, EMAIL_NOT_VERIFIED, ACCESS_DENIED)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/users/{userId}:
+    get:
+      tags:
+      - Users
+      summary: Публичный профиль пользователя по ID
+      description: Возвращает краткую информацию о пользователе.
+      operationId: getPublicUserProfileById
+      parameters:
+      - name: userId
+        in: path
+        description: ID пользователя.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 7
+      responses:
+        "200":
+          description: Публичный профиль.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSummaryResponse"
+        "400":
+          description: Некорректный userId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация (см. SecurityConfig).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/{userId}/avatar:
+    get:
+      tags:
+      - Users
+      summary: Аватар пользователя (binary)
+      description: Возвращает аватар пользователя как изображение. Content-Type определяется
+        по фактическому файлу.
+      operationId: getUserAvatar
+      parameters:
+      - name: userId
+        in: path
+        description: ID пользователя.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 7
+      responses:
+        "200":
+          description: Изображение аватара.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Некорректный userId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Аватар/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "503":
+          description: Хранилище недоступно.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/users/rooms/{roomId}/requests/pending:
+    get:
+      tags:
+      - Users
+      summary: Pending-заявки для конкретной комнаты
+      description: "Governance endpoint: возвращает pending-заявки на вступление в\
+        \ комнате. Доступ: room OWNER/ADMIN."
+      operationId: getPendingRequestsForRoom
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Список заявок.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoinRequestResponse"
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/rooms/{roomId}/membership:
+    get:
+      tags:
+      - Users
+      summary: Проверить участие текущего пользователя в комнате
+      operationId: isUserInRoom
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: "true если состоит, иначе false."
+          content:
+            application/json:
+              schema:
+                type: boolean
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/requests/sent:
+    get:
+      tags:
+      - Users
+      summary: Отправленные заявки на вступление
+      operationId: getSentRequests
+      responses:
+        "200":
+          description: Список отправленных заявок.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoinRequestResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/requests/pending:
+    get:
+      tags:
+      - Users
+      summary: Входящие заявки на вступление (pending)
+      description: "Возвращает pending-заявки в комнаты, где текущий пользователь\
+        \ OWNER/ADMIN (governance)."
+      operationId: getPendingRequests
+      responses:
+        "200":
+          description: Список заявок.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoinRequestResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/me/deletion-preview:
+    get:
+      tags:
+      - Users
+      summary: Предпросмотр удаления аккаунта
+      description: Возвращает информацию о последствиях удаления аккаунта.
+      operationId: getDeletionPreview
+      responses:
+        "200":
+          description: Предпросмотр.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionPreviewResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/users/banned-rooms:
+    get:
+      tags:
+      - Users
+      summary: "Комнаты, где пользователь забанен"
+      operationId: getBanRooms
+      responses:
+        "200":
+          description: Список комнат.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomSummaryResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms:
+    get:
+      tags:
+      - Rooms
+      summary: Список комнат
+      description: "Публичный endpoint. Можно вызывать анонимно. Если передана сес\
+        сия, ответ может содержать user-specific поля (например, membership-related)."
+      operationId: getRooms
+      parameters:
+      - name: category
+        in: query
+        description: Категория комнаты.
+        required: false
+        schema:
+          type: string
+          description: Категория комнаты.
+          enum:
+          - SPORT
+          - MUSIC
+          - ART
+          - ENTERTAINMENTS
+          - BUSINESS
+          - EDUCATION
+          - ACTIVE_RECREATION
+          - PASSIVE_RECREATION
+          - IS_A_MASS_EVENT
+          - OTHER
+          - NOT_SPECIFIED
+          example: SPORT
+        example: SPORT
+      - name: query
+        in: query
+        description: Текстовый поиск по названию/описанию.
+        required: false
+        schema:
+          type: string
+          description: Текстовый поиск по названию/описанию.
+          example: теннис
+          maxLength: 255
+          minLength: 0
+        example: теннис
+      - name: isPublic
+        in: query
+        description: Фильтр по публичности комнаты.
+        required: false
+        schema:
+          type: boolean
+          description: Фильтр по публичности комнаты.
+          example: true
+        example: true
+      - name: maxParticipants
+        in: query
+        description: Максимальное число участников.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          description: Максимальное число участников.
+          example: 50
+          exclusiveMinimum: 0
+          maximum: 100000
+        example: 50
+      - name: city
+        in: query
+        description: Город.
+        required: false
+        schema:
+          type: string
+          description: Город.
+          example: Москва
+          maxLength: 100
+          minLength: 0
+        example: Москва
+      - name: country
+        in: query
+        description: Страна.
+        required: false
+        schema:
+          type: string
+          description: Страна.
+          example: Россия
+          maxLength: 100
+          minLength: 0
+        example: Россия
+      - name: sortBy
+        in: query
+        description: Сортировка результатов.
+        required: false
+        schema:
+          type: string
+          enum:
+          - NEWEST
+          - POPULAR
+          - NAME
+          - UPCOMING
+      responses:
+        "200":
+          description: Список комнат.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomSummaryResponse"
+        "400":
+          description: Некорректные query параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/rooms/{roomId}/participants:
+    get:
+      tags:
+      - Rooms
+      summary: Участники комнаты
+      description: "Governance endpoint: возвращает список участников комнаты. Дос\
+        туп: room OWNER/ADMIN."
+      operationId: getRoomParticipants
+      parameters:
+      - name: role
+        in: query
+        description: Фильтр по роли.
+        required: false
+        schema:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Список участников.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomParticipantResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/participants/{userId}:
+    get:
+      tags:
+      - Rooms
+      summary: Проверка участия конкретного пользователя в комнате
+      description: "Governance endpoint: проверяет membership пользователя userId\
+        \ в комнате. Доступ: room OWNER/ADMIN."
+      operationId: isUserInRoom_1
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Результат проверки.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipVerificationResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+    delete:
+      tags:
+      - Rooms
+      summary: Удалить участника из комнаты
+      description: "Governance endpoint: удаляет участника userId из комнаты. Дост\
+        уп: room OWNER/ADMIN. Требуются session cookie и CSRF."
+      operationId: removeParticipant
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "204":
+          description: Участник удалён.
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав/нельзя удалить указанную роль.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/пользователь не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/membership/status:
+    get:
+      tags:
+      - Rooms
+      summary: Membership status текущего пользователя
+      description: Возвращает статус участия текущего пользователя в комнате.
+      operationId: getCurrentUserMembershipStatus
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Статус участия.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomMembershipStatusResponse"
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/images/{imageId}:
+    get:
+      tags:
+      - Rooms
+      summary: Изображение комнаты (binary)
+      description: Публичный endpoint. Возвращает изображение комнаты как файл. Content-Type
+        определяется по фактическому файлу.
+      operationId: getRoomImage
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: imageId
+        in: path
+        description: ID изображения.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 10
+      responses:
+        "200":
+          description: Изображение.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/изображение не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "503":
+          description: Хранилище недоступно.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+    delete:
+      tags:
+      - Rooms
+      summary: Удалить изображение комнаты
+      description: "Governance endpoint: удаляет конкретное изображение комнаты. Д\
+        оступ: room OWNER. Требуются session cookie и CSRF."
+      operationId: deleteRoomImage
+      parameters:
+      - name: roomId
+        in: path
+        description: ID комнаты.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 42
+      - name: imageId
+        in: path
+        description: ID изображения.
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+        example: 10
+      - name: X-XSRF-TOKEN
+        in: header
+        description: CSRF токен (дублирует cookie XSRF-TOKEN).
+        required: true
+      responses:
+        "200":
+          description: Текущий список изображений комнаты.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomImageResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната/изображение не найдены.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/{roomId}/bans:
+    get:
+      tags:
+      - Rooms
+      summary: Список забаненных пользователей
+      description: "Governance endpoint: возвращает забаненных пользователей в ком\
+        нате. Доступ: room OWNER/ADMIN."
+      operationId: getBannedUsers
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          exclusiveMinimum: 0
+      responses:
+        "200":
+          description: Список пользователей.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummaryResponse"
+        "400":
+          description: Некорректный roomId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "403":
+          description: Недостаточно прав (не OWNER/ADMIN).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "404":
+          description: Комната не найдена.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/rooms/me:
+    get:
+      tags:
+      - Rooms
+      summary: Комнаты текущего пользователя
+      operationId: getUserRooms
+      responses:
+        "200":
+          description: Список комнат пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomDetailedResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/qa/questions/category:
+    get:
+      tags:
+      - Q&A
+      summary: Вопросы по категории (deprecated)
+      description: "Публичный endpoint: возвращает вопросы (опционально фильтруя п\
+        о categoryId). Предпочтительнее использовать GET /api/qa/questions."
+      operationId: getQuestions
+      parameters:
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Список вопросов.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionResponse"
+        "400":
+          description: Некорректные параметры.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+  /api/auth/me:
+    get:
+      tags:
+      - Auth
+      summary: Текущий пользователь
+      description: Возвращает профиль текущего пользователя по активной сессии.
+      operationId: me
+      responses:
+        "200":
+          description: Профиль пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+      security:
+      - sessionCookie: []
+  /api/auth/csrf:
+    get:
+      tags:
+      - Auth
+      summary: CSRF токен
+      description: Возвращает CSRF токен и устанавливает cookie XSRF-TOKEN. Для state-changing
+        запросов отправляй значение токена в заголовке X-XSRF-TOKEN.
+      operationId: csrf
+      responses:
+        "200":
+          description: CSRF токен.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfTokenResponse"
+        "500":
+          description: Неожиданная ошибка.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiProblemDetail"
+components:
+  schemas:
+    UserProfileUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 20
+          minLength: 2
+        dateOfBirth:
+          type: string
+          format: date-time
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
+        country:
+          type: string
+          maxLength: 100
+          minLength: 0
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+        avatarId:
+          type: integer
+          format: int32
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        email:
+          type: string
+        username:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+        city:
+          type: string
+        country:
+          type: string
+        description:
+          type: string
+        avatarId:
+          type: integer
+          format: int32
+        avatarUrl:
+          type: string
+        notifications:
+          type: array
+          items:
+            type: string
+            enum:
+            - membershipAccepted
+            - membershipRejected
+            - activityClosed
+            - newJoinRequest
+            - importantRoomUpdates
+    ApiFieldError:
+      type: object
+      description: Ошибка валидации/параметра запроса (одна строка).
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+    ApiProblemDetail:
+      type: object
+      description: "RFC 7807 Problem Details (`application/problem+json`) с расшир\
+        ениями CoActivity: code, traceId, timestamp, errors."
+      properties:
+        type:
+          type: string
+          description: URI-тип ошибки.
+          example: urn:coactivity:error:VALIDATION_FAILED
+        title:
+          type: string
+          description: Короткий заголовок ошибки.
+          example: Validation failed
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code.
+          example: 400
+        detail:
+          type: string
+          description: Человекочитаемое описание причины.
+          example: Validation failed
+        instance:
+          type: string
+          description: URI конкретного запроса.
+          example: /api/rooms/42
+        timestamp:
+          type: string
+          format: date-time
+          description: Время формирования ответа.
+        code:
+          type: string
+          description: Код ошибки приложения.
+          example: VALIDATION_FAILED
+        traceId:
+          type: string
+          description: ID трассировки/запроса (также приходит в заголовке).
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        errors:
+          type: array
+          description: Детализация ошибок по полям (если применимо).
+          items:
+            $ref: "#/components/schemas/ApiFieldError"
+    NotificationSettingsRequest:
+      type: object
+      properties:
+        membershipAccepted:
+          type: boolean
+        membershipRejected:
+          type: boolean
+        activityClosed:
+          type: boolean
+        newJoinRequest:
+          type: boolean
+        importantRoomUpdates:
+          type: boolean
+    NotificationSettingsResponse:
+      type: object
+      properties:
+        membershipAccepted:
+          type: boolean
+        membershipRejected:
+          type: boolean
+        activityClosed:
+          type: boolean
+        newJoinRequest:
+          type: boolean
+        importantRoomUpdates:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+    RoomUpdateRequest:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+        category:
+          type: string
+        name:
+          type: string
+          maxLength: 100
+          minLength: 3
+        description:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
+        country:
+          type: string
+          maxLength: 100
+          minLength: 0
+        maximumNumberOfPeople:
+          type: integer
+          format: int32
+          maximum: 100000
+          minimum: 2
+        chatLink:
+          type: string
+          maxLength: 255
+          minLength: 0
+        dateOfStartEvent:
+          type: string
+          format: date-time
+        dateOfEndEvent:
+          type: string
+          format: date-time
+        frequency:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - COMPLETED
+        ageRating:
+          type: integer
+          format: int32
+          maximum: 21
+          minimum: 0
+      required:
+      - ageRating
+      - category
+      - description
+      - isPublic
+      - maximumNumberOfPeople
+      - name
+      - status
+    BulletinBoardResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        content:
+          type: string
+        author:
+          $ref: "#/components/schemas/UserSummaryResponse"
+        updatedAt:
+          type: string
+          format: date-time
+    RoomDetailedResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - COMPLETED
+        isPublic:
+          type: boolean
+        category:
+          type: string
+          enum:
+          - SPORT
+          - MUSIC
+          - ART
+          - ENTERTAINMENTS
+          - BUSINESS
+          - EDUCATION
+          - ACTIVE_RECREATION
+          - PASSIVE_RECREATION
+          - IS_A_MASS_EVENT
+          - OTHER
+          - NOT_SPECIFIED
+        name:
+          type: string
+        description:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        dateOfStartEvent:
+          type: string
+          format: date-time
+        dateOfEndEvent:
+          type: string
+          format: date-time
+        ageRating:
+          type: integer
+          format: int32
+        frequency:
+          type: string
+          format: date-time
+        participantCount:
+          type: integer
+          format: int32
+        maximumParticipants:
+          type: integer
+          format: int32
+        creator:
+          $ref: "#/components/schemas/UserSummaryResponse"
+        isCurrentUserParticipant:
+          type: boolean
+        membershipStatus:
+          $ref: "#/components/schemas/RoomMembershipStatusResponse"
+        imageIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomImageResponse"
+        hasProtectedAccess:
+          type: boolean
+        chatLink:
+          type: string
+        bulletinBoard:
+          $ref: "#/components/schemas/BulletinBoardResponse"
+        active:
+          type: boolean
+    RoomImageResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        url:
+          type: string
+        order:
+          type: integer
+          format: int32
+    RoomMembershipStatusResponse:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int32
+        userId:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - PARTICIPANT
+          - PENDING
+          - BANNED
+          - NOT_JOINED
+        role:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+        pendingRequestId:
+          type: integer
+          format: int32
+        canJoin:
+          type: boolean
+    UserSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        userName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+        city:
+          type: string
+        country:
+          type: string
+        description:
+          type: string
+        avatarId:
+          type: integer
+          format: int32
+        avatarUrl:
+          type: string
+    QuestionRequest:
+      type: object
+      properties:
+        category:
+          type: string
+        question:
+          type: string
+          maxLength: 2000
+          minLength: 0
+      required:
+      - category
+      - question
+    QuestionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        category:
+          type: string
+          enum:
+          - SPORT
+          - MUSIC
+          - ART
+          - ENTERTAINMENTS
+          - BUSINESS
+          - EDUCATION
+          - ACTIVE_RECREATION
+          - PASSIVE_RECREATION
+          - IS_A_MASS_EVENT
+          - OTHER
+          - NOT_SPECIFIED
+        question:
+          type: string
+        author:
+          $ref: "#/components/schemas/UserSummaryResponse"
+    AnswerUpdateRequest:
+      type: object
+      properties:
+        answer:
+          type: string
+          maxLength: 2000
+          minLength: 0
+      required:
+      - answer
+    AnswerResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        questionId:
+          type: integer
+          format: int32
+        previousAnswerId:
+          type: integer
+          format: int32
+        answer:
+          type: string
+        author:
+          $ref: "#/components/schemas/UserSummaryResponse"
+        createdAt:
+          type: string
+          format: date-time
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerResponse"
+    RoleAssignmentResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int32
+        roomId:
+          type: integer
+          format: int32
+        newRole:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+        previousRole:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+        assignedBy:
+          type: integer
+          format: int32
+    AccountDeletionRequest:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountDeletionRoomActionRequest"
+          minItems: 1
+      required:
+      - actions
+    AccountDeletionRoomActionRequest:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int32
+        mode:
+          type: string
+          enum:
+          - DELETE_ROOM
+          - TRANSFER_OWNERSHIP
+        transferToUserId:
+          type: integer
+          format: int32
+      required:
+      - mode
+      - roomId
+    OwnershipTransferRequest:
+      type: object
+      properties:
+        targetUserId:
+          type: integer
+          format: int32
+      required:
+      - targetUserId
+    OwnershipTransferResponse:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int32
+        previousOwnerId:
+          type: integer
+          format: int32
+        newOwnerId:
+          type: integer
+          format: int32
+        previousOwnerNewRole:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+        newOwnerRole:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+    RoomCreationRequest:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+        category:
+          type: string
+        name:
+          type: string
+          maxLength: 100
+          minLength: 3
+        description:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
+        country:
+          type: string
+          maxLength: 100
+          minLength: 0
+        maximumNumberOfPeople:
+          type: integer
+          format: int32
+          maximum: 100000
+          minimum: 2
+        chatLink:
+          type: string
+          maxLength: 255
+          minLength: 0
+        dateOfStartEvent:
+          type: string
+          format: date-time
+        dateOfEndEvent:
+          type: string
+          format: date-time
+        frequency:
+          type: string
+          format: date-time
+        ageRating:
+          type: integer
+          format: int32
+          maximum: 21
+          minimum: 0
+      required:
+      - category
+      - description
+      - isPublic
+      - maximumNumberOfPeople
+      - name
+    RoomCreationResponse:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int32
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+          - SPORT
+          - MUSIC
+          - ART
+          - ENTERTAINMENTS
+          - BUSINESS
+          - EDUCATION
+          - ACTIVE_RECREATION
+          - PASSIVE_RECREATION
+          - IS_A_MASS_EVENT
+          - OTHER
+          - NOT_SPECIFIED
+    AnswerRequest:
+      type: object
+      properties:
+        questionId:
+          type: integer
+          format: int32
+        previousAnswerId:
+          type: integer
+          format: int32
+        answer:
+          type: string
+          maxLength: 2000
+          minLength: 0
+      required:
+      - answer
+      - questionId
+    UserRegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        userName:
+          type: string
+          maxLength: 20
+          minLength: 2
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+        dateOfBirth:
+          type: string
+          format: date-time
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
+        country:
+          type: string
+          maxLength: 100
+          minLength: 0
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+        avatarId:
+          type: integer
+          format: int32
+      required:
+      - dateOfBirth
+      - email
+      - password
+      - userName
+    RegistrationResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int32
+        userName:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+    RegisterVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        code:
+          type: string
+          maxLength: 16
+          minLength: 4
+      required:
+      - code
+      - email
+    ResendRegistrationVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+    PasswordResetVerifyRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        code:
+          type: string
+          maxLength: 6
+          minLength: 6
+      required:
+      - code
+      - email
+    PasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        code:
+          type: string
+          maxLength: 6
+          minLength: 6
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+      required:
+      - code
+      - email
+      - newPassword
+    PasswordChangeRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+      required:
+      - currentPassword
+      - newPassword
+    LoginRequest:
+      type: object
+      description: Запрос логина (email + password).
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+          maxLength: 255
+          minLength: 0
+        password:
+          type: string
+          example: P@ssw0rd123
+          maxLength: 128
+          minLength: 8
+      required:
+      - email
+      - password
+    JoinRequestResponse:
+      type: object
+      properties:
+        requestId:
+          type: integer
+          format: int32
+        userId:
+          type: integer
+          format: int32
+        username:
+          type: string
+        roomId:
+          type: integer
+          format: int32
+        roomName:
+          type: string
+        status:
+          type: string
+          enum:
+          - CONSIDERATION
+          - ACCEPTED
+          - REFUSED
+          - REFUSED_WITH_BAN
+        createdAt:
+          type: string
+          format: date-time
+    AccountDeletionPreviewResponse:
+      type: object
+      properties:
+        canDeleteImmediately:
+          type: boolean
+        ownedRooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/OwnedRoomDeletionPreviewResponse"
+    AccountDeletionTransferCandidateResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int32
+        userName:
+          type: string
+        role:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+    OwnedRoomDeletionPreviewResponse:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int32
+        roomName:
+          type: string
+        participantCount:
+          type: integer
+          format: int32
+        transferCandidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountDeletionTransferCandidateResponse"
+    RoomSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - COMPLETED
+        isPublic:
+          type: boolean
+        category:
+          type: string
+          enum:
+          - SPORT
+          - MUSIC
+          - ART
+          - ENTERTAINMENTS
+          - BUSINESS
+          - EDUCATION
+          - ACTIVE_RECREATION
+          - PASSIVE_RECREATION
+          - IS_A_MASS_EVENT
+          - OTHER
+          - NOT_SPECIFIED
+        name:
+          type: string
+        description:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        dateOfStartEvent:
+          type: string
+          format: date-time
+        dateOfEndEvent:
+          type: string
+          format: date-time
+        ageRating:
+          type: integer
+          format: int32
+        frequency:
+          type: string
+          format: date-time
+        participantCount:
+          type: integer
+          format: int32
+        maximumParticipants:
+          type: integer
+          format: int32
+        creator:
+          $ref: "#/components/schemas/UserSummaryResponse"
+        isCurrentUserParticipant:
+          type: boolean
+        membershipStatus:
+          $ref: "#/components/schemas/RoomMembershipStatusResponse"
+        imageIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomImageResponse"
+        active:
+          type: boolean
+    RoomParticipantResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+        city:
+          type: string
+        country:
+          type: string
+        avatarId:
+          type: integer
+          format: int32
+        avatarUrl:
+          type: string
+        description:
+          type: string
+        role:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+    MembershipVerificationResponse:
+      type: object
+      properties:
+        isMember:
+          type: boolean
+        role:
+          type: string
+          enum:
+          - Owner
+          - Admin
+          - Participant
+        userInfo:
+          $ref: "#/components/schemas/UserSummaryResponse"
+        roomName:
+          type: string
+    QuestionWithAnswersResponse:
+      type: object
+      properties:
+        question:
+          $ref: "#/components/schemas/QuestionResponse"
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerResponse"
+    CsrfTokenResponse:
+      type: object
+      properties:
+        headerName:
+          type: string
+        parameterName:
+          type: string
+        token:
+          type: string
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      description: HTTP session cookie. Issued on login; sent automatically by the
+        browser.
+      name: COACTIVITY_SESSION
+      in: cookie
+    csrfToken:
+      type: apiKey
+      description: CSRF header value for state-changing requests. Token is exposed
+        via cookie XSRF-TOKEN and must be echoed in header X-XSRF-TOKEN.
+      name: X-XSRF-TOKEN
+      in: header

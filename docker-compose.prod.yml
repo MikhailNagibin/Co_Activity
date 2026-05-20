@@ -1,0 +1,190 @@
+# Production-like compose profile.
+# Uses real SMTP provider settings from .env / env file and does not start Mailpit.
+services:
+  postgres:
+    image: postgres:16.2
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres_db}
+    ports:
+      - "5430:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: coactivity_kafka
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+    ports:
+      - "29092:29092"
+    restart: unless-stopped
+
+  kafka-topics-init:
+    image: apache/kafka:4.1.1
+    container_name: coactivity_kafka_topics_init
+    depends_on:
+      kafka:
+        condition: service_started
+    volumes:
+      - ./scripts/create-kafka-topics.sh:/scripts/create-kafka-topics.sh:ro
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: kafka:9092
+      NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
+      NOTIFICATIONS_KAFKA_DLT_TOPIC: ${NOTIFICATIONS_KAFKA_DLT_TOPIC:-}
+      NOTIFICATIONS_KAFKA_PARTITIONS: ${NOTIFICATIONS_KAFKA_PARTITIONS:-1}
+      NOTIFICATIONS_KAFKA_REPLICATION_FACTOR: ${NOTIFICATIONS_KAFKA_REPLICATION_FACTOR:-1}
+    command: ["bash", "-lc", "tr -d '\\r' < /scripts/create-kafka-topics.sh | bash"]
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: coactivity_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: coactivity_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${APP_STORAGE_S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${APP_STORAGE_S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: coactivity_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${APP_STORAGE_S3_ACCESS_KEY:-minioadmin} ${APP_STORAGE_S3_SECRET_KEY:-minioadmin};
+      mc mb --ignore-existing local/${APP_STORAGE_S3_BUCKET:-coactivity-media};
+      exit 0;
+      "
+
+  notifications-service:
+    container_name: coactivity_notifications_service
+    build:
+      context: .
+      dockerfile: services/notifications-service/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_started
+      kafka-topics-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.yandex.ru}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-true}
+      SPRING_MAIL_SMTP_STARTTLS_REQUIRED: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:-true}
+      NOTIFICATIONS_MAIL_FROM: ${NOTIFICATIONS_MAIL_FROM:-}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
+      NOTIFICATIONS_KAFKA_DLT_TOPIC: ${NOTIFICATIONS_KAFKA_DLT_TOPIC:-}
+      NOTIFICATIONS_KAFKA_GROUP_ID: ${NOTIFICATIONS_KAFKA_GROUP_ID:-notifications-service-v1}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-never}
+      NOTIFICATIONS_HEALTH_KAFKA_TOPICS_TIMEOUT_MS: ${NOTIFICATIONS_HEALTH_KAFKA_TOPICS_TIMEOUT_MS:-5000}
+      SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL: ${SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/8082'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  core-service:
+    container_name: coactivity_core_service
+    build:
+      context: .
+      dockerfile: services/core-service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      kafka-topics-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-postgres_db}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${SPRING_DATA_REDIS_PASSWORD:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      APP_AUTH_REDIS_KEY_SECRET: ${APP_AUTH_REDIS_KEY_SECRET:-dev-change-me}
+      APP_STORAGE_TYPE: ${APP_STORAGE_TYPE:-s3}
+      APP_STORAGE_S3_ENDPOINT: ${APP_STORAGE_S3_ENDPOINT:-http://minio:9000}
+      APP_STORAGE_S3_REGION: ${APP_STORAGE_S3_REGION:-us-east-1}
+      APP_STORAGE_S3_BUCKET: ${APP_STORAGE_S3_BUCKET:-coactivity-media}
+      APP_STORAGE_S3_ACCESS_KEY: ${APP_STORAGE_S3_ACCESS_KEY:-minioadmin}
+      APP_STORAGE_S3_SECRET_KEY: ${APP_STORAGE_S3_SECRET_KEY:-minioadmin}
+      APP_STORAGE_S3_PATH_STYLE: ${APP_STORAGE_S3_PATH_STYLE:-true}
+      APP_STORAGE_S3_PREFIX: ${APP_STORAGE_S3_PREFIX:-}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATIONS_KAFKA_TOPIC: ${NOTIFICATIONS_KAFKA_TOPIC:-notifications.email.v1}
+      NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS: ${NOTIFICATIONS_KAFKA_SEND_TIMEOUT_MS:-5000}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,467 @@
+{
+  "configuration" : { },
+  "description" : "C4 context and component diagrams",
+  "documentation" : { },
+  "id" : 1,
+  "lastModifiedAgent" : "structurizr/diagrams/dd9444aa-a06a-4ee0-867b-493f695f8741",
+  "lastModifiedDate" : "2026-05-01T14:08:18Z",
+  "lastModifiedUser" : "881677836",
+  "model" : {
+    "people" : [ {
+      "description" : "Browses public rooms and Q&A without authentication.",
+      "id" : "1",
+      "name" : "Guest",
+      "properties" : {
+        "structurizr.dsl.identifier" : "guest"
+      },
+      "relationships" : [ {
+        "description" : "Public",
+        "destinationId" : "4",
+        "id" : "15",
+        "sourceId" : "1",
+        "tags" : "Relationship,ContextRelationship",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,Guest"
+    }, {
+      "description" : "Uses full platform features after login.",
+      "id" : "2",
+      "name" : "Authorized User",
+      "properties" : {
+        "structurizr.dsl.identifier" : "user"
+      },
+      "relationships" : [ {
+        "description" : "All features",
+        "destinationId" : "4",
+        "id" : "16",
+        "sourceId" : "2",
+        "tags" : "Relationship,ContextRelationship",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User"
+    } ],
+    "softwareSystems" : [ {
+      "description" : "External email provider.",
+      "documentation" : { },
+      "id" : "3",
+      "name" : "SMTP Provider",
+      "properties" : {
+        "structurizr.dsl.identifier" : "smtp"
+      },
+      "tags" : "Element,Software System,External"
+    }, {
+      "containers" : [ {
+        "documentation" : { },
+        "id" : "5",
+        "name" : "Web Application",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.web"
+        },
+        "relationships" : [ {
+          "description" : "REST API",
+          "destinationId" : "6",
+          "id" : "18",
+          "sourceId" : "5",
+          "tags" : "Relationship",
+          "technology" : "HTTPS"
+        } ],
+        "tags" : "Element,Container,WebApp",
+        "technology" : "React/Vite"
+      }, {
+        "components" : [ {
+          "documentation" : { },
+          "group" : "API Controllers",
+          "id" : "7",
+          "name" : "API Controllers",
+          "properties" : {
+            "structurizr.dsl.identifier" : "coactivity.core.apiControllers"
+          },
+          "tags" : "Element,Component,Controller",
+          "technology" : "Spring MVC REST Controllers"
+        }, {
+          "documentation" : { },
+          "group" : "Services",
+          "id" : "8",
+          "name" : "Services",
+          "properties" : {
+            "structurizr.dsl.identifier" : "coactivity.core.servicesLayer"
+          },
+          "tags" : "Element,Component,Service",
+          "technology" : "Spring Services"
+        }, {
+          "documentation" : { },
+          "group" : "Repository",
+          "id" : "9",
+          "name" : "Repository",
+          "properties" : {
+            "structurizr.dsl.identifier" : "coactivity.core.repositoryLayer"
+          },
+          "tags" : "Element,Component,Repository",
+          "technology" : "Spring Data JPA"
+        } ],
+        "documentation" : { },
+        "id" : "6",
+        "name" : "Core Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.core"
+        },
+        "relationships" : [ {
+          "description" : "Data",
+          "destinationId" : "11",
+          "id" : "19",
+          "sourceId" : "6",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Sessions",
+          "destinationId" : "12",
+          "id" : "20",
+          "sourceId" : "6",
+          "tags" : "Relationship",
+          "technology" : "Redis"
+        }, {
+          "description" : "Files",
+          "destinationId" : "14",
+          "id" : "21",
+          "sourceId" : "6",
+          "tags" : "Relationship",
+          "technology" : "S3 API"
+        }, {
+          "description" : "Events",
+          "destinationId" : "13",
+          "id" : "22",
+          "sourceId" : "6",
+          "tags" : "Relationship",
+          "technology" : "Kafka"
+        } ],
+        "tags" : "Element,Container,Backend",
+        "technology" : "Spring Boot, Java"
+      }, {
+        "documentation" : { },
+        "id" : "10",
+        "name" : "Mail Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.notifications"
+        },
+        "relationships" : [ {
+          "description" : "Email",
+          "destinationId" : "3",
+          "id" : "24",
+          "sourceId" : "10",
+          "tags" : "Relationship",
+          "technology" : "SMTP"
+        } ],
+        "tags" : "Element,Container,MailService",
+        "technology" : "notification-service"
+      }, {
+        "documentation" : { },
+        "id" : "11",
+        "name" : "Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.postgres"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL 16"
+      }, {
+        "documentation" : { },
+        "id" : "12",
+        "name" : "Redis",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.redis"
+        },
+        "tags" : "Element,Container,RedisStore",
+        "technology" : "Session Store"
+      }, {
+        "documentation" : { },
+        "id" : "13",
+        "name" : "Kafka",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.kafka"
+        },
+        "relationships" : [ {
+          "description" : "Email events",
+          "destinationId" : "10",
+          "id" : "23",
+          "sourceId" : "13",
+          "tags" : "Relationship",
+          "technology" : "Kafka"
+        } ],
+        "tags" : "Element,Container,MessageBroker",
+        "technology" : "Message Broker"
+      }, {
+        "documentation" : { },
+        "id" : "14",
+        "name" : "Object Storage",
+        "properties" : {
+          "structurizr.dsl.identifier" : "coactivity.storage"
+        },
+        "tags" : "Element,Container,ObjectStorage",
+        "technology" : "S3/MinIO"
+      } ],
+      "description" : "Platform for rooms, Q&A and notifications.",
+      "documentation" : { },
+      "id" : "4",
+      "name" : "CoActivity",
+      "properties" : {
+        "structurizr.dsl.identifier" : "coactivity"
+      },
+      "relationships" : [ {
+        "description" : "Email",
+        "destinationId" : "3",
+        "id" : "17",
+        "sourceId" : "4",
+        "tags" : "Relationship,ContextRelationship",
+        "technology" : "SMTP"
+      } ],
+      "tags" : "Element,Software System,ContextSystem"
+    } ]
+  },
+  "name" : "CoActivity - C4",
+  "properties" : {
+    "structurizr.inspection.info" : "0",
+    "structurizr.inspection.ignore" : "0",
+    "structurizr.inspection.error" : "27",
+    "structurizr.inspection.warning" : "0",
+    "structurizr.dsl" : "d29ya3NwYWNlICJDb0FjdGl2aXR5IC0gQzQiICJDNCBjb250ZXh0IGFuZCBjb21wb25lbnQgZGlhZ3JhbXMiIHsKCiAgIWlkZW50aWZpZXJzIGhpZXJhcmNoaWNhbAoKICBtb2RlbCB7CiAgICBndWVzdCA9IHBlcnNvbiAiR3Vlc3QiICJCcm93c2VzIHB1YmxpYyByb29tcyBhbmQgUSZBIHdpdGhvdXQgYXV0aGVudGljYXRpb24uIiB7CiAgICAgIHRhZ3MgIkd1ZXN0IgogICAgfQogICAgdXNlciA9IHBlcnNvbiAiQXV0aG9yaXplZCBVc2VyIiAiVXNlcyBmdWxsIHBsYXRmb3JtIGZlYXR1cmVzIGFmdGVyIGxvZ2luLiIgewogICAgICB0YWdzICJVc2VyIgogICAgfQoKICAgIHNtdHAgPSBzb2Z0d2FyZVN5c3RlbSAiU01UUCBQcm92aWRlciIgIkV4dGVybmFsIGVtYWlsIHByb3ZpZGVyLiIgewogICAgICB0YWdzICJFeHRlcm5hbCIKICAgIH0KCiAgICBjb2FjdGl2aXR5ID0gc29mdHdhcmVTeXN0ZW0gIkNvQWN0aXZpdHkiICJQbGF0Zm9ybSBmb3Igcm9vbXMsIFEmQSBhbmQgbm90aWZpY2F0aW9ucy4iIHsKICAgICAgdGFncyAiQ29udGV4dFN5c3RlbSIKCiAgICAgIHdlYiA9IGNvbnRhaW5lciAiV2ViIEFwcGxpY2F0aW9uIiAiIiAiUmVhY3QvVml0ZSIgewogICAgICAgIHRhZ3MgIldlYkFwcCIKICAgICAgfQogICAgICBjb3JlID0gY29udGFpbmVyICJDb3JlIFNlcnZpY2UiICIiICJTcHJpbmcgQm9vdCwgSmF2YSIgewogICAgICAgIHRhZ3MgIkJhY2tlbmQiCgogICAgICAgIGdyb3VwICJBUEkgQ29udHJvbGxlcnMiIHsKICAgICAgICAgIGFwaUNvbnRyb2xsZXJzID0gY29tcG9uZW50ICJBUEkgQ29udHJvbGxlcnMiICIiICJTcHJpbmcgTVZDIFJFU1QgQ29udHJvbGxlcnMiIHsKICAgICAgICAgICAgdGFncyAiQ29udHJvbGxlciIKICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIGdyb3VwICJTZXJ2aWNlcyIgewogICAgICAgICAgc2VydmljZXNMYXllciA9IGNvbXBvbmVudCAiU2VydmljZXMiICIiICJTcHJpbmcgU2VydmljZXMiIHsKICAgICAgICAgICAgdGFncyAiU2VydmljZSIKICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIGdyb3VwICJSZXBvc2l0b3J5IiB7CiAgICAgICAgICByZXBvc2l0b3J5TGF5ZXIgPSBjb21wb25lbnQgIlJlcG9zaXRvcnkiICIiICJTcHJpbmcgRGF0YSBKUEEiIHsKICAgICAgICAgICAgdGFncyAiUmVwb3NpdG9yeSIKICAgICAgICAgIH0KICAgICAgICB9CiAgICAgIH0KICAgICAgbm90aWZpY2F0aW9ucyA9IGNvbnRhaW5lciAiTWFpbCBTZXJ2aWNlIiAiIiAibm90aWZpY2F0aW9uLXNlcnZpY2UiIHsKICAgICAgICB0YWdzICJNYWlsU2VydmljZSIKICAgICAgfQoKICAgICAgcG9zdGdyZXMgPSBjb250YWluZXIgIkRhdGFiYXNlIiAiIiAiUG9zdGdyZVNRTCAxNiIgewogICAgICAgIHRhZ3MgIkRhdGFiYXNlIgogICAgICB9CiAgICAgIHJlZGlzID0gY29udGFpbmVyICJSZWRpcyIgIiIgIlNlc3Npb24gU3RvcmUiIHsKICAgICAgICB0YWdzICJSZWRpc1N0b3JlIgogICAgICB9CiAgICAgIGthZmthID0gY29udGFpbmVyICJLYWZrYSIgIiIgIk1lc3NhZ2UgQnJva2VyIiB7CiAgICAgICAgdGFncyAiTWVzc2FnZUJyb2tlciIKICAgICAgfQogICAgICBzdG9yYWdlID0gY29udGFpbmVyICJPYmplY3QgU3RvcmFnZSIgIiIgIlMzL01pbklPIiB7CiAgICAgICAgdGFncyAiT2JqZWN0U3RvcmFnZSIKICAgICAgfQoKICAgIH0KCiAgICBndWVzdCAtPiBjb2FjdGl2aXR5ICJQdWJsaWMiICJIVFRQUyIgewogICAgICB0YWdzICJDb250ZXh0UmVsYXRpb25zaGlwIgogICAgfQogICAgdXNlciAtPiBjb2FjdGl2aXR5ICJBbGwgZmVhdHVyZXMiICJIVFRQUyIgewogICAgICB0YWdzICJDb250ZXh0UmVsYXRpb25zaGlwIgogICAgfQoKICAgIGNvYWN0aXZpdHkgLT4gc210cCAiRW1haWwiICJTTVRQIiB7CiAgICAgIHRhZ3MgIkNvbnRleHRSZWxhdGlvbnNoaXAiCiAgICB9CgogICAgY29hY3Rpdml0eS53ZWIgLT4gY29hY3Rpdml0eS5jb3JlICJSRVNUIEFQSSIgIkhUVFBTIgogICAgY29hY3Rpdml0eS5jb3JlIC0+IGNvYWN0aXZpdHkucG9zdGdyZXMgIkRhdGEiICJKREJDIgogICAgY29hY3Rpdml0eS5jb3JlIC0+IGNvYWN0aXZpdHkucmVkaXMgIlNlc3Npb25zIiAiUmVkaXMiCiAgICBjb2FjdGl2aXR5LmNvcmUgLT4gY29hY3Rpdml0eS5zdG9yYWdlICJGaWxlcyIgIlMzIEFQSSIKICAgIGNvYWN0aXZpdHkuY29yZSAtPiBjb2FjdGl2aXR5LmthZmthICJFdmVudHMiICJLYWZrYSIKICAgIGNvYWN0aXZpdHkua2Fma2EgLT4gY29hY3Rpdml0eS5ub3RpZmljYXRpb25zICJFbWFpbCBldmVudHMiICJLYWZrYSIKICAgIGNvYWN0aXZpdHkubm90aWZpY2F0aW9ucyAtPiBzbXRwICJFbWFpbCIgIlNNVFAiCiAgfQoKICB2aWV3cyB7CgogICAgc3lzdGVtQ29udGV4dCBjb2FjdGl2aXR5IHsKICAgICAgaW5jbHVkZSBndWVzdAogICAgICBpbmNsdWRlIHVzZXIKICAgICAgaW5jbHVkZSBjb2FjdGl2aXR5CiAgICAgIGluY2x1ZGUgc210cAogICAgICBhdXRvbGF5b3V0IGxyIDIwMCAxMDAKICAgICAgdGl0bGUgIlN5c3RlbSBDb250ZXh0IgogICAgfQoKICAgIGNvbnRhaW5lciBjb2FjdGl2aXR5ICJDb21wb25lbnREaWFncmFtIiB7CiAgICAgIGluY2x1ZGUgY29hY3Rpdml0eS53ZWIKICAgICAgaW5jbHVkZSBjb2FjdGl2aXR5LmNvcmUKICAgICAgaW5jbHVkZSBjb2FjdGl2aXR5Lm5vdGlmaWNhdGlvbnMKICAgICAgaW5jbHVkZSBjb2FjdGl2aXR5LnJlZGlzCiAgICAgIGluY2x1ZGUgY29hY3Rpdml0eS5rYWZrYQogICAgICBpbmNsdWRlIGNvYWN0aXZpdHkucG9zdGdyZXMKICAgICAgaW5jbHVkZSBjb2FjdGl2aXR5LnN0b3JhZ2UKICAgICAgaW5jbHVkZSBzbXRwCiAgICAgIHRpdGxlICJDb21wb25lbnQgRGlhZ3JhbSIKICAgIH0KCiAgICBzdHlsZXMgewoKICAgICAgZWxlbWVudCAiKiIgewogICAgICAgIGZvbnRTaXplIDM2CiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIkdyb3VwIiB7CiAgICAgICAgY29sb3IgI0UzMDYxMQogICAgICB9CgogICAgICBlbGVtZW50ICJQZXJzb24iIHsKICAgICAgICBzaGFwZSBwZXJzb24KICAgICAgICBiYWNrZ3JvdW5kICNFMzA2MTEKICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgICBtZXRhZGF0YSBmYWxzZQogICAgICAgIGRlc2NyaXB0aW9uIGZhbHNlCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIkd1ZXN0IiB7CiAgICAgICAgYmFja2dyb3VuZCAjQUFBQUFBCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgfQoKICAgICAgZWxlbWVudCAiVXNlciIgewogICAgICAgIGJhY2tncm91bmQgI0UzMDYxMQogICAgICAgIGZvbnRTaXplIDQwCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIlNvZnR3YXJlIFN5c3RlbSIgewogICAgICAgIGJhY2tncm91bmQgI0UzMDYxMQogICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICBmb250U2l6ZSA0MAogICAgICB9CgogICAgICBlbGVtZW50ICJDb250ZXh0U3lzdGVtIiB7CiAgICAgICAgYmFja2dyb3VuZCAjRTMwNjExCiAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgIGZvbnRTaXplIDQwCiAgICAgICAgbWV0YWRhdGEgZmFsc2UKICAgICAgICBkZXNjcmlwdGlvbiBmYWxzZQogICAgICB9CgogICAgICBlbGVtZW50ICJDb250YWluZXIiIHsKICAgICAgICBiYWNrZ3JvdW5kICNDNDFFM0EKICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgICBtZXRhZGF0YSBmYWxzZQogICAgICAgIGRlc2NyaXB0aW9uIGZhbHNlCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIldlYkFwcCIgewogICAgICAgIHNoYXBlIHdlYkJyb3dzZXIKICAgICAgICBiYWNrZ3JvdW5kICNGRjZCNkIKICAgICAgICBmb250U2l6ZSA0MAogICAgICAgIHdpZHRoIDQyMAogICAgICB9CgogICAgICBlbGVtZW50ICJCYWNrZW5kIiB7CiAgICAgICAgc2hhcGUgcm91bmRlZEJveAogICAgICAgIGJhY2tncm91bmQgI0M0MUUzQQogICAgICAgIGZvbnRTaXplIDQwCiAgICAgICAgd2lkdGggNDYwCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIk1haWxTZXJ2aWNlIiB7CiAgICAgICAgc2hhcGUgcm91bmRlZEJveAogICAgICAgIGJhY2tncm91bmQgI0M0MUUzQQogICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICBmb250U2l6ZSA0MAogICAgICAgIHdpZHRoIDM2MAogICAgICB9CgogICAgICBlbGVtZW50ICJEYXRhYmFzZSIgewogICAgICAgIHNoYXBlIGN5bGluZGVyCiAgICAgICAgYmFja2dyb3VuZCAjQjIyMjIyCiAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgIHdpZHRoIDMyMAogICAgICAgIGZvbnRTaXplIDQwCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIk1lc3NhZ2VCcm9rZXIiIHsKICAgICAgICBzaGFwZSBwaXBlCiAgICAgICAgYmFja2dyb3VuZCAjQjIyMjIyCiAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgIHdpZHRoIDMyMAogICAgICAgIGZvbnRTaXplIDQwCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIlJlZGlzU3RvcmUiIHsKICAgICAgICBzaGFwZSBjeWxpbmRlcgogICAgICAgIGJhY2tncm91bmQgI0IyMjIyMgogICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICB3aWR0aCAyODAKICAgICAgICBmb250U2l6ZSA0MAogICAgICB9CgogICAgICBlbGVtZW50ICJPYmplY3RTdG9yYWdlIiB7CiAgICAgICAgc2hhcGUgY3lsaW5kZXIKICAgICAgICBiYWNrZ3JvdW5kICNCMjIyMjIKICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgd2lkdGggMzIwCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgfQoKICAgICAgZWxlbWVudCAiQ29tcG9uZW50IiB7CiAgICAgICAgYmFja2dyb3VuZCAjRkZFNEU0CiAgICAgICAgY29sb3IgIzAwMDAwMAogICAgICAgIGZvbnRTaXplIDQwCiAgICAgIH0KCiAgICAgIGVsZW1lbnQgIkNvbnRyb2xsZXIiIHsKICAgICAgICBzaGFwZSBoZXhhZ29uCiAgICAgICAgYmFja2dyb3VuZCAjRkZDQ0NDCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgfQoKICAgICAgZWxlbWVudCAiU2VydmljZSIgewogICAgICAgIHNoYXBlIHJvdW5kZWRCb3gKICAgICAgICBiYWNrZ3JvdW5kICNGRkU0RTQKICAgICAgICBmb250U2l6ZSA0MAogICAgICB9CgogICAgICBlbGVtZW50ICJSZXBvc2l0b3J5IiB7CiAgICAgICAgc2hhcGUgY3lsaW5kZXIKICAgICAgICBiYWNrZ3JvdW5kICNGRkNDQ0MKICAgICAgICB3aWR0aCA1MDAKICAgICAgICBmb250U2l6ZSA0MAogICAgICB9CgogICAgICBlbGVtZW50ICJFeHRlcm5hbCIgewogICAgICAgIGJhY2tncm91bmQgIzg4ODg4OAogICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICBmb250U2l6ZSA0MAogICAgICAgIHdpZHRoIDQ4MAogICAgICAgIG1ldGFkYXRhIGZhbHNlCiAgICAgICAgZGVzY3JpcHRpb24gZmFsc2UKICAgICAgfQoKICAgICAgcmVsYXRpb25zaGlwICJDb250ZXh0UmVsYXRpb25zaGlwIiB7CiAgICAgICAgdGhpY2tuZXNzIDIKICAgICAgICBjb2xvciAjMzMzMzMzCiAgICAgICAgZm9udFNpemUgNDAKICAgICAgICB3aWR0aCAxNDAKICAgICAgfQoKICAgICAgcmVsYXRpb25zaGlwICJSZWxhdGlvbnNoaXAiIHsKICAgICAgICB0aGlja25lc3MgMgogICAgICAgIGNvbG9yICMzMzMzMzMKICAgICAgICBmb250U2l6ZSA0MAogICAgICB9CiAgICB9CgogICAgdGhlbWUgZGVmYXVsdAogIH0KfQ=="
+  },
+  "views" : {
+    "configuration" : {
+      "lastSavedView" : "ComponentDiagram",
+      "metadataSymbols" : "SquareBrackets",
+      "styles" : {
+        "elements" : [ {
+          "fontSize" : 36,
+          "tag" : "*"
+        }, {
+          "background" : "#c41e3a",
+          "fontSize" : 40,
+          "shape" : "RoundedBox",
+          "tag" : "Backend",
+          "width" : 460
+        }, {
+          "background" : "#ffe4e4",
+          "color" : "#000000",
+          "fontSize" : 40,
+          "tag" : "Component"
+        }, {
+          "background" : "#c41e3a",
+          "color" : "#ffffff",
+          "description" : false,
+          "fontSize" : 40,
+          "metadata" : false,
+          "tag" : "Container"
+        }, {
+          "background" : "#e30611",
+          "color" : "#ffffff",
+          "description" : false,
+          "fontSize" : 40,
+          "metadata" : false,
+          "tag" : "ContextSystem"
+        }, {
+          "background" : "#ffcccc",
+          "fontSize" : 40,
+          "shape" : "Hexagon",
+          "tag" : "Controller"
+        }, {
+          "background" : "#b22222",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "shape" : "Cylinder",
+          "tag" : "Database",
+          "width" : 320
+        }, {
+          "background" : "#888888",
+          "color" : "#ffffff",
+          "description" : false,
+          "fontSize" : 40,
+          "metadata" : false,
+          "tag" : "External",
+          "width" : 480
+        }, {
+          "color" : "#e30611",
+          "tag" : "Group"
+        }, {
+          "background" : "#aaaaaa",
+          "fontSize" : 40,
+          "tag" : "Guest"
+        }, {
+          "background" : "#c41e3a",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "shape" : "RoundedBox",
+          "tag" : "MailService",
+          "width" : 360
+        }, {
+          "background" : "#b22222",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "shape" : "Pipe",
+          "tag" : "MessageBroker",
+          "width" : 320
+        }, {
+          "background" : "#b22222",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "shape" : "Cylinder",
+          "tag" : "ObjectStorage",
+          "width" : 320
+        }, {
+          "background" : "#e30611",
+          "color" : "#ffffff",
+          "description" : false,
+          "fontSize" : 40,
+          "metadata" : false,
+          "shape" : "Person",
+          "tag" : "Person"
+        }, {
+          "background" : "#b22222",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "shape" : "Cylinder",
+          "tag" : "RedisStore",
+          "width" : 280
+        }, {
+          "background" : "#ffcccc",
+          "fontSize" : 40,
+          "shape" : "Cylinder",
+          "tag" : "Repository",
+          "width" : 500
+        }, {
+          "background" : "#ffe4e4",
+          "fontSize" : 40,
+          "shape" : "RoundedBox",
+          "tag" : "Service"
+        }, {
+          "background" : "#e30611",
+          "color" : "#ffffff",
+          "fontSize" : 40,
+          "tag" : "Software System"
+        }, {
+          "background" : "#e30611",
+          "fontSize" : 40,
+          "tag" : "User"
+        }, {
+          "background" : "#ff6b6b",
+          "fontSize" : 40,
+          "shape" : "WebBrowser",
+          "tag" : "WebApp",
+          "width" : 420
+        } ],
+        "relationships" : [ {
+          "color" : "#333333",
+          "fontSize" : 40,
+          "tag" : "ContextRelationship",
+          "thickness" : 2,
+          "width" : 140
+        }, {
+          "color" : "#333333",
+          "fontSize" : 40,
+          "tag" : "Relationship",
+          "thickness" : 2
+        } ]
+      },
+      "terminology" : { },
+      "themes" : [ "https://static.structurizr.com/themes/default/theme.json" ]
+    },
+    "containerViews" : [ {
+      "dimensions" : {
+        "height" : 2000,
+        "width" : 3000
+      },
+      "elements" : [ {
+        "id" : "3",
+        "x" : 2365,
+        "y" : 775
+      }, {
+        "id" : "5",
+        "x" : 140,
+        "y" : 775
+      }, {
+        "id" : "6",
+        "x" : 750,
+        "y" : 780
+      }, {
+        "id" : "10",
+        "x" : 1845,
+        "y" : 780
+      }, {
+        "id" : "11",
+        "x" : 575,
+        "y" : 360
+      }, {
+        "id" : "12",
+        "x" : 1095,
+        "y" : 355
+      }, {
+        "id" : "13",
+        "x" : 1355,
+        "y" : 780
+      }, {
+        "id" : "14",
+        "x" : 830,
+        "y" : 1175
+      } ],
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "key" : "ComponentDiagram",
+      "name" : "Container View: CoActivity",
+      "order" : 2,
+      "relationships" : [ {
+        "id" : "18"
+      }, {
+        "id" : "19"
+      }, {
+        "id" : "20"
+      }, {
+        "id" : "21"
+      }, {
+        "id" : "22"
+      }, {
+        "id" : "23"
+      }, {
+        "id" : "24"
+      } ],
+      "softwareSystemId" : "4",
+      "title" : "Component Diagram"
+    } ],
+    "systemContextViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 100,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 200,
+        "vertices" : true
+      },
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "generatedKey" : true,
+      "key" : "SystemContext-001",
+      "name" : "System Context View: CoActivity",
+      "order" : 1,
+      "relationships" : [ {
+        "id" : "15"
+      }, {
+        "id" : "16"
+      }, {
+        "id" : "17"
+      } ],
+      "softwareSystemId" : "4",
+      "title" : "System Context"
+    } ]
+  }
+}

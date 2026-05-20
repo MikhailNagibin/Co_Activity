@@ -1,0 +1,20 @@
+# Optional profile for running the app in "test mode" manually.
+# Unit/integration tests use src/test/resources/application.yml by default.
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  storage:
+    type: local
+    local:
+      root: ${java.io.tmpdir}/coactivity-test-storage
+
+logging:
+  level:
+    root: WARN
+    com.coactivity: INFO
+    org.springframework: WARN
+

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoActivity</title>
+    <link rel="stylesheet" href="../styles/qa-page-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+</head>
+<body>
+    <header id="main-header">
+        <h1>CoActivity</h1>
+        <h4 class="gray-elem">
+            <a style="color: rgb(116, 113, 113);" href="main.html">Активности</a>
+        </h4>
+        <h4 class="gray-elem">
+            <a style="color: rgb(0, 0, 0);" href="qa-page.html">Вопросы-ответы</a>
+        </h4>
+        <i class="fa-regular fa-moon"></i>
+        <button><a style="color: white;" href="../razmetka/sign-in.html">Войти</a></button>
+    </header>
+
+    <section style="justify-items: center;">
+        <h2 style="padding: 75px 0px 8px 46px;">Форум для самых любознательных</h2>
+        <h3 style="padding-left: 46px;" class="gray-elem">Задавайте вопросы и делитесь своими знаниями и опытом с сообществом</h3>
+    </section>
+
+    <main>
+        <div class="search-wrapper">
+                    <button class="search-button">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                    <form action="">
+                        <input placeholder="Поиск активностей..." style="width: 100%; height: 40px; border-radius: 7px; box-sizing: border-box; padding-left: 36px;" type="text" name="rooms searhc by name" id="">
+                    </form>
+        </div>
+
+        <select name="categories" id="">
+            <option value="all-categories" selected>Все категории</option>
+            <option value="sport">Спорт</option>
+            <option value="music">Музыка</option>
+            <option value="art">Искусство</option>
+            <option value="entertainment">Развлечения</option>
+            <option value="business">Бизнес</option>
+            <option value="education">Образование</option>
+            <option value="active-recreation">Активный отдых</option>
+            <option value="passive-recreation">Пассивный отдых</option>
+            <option value="others">Другое</option>
+        </select>
+        <button style="flex-grow: 1;">Фильтры</button>
+
+        <div style="display: flex; width: 100%; margin-top:0px; margin-bottom: 25px;">
+            <h2 style="margin-right: 20px;">Ключевые слова: </h2>
+            <section class="tags">
+                <button>java</button>
+                <button>программирование</button>
+                <button>баскетбол</button>
+                <button>футбол</button>
+                <button>начинающий</button>
+                <button>it</button>
+                <button>python</button>
+                <button>математика</button>
+                <button>Дейкстра</button>
+            </section> 
+        </div>
+        
+
+        <section class="questions">
+            <article>
+                <div style="width: 70px; height: 100px;">
+                    <i style="margin: 6px 0px 5px 20px; font-size: 30px;" class="fa-regular fa-circle-user"></i>
+                    <h4 style="margin: 7px 7px 11px 5px; text-align: center;">Alex Ivanov</h4>
+                    <em style="font-size: 12px; text-align: center;">02.03.2026 18:24</em>
+                </div>
+
+
+
+                <!--Потом УБРАТЬ безобразие внизу с ссылками на дефолт-карточки, всё перереализовать на js  -->
+
+                <div id="part-to-push">
+                    <h2>
+                        <a style="color: black;" href="default-question0.html" id="default-question0-link">Как начать изучать язык программирования Java новичку?</a>
+                    </h2>
+                    <br />
+                    <p style="color: rgb(26, 26, 26); font-size: 11px; margin-bottom: 7px;">Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как джава, то больше...</p>
+                    <button>java</button>
+                    <button>программирование</button>
+                    <button>it</button>
+                    <button>python</button>
+                    <br />
+                    <br />
+                    <i class="fa-etch fa-solid fa-comment"></i>
+                    <em>3 ответа</em>
+                </div>
+
+
+            </article>
+
+            <article>
+                <div style="width: 70px; height: 100px;">
+                    <i style="margin: 6px 0px 5px 20px; font-size: 30px;" class="fa-regular fa-circle-user"></i>
+                    <h4 style="margin: 7px 7px 11px 5px; text-align: center;">Alex Ivanov</h4>
+                    <em style="font-size: 12px; text-align: center;">02.03.2026 18:24</em>
+                </div>
+                <div>
+                    <h2>Как начать изучать язык программирования Java новичку?</h2>
+                    <br />
+                    <p style="color: rgb(26, 26, 26); font-size: 11px; margin-bottom: 7px;">Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как джава, то больше...</p>
+                    <button>java</button>
+                    <button>программирование</button>
+                    <button>it</button>
+                    <button>python</button>
+                    <br />
+                    <br />
+                    <i class="fa-etch fa-solid fa-comment"></i>
+                    <em>3 ответа</em>
+                </div>
+            </article>
+
+            <article>
+                <div style="width: 70px; height: 100px;">
+                    <i style="margin: 6px 0px 5px 20px; font-size: 30px;" class="fa-regular fa-circle-user"></i>
+                    <h4 style="margin: 7px 7px 11px 5px; text-align: center;">Alex Ivanov</h4>
+                    <em style="font-size: 12px; text-align: center;">02.03.2026 18:24</em>
+                </div>
+                <div>
+                    <h2>Как начать изучать язык программирования Java новичку?</h2>
+                    <br />
+                    <p style="color: rgb(26, 26, 26); font-size: 11px; margin-bottom: 7px;">Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как джава, то больше...</p>
+                    <button>java</button>
+                    <button>программирование</button>
+                    <button>it</button>
+                    <button>python</button>
+                    <br />
+                    <br />
+                    <i class="fa-etch fa-solid fa-comment"></i>
+                    <em>3 ответа</em>
+                </div>
+            </article>
+
+            <article>
+                <div style="width: 70px; height: 100px;">
+                    <i style="margin: 6px 0px 5px 20px; font-size: 30px;" class="fa-regular fa-circle-user"></i>
+                    <h4 style="margin: 7px 7px 11px 5px; text-align: center;">Alex Ivanov</h4>
+                    <em style="font-size: 12px; text-align: center;">02.03.2026 18:24</em>
+                </div>
+                <div>
+                    <h2>Как начать изучать язык программирования Java новичку?</h2>
+                    <br />
+                    <p style="color: rgb(26, 26, 26); font-size: 11px; margin-bottom: 7px;">Я имею небольшой опыт в программировании на Python, с Объектно-ориентированным программированием возникают объективные проблемы - но если я выучу такой ООПшный язык как джава, то больше...</p>
+                    <button>java</button>
+                    <button>программирование</button>
+                    <button>it</button>
+                    <button>python</button>
+                    <br />
+                    <br />
+                    <i class="fa-etch fa-solid fa-comment"></i>
+                    <em>3 ответа</em>
+                </div>
+            </article>
+
+            
+        </section>
+        
+    </main>
+    
+    
+</body>
+</html>

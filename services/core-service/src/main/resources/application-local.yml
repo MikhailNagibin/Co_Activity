@@ -1,0 +1,29 @@
+# Local/dev profile defaults.
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+app:
+  session:
+    cookie:
+      secure: ${SESSION_COOKIE_SECURE:false}
+  storage:
+    type: ${APP_STORAGE_TYPE:local}
+    local:
+      root: ${APP_STORAGE_LOCAL_ROOT:./var/app-storage}
+
+logging:
+  level:
+    root: INFO
+    com.coactivity: DEBUG
+    org.springframework: DEBUG
+    org.springframework.boot.autoconfigure: INFO
+

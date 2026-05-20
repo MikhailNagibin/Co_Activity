@@ -1,0 +1,34 @@
+# Production-like / production profile defaults.
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:true}
+
+app:
+  session:
+    cookie:
+      secure: ${SESSION_COOKIE_SECURE:true}
+  storage:
+    type: ${APP_STORAGE_TYPE:s3}
+    s3:
+      endpoint: ${APP_STORAGE_S3_ENDPOINT}
+      region: ${APP_STORAGE_S3_REGION:us-east-1}
+      bucket: ${APP_STORAGE_S3_BUCKET}
+      access-key: ${APP_STORAGE_S3_ACCESS_KEY}
+      secret-key: ${APP_STORAGE_S3_SECRET_KEY}
+      path-style: ${APP_STORAGE_S3_PATH_STYLE:true}
+      prefix: ${APP_STORAGE_S3_PREFIX:}
+
+logging:
+  level:
+    root: INFO
+    com.coactivity: INFO
+    org.springframework: WARN
+

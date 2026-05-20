@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: notifications-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    listener:
+      missing-topics-fatal: ${SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL:true}
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: ${NOTIFICATIONS_SERVICE_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never}
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:true}
+
+notifications:
+  kafka:
+    topic: ${NOTIFICATIONS_KAFKA_TOPIC:notifications.email.v1}
+    dlt-topic: ${NOTIFICATIONS_KAFKA_DLT_TOPIC:}
+    group-id: ${NOTIFICATIONS_KAFKA_GROUP_ID:notifications-service-v1}
+  health:
+    kafka-topics-timeout-ms: ${NOTIFICATIONS_HEALTH_KAFKA_TOPICS_TIMEOUT_MS:5000}
+  mail:
+    from: ${NOTIFICATIONS_MAIL_FROM:${SPRING_MAIL_USERNAME:}}
+
